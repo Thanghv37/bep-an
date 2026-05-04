@@ -1,0 +1,340 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard chung{% endblock %}
+
+{% block content %}
+
+
+<div class="row g-4 mb-4">
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="stat-card stat-blue">
+            <div class="stat-label">Người ăn</div>
+            <div class="stat-value">
+                {% if registered_count != None %}
+                    {{ registered_count }}
+                {% else %}
+                    Chưa có dữ liệu
+                {% endif %}
+            </div>
+            <div class="stat-meta">Số suất đăng ký trong ngày</div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="stat-card stat-green">
+            <div class="stat-label">Thu</div>
+            <div class="stat-value">
+                {% if total_income != None %}
+                    {{ total_income|vnd }} VNĐ
+                {% else %}
+                    Chưa có dữ liệu
+                {% endif %}
+            </div>
+            <div class="stat-meta">
+                {% if registered_count != None and meal_price != None %}
+                    {{ registered_count }} × {{ meal_price|vnd }}
+                {% else %}
+                    Chưa có dữ liệu
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="stat-card stat-red">
+            <div class="stat-label">Chi</div>
+            <div class="stat-value">
+                {% if total_expense != None %}
+                    {{ total_expense|vnd }} VNĐ
+                {% else %}
+                    Chưa có dữ liệu
+                {% endif %}
+            </div>
+            <div class="stat-meta">Chi phí thực tế</div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="stat-card {% if balance != None %}{% if balance >= 0 %}stat-green{% else %}stat-amber{% endif %}{% else %}stat-blue{% endif %}">
+            <div class="stat-label">Chênh lệch</div>
+            <div class="stat-value">
+                {% if balance != None %}
+                    {{ balance|vnd }} VNĐ
+                {% else %}
+                    Chưa có dữ liệu
+                {% endif %}
+            </div>
+            <div class="stat-meta">Thu - Chi</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4" id="weekly-menu-section">
+    <div class="col-lg-9">
+        <div class="dashboard-card h-100">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+                <div>
+                    <div class="section-title">Thực đơn trong tuần</div>
+                    <div class="section-subtitle">
+                        Chọn một ngày trong tuần để xem chi tiết thực đơn.
+                    </div>
+                </div>
+
+                <!-- 🔥 THÊM FORM CHỌN NGÀY Ở ĐÂY -->
+                <form method="get" class="d-flex align-items-end gap-2">
+                    <div>
+                        <label class="form-label small fw-semibold mb-1">Chọn ngày</label>
+                        <input
+                            type="date"
+                            name="date"
+                            value="{{ selected_date|date:'Y-m-d' }}"
+                            class="form-control form-control-sm"
+                        >
+                    </div>
+
+                    <button class="btn btn-primary btn-sm px-3">
+                        Xem
+                    </button>
+                </form>
+            </div>
+
+            <div class="row g-2 mb-4">
+                {% for day in week_menu_cards %}
+                <div class="col-6 col-md-4 col-lg-2-4">
+                    <a href="?date={{ day.date_str }}#weekly-menu-section" class="text-decoration-none text-reset">
+                        <div class="week-day-card
+                            {% if day.is_selected %}
+                                week-day-card-selected
+                            {% elif day.menu %}
+                                week-day-card-has-menu
+                            {% else %}
+                                week-day-card-empty
+                            {% endif %}">
+
+                            <!-- Header -->
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+
+                                <div>
+                                    <div class="fw-bold">{{ day.weekday_label }}</div>
+                                    <div class="small text-muted">{{ day.date|date:"d/m/Y" }}</div>
+                                </div>
+
+                                <!-- 🔥 Badge đăng kí -->
+                                {% if day.is_registered %}
+                                    <span class="badge-register success">
+                                        Đã đăng kí
+                                    </span>
+                                {% else %}
+                                    <span class="badge-register">
+                                        Chưa đăng kí
+                                    </span>
+                                {% endif %}
+                            </div>
+
+                            <!-- Nội dung -->
+                            <div class="d-flex justify-content-between align-items-center">
+
+                                <div>
+                                    {% if day.menu %}
+                                        <div class="small text-success fw-semibold">Đã có menu</div>
+                                    {% else %}
+                                        <div class="small text-muted">Chưa có menu</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="small text-muted">
+                                    {% if day.menu_count != None %}
+                                        {{ day.menu_count }} món
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Footer -->
+                            {% if day.is_selected %}
+                                <div class="small text-primary fw-semibold text-center mt-2">
+                                    Đang xem
+                                </div>
+                            {% endif %}
+                        </div>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+                <div>
+                    <div class="section-title">Chi tiết ngày {{ selected_date|date:"d/m/Y" }}</div>
+                </div>
+            </div>
+
+            {% if menu %}
+
+            <div class="dish-gallery">
+                {% for item in ordered_menu_items %}
+                    <div class="dish-gallery-card">
+                        {% if item.dish.image %}
+                            <img src="{{ item.dish.image.url }}" class="dish-gallery-img">
+                        {% else %}
+                            <div class="dish-gallery-placeholder">
+                                Không có ảnh
+                            </div>
+                        {% endif %}
+
+                        <div class="dish-gallery-name">
+                            {{ item.dish.name }}
+                        </div>
+
+                        {% if item.dish.dish_type == 'main' %}
+                            <span class="dish-badge dish-main">Món chính</span>
+                        {% elif item.dish.dish_type == 'side' %}
+                            <span class="dish-badge dish-side">Món phụ</span>
+                        {% elif item.dish.dish_type == 'soup' %}
+                            <span class="dish-badge dish-soup">Món canh</span>
+                        {% elif item.dish.dish_type == 'dessert' %}
+                            <span class="dish-badge dish-dessert">Tráng miệng</span>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+
+                        
+
+            {% if menu.note %}
+            <div class="mt-4 p-3 rounded-4" style="background:#f8fafc; border:1px solid #e2e8f0;">
+                <div class="fw-semibold mb-1">Ghi chú</div>
+                <div class="text-muted">{{ menu.note }}</div>
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div class="empty-state">
+                Chưa có thực đơn cho ngày này.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="col-lg-3">
+        <div class="dashboard-card h-100">
+            <div class="section-title">Thông tin vận hành</div>
+            <div class="section-subtitle">
+                Tóm tắt nhanh để theo dõi.
+            </div>
+
+            <div class="d-flex flex-column gap-3">
+                <div class="p-3 rounded-4 border">
+                    <div class="small text-muted mb-1">Ngày</div>
+                    <div class="fw-bold fs-5">{{ selected_date }}</div>
+                </div>
+
+                <div class="p-3 rounded-4 border">
+                    <div class="small text-muted mb-1">Số người</div>
+                    <div class="fw-bold fs-5">
+                        {% if registered_count != None %}
+                            {{ registered_count }}
+                        {% else %}
+                            Chưa có dữ liệu
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="p-3 rounded-4 border">
+                    <div class="small text-muted mb-1">Số món</div>
+                    <div class="fw-bold fs-5">
+                        {% if menu_item_count != None %}
+                            {{ menu_item_count }}
+                        {% else %}
+                            Chưa có dữ liệu
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="p-3 rounded-4 border">
+                    <div class="small text-muted mb-1">Trạng thái</div>
+                    <div class="fw-bold fs-5">
+                        {% if menu %}
+                            {{ menu.get_status_display }}
+                        {% else %}
+                            Chưa tạo
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-12">
+        <div class="dashboard-card">
+            <div class="section-title">Xu hướng trong tuần</div>
+            <div class="section-subtitle">
+                So sánh Thu - Chi - Chênh lệch.
+            </div>
+            <canvas id="financeChart" height="110"></canvas>
+        </div>
+    </div>
+
+    
+</div>
+<style>
+    @media (min-width: 992px) {
+        .col-lg-2-4 {
+            flex: 0 0 auto;
+            width: 20%;
+        }
+    }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+{{ chart_labels|json_script:"chart-labels-data" }}
+{{ income_data|json_script:"chart-income-data" }}
+{{ expense_data|json_script:"chart-expense-data" }}
+{{ balance_data|json_script:"chart-balance-data" }}
+
+<script>
+    const chartLabels = JSON.parse(document.getElementById('chart-labels-data').textContent);
+    const incomeData = JSON.parse(document.getElementById('chart-income-data').textContent);
+    const expenseData = JSON.parse(document.getElementById('chart-expense-data').textContent);
+    const balanceData = JSON.parse(document.getElementById('chart-balance-data').textContent);
+
+    new Chart(document.getElementById('financeChart'), {
+        type: 'bar',
+        data: {
+            labels: chartLabels,
+            datasets: [
+                {
+                    label: 'Thu',
+                    data: incomeData,
+                    backgroundColor: 'rgba(34, 197, 94, 0.75)',
+                },
+                {
+                    label: 'Chênh lệch',
+                    data: balanceData,
+                    backgroundColor: 'rgba(37, 99, 235, 0.75)',
+                    borderRadius: 6
+                },
+                {
+                    label: 'Chi',
+                    data: expenseData,
+                    backgroundColor: 'rgba(239, 68, 68, 0.75)',
+                }
+                
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            }
+        }
+    });
+</script>
+
+{% endblock %}

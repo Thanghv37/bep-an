@@ -1,0 +1,346 @@
+{% extends 'base.html' %}
+
+{% block title %}Quản lý người dùng{% endblock %}
+{% block page_title %}Quản lý người dùng{% endblock %}
+
+{% block content %}
+
+<div class="dashboard-card mb-4 user-list-card">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+        <div>
+            <div class="section-title mb-1">Danh sách người dùng</div>
+            <div class="section-subtitle mb-0">
+                Quản lý tài khoản đăng nhập, thông tin nhân viên và phân quyền hệ thống.
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <a href="{% url 'import_users' %}" class="btn btn-success">Import Excel</a>
+            <a href="{% url 'user_create' %}" class="btn btn-primary">+ Thêm người dùng</a>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+        <div class="user-tabs">
+            <a href="?role=all" class="user-tab {% if active_role == 'all' %}active{% endif %}">All</a>
+            <a href="?role=admin" class="user-tab {% if active_role == 'admin' %}active{% endif %}">Admin</a>
+            <a href="?role=kitchen" class="user-tab {% if active_role == 'kitchen' %}active{% endif %}">Kitchen</a>
+            <a href="?role=diner" class="user-tab {% if active_role == 'diner' %}active{% endif %}">Diner</a>
+        </div>
+
+        <form method="get" id="user-filter-form" class="d-flex gap-2 flex-wrap">
+            <input type="hidden" name="role" value="{{ active_role }}">
+
+            <input
+                type="text"
+                id="user-search-input"
+                name="q"
+                value="{{ keyword }}"
+                class="form-control form-control-sm user-search"
+                placeholder="Search name or employee code..."
+                autocomplete="off"
+            >
+
+            <select name="unit" class="form-select form-select-sm user-filter-select">
+                <option value="">Tất cả đơn vị</option>
+                {% for unit in unit_choices %}
+                    <option value="{{ unit }}" {% if unit == unit_filter %}selected{% endif %}>{{ unit }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="department" class="form-select form-select-sm user-filter-select">
+                <option value="">Tất cả phòng ban</option>
+                {% for department in department_choices %}
+                    <option value="{{ department }}" {% if department == department_filter %}selected{% endif %}>{{ department }}</option>
+                {% endfor %}
+            </select>
+
+            <a href="?" class="btn btn-sm btn-outline-secondary">Reset</a>
+        </form>
+    </div>
+
+    {% if users %}
+        <div class="table-responsive">
+            <table class="table user-modern-table align-middle">
+                <thead>
+                    <tr>
+                        <th>Người dùng</th>
+                        <th>Mã NV</th>
+                        <th>Role</th>
+                        <th>Giới tính</th>
+                        <th>Đơn vị</th>
+                        <th>Phòng ban</th>
+                        <th>Chức vụ</th>
+                        <th>SĐT</th>
+                        <th>Trạng thái</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for user in users %}
+                    <tr class="user-row" data-user-id="{{ user.id }}">
+                        <td>
+                            <div class="user-cell">
+                                <div class="user-list-avatar">
+                                    {% if user.profile.avatar %}
+                                        <img src="{{ user.profile.avatar.url }}">
+                                    {% else %}
+                                        <div class="default-user-avatar">
+                                            <div></div>
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <div>
+                                    <div class="user-list-name">
+                                        {{ user.profile.full_name|default:user.username }}
+                                    </div>
+                                    <div class="user-list-email">
+                                        {{ user.email|default:user.profile.email|default:"-" }}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+
+                        <td>{{ user.profile.employee_code|default:user.username }}</td>
+
+                        <td>
+                            {% if user.profile.role == 'admin' %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Admin</span>
+                            {% elif user.profile.role == 'kitchen' %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Kitchen</span>
+                            {% else %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Diner</span>
+                            {% endif %}
+                        </td>
+
+                        <td>{{ user.profile.gender|default:"-" }}</td>
+                        <td>{{ user.profile.unit|default:"-" }}</td>
+                        <td>{{ user.profile.department|default:"-" }}</td>
+                        <td>{{ user.profile.position|default:"-" }}</td>
+                        <td>{{ user.profile.phone|default:"-" }}</td>
+
+                        <td>
+                            {% if user.is_active %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Locked</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <tr class="user-action-row d-none" id="actions-{{ user.id }}">
+                        <td colspan="9">
+                            <div class="d-flex justify-content-end gap-2">
+                                <a href="{% url 'user_update' user.id %}" class="btn btn-sm btn-outline-primary">
+                                    Sửa
+                                </a>
+
+                                {% if user != request.user and not user.is_superuser %}
+                                    <form method="post"
+                                          action="{% url 'reset_user_password' user.id %}"
+                                          onsubmit="return confirm('Reset mật khẩu người dùng này về mã nhân viên?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-warning">
+                                            Reset
+                                        </button>
+                                    </form>
+
+                                    <form method="post"
+                                          action="{% url 'user_delete' user.id %}"
+                                          onsubmit="return confirm('Bạn có chắc muốn xóa người dùng này?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            Xóa
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">Không tìm thấy người dùng phù hợp.</div>
+    {% endif %}
+</div>
+
+<style>
+.user-list-card {
+    padding-top: 24px;
+}
+
+.user-tabs {
+    display: flex;
+    gap: 8px;
+    background: #f1f5f9;
+    padding: 4px;
+    border-radius: 12px;
+}
+
+.user-tab {
+    padding: 8px 14px;
+    border-radius: 10px;
+    color: #64748b;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.user-tab.active {
+    background: #ffffff;
+    color: #2563eb;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.user-search {
+    width: 260px;
+}
+
+.user-filter-select {
+    width: 190px;
+}
+
+.user-modern-table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.user-modern-table thead th {
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.user-modern-table tbody td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #edf2f7;
+    vertical-align: middle;
+}
+
+.user-row {
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.user-row:hover {
+    background: #f8fbff;
+}
+
+.user-row.active {
+    background: #eff6ff;
+}
+
+.user-action-row td {
+    background: #f8fbff;
+    padding: 12px 16px !important;
+}
+
+.user-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 220px;
+}
+
+.user-list-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #e5e7eb;
+}
+
+.user-list-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.default-user-avatar {
+    width: 100%;
+    height: 100%;
+    background: #e5e7eb;
+    position: relative;
+}
+
+.default-user-avatar::before {
+    content: "";
+    position: absolute;
+    width: 15px;
+    height: 15px;
+    background: #64748b;
+    border-radius: 50%;
+    top: 8px;
+    left: 13px;
+}
+
+.default-user-avatar::after {
+    content: "";
+    position: absolute;
+    width: 28px;
+    height: 15px;
+    background: #64748b;
+    border-radius: 16px 16px 4px 4px;
+    bottom: 7px;
+    left: 7px;
+}
+
+.user-list-name {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.user-list-email {
+    font-size: 13px;
+    color: #64748b;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const input = document.getElementById('user-search-input');
+    const form = document.getElementById('user-filter-form');
+    const selects = document.querySelectorAll('.user-filter-select');
+
+    if (input && form) {
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+
+        let timer = null;
+        input.addEventListener('input', function () {
+            clearTimeout(timer);
+            timer = setTimeout(function () {
+                form.submit();
+            }, 700);
+        });
+    }
+
+    selects.forEach(select => {
+        select.addEventListener('change', function () {
+            form.submit();
+        });
+    });
+
+    document.querySelectorAll('.user-row').forEach(row => {
+        row.addEventListener('click', function () {
+            const userId = this.dataset.userId;
+            const actionRow = document.getElementById('actions-' + userId);
+
+            document.querySelectorAll('.user-row').forEach(r => r.classList.remove('active'));
+            document.querySelectorAll('.user-action-row').forEach(r => r.classList.add('d-none'));
+
+            this.classList.add('active');
+            actionRow.classList.remove('d-none');
+        });
+    });
+});
+</script>
+
+{% endblock %}

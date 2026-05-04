@@ -1,0 +1,847 @@
+{% extends 'base.html' %}
+{% load currency_filters %}
+
+{% block title %}Phê duyệt{% endblock %}
+{% block page_title %}Phê duyệt{% endblock %}
+
+{% block content %}
+
+<div class="dashboard-card mb-4">
+    <div class="section-title mb-1">Phê duyệt</div>
+    <div class="section-subtitle mb-0">
+        Admin duyệt các yêu cầu thực đơn và chi phí trước khi công khai lên dashboard/báo cáo.
+    </div>
+</div>
+
+<div class="d-flex flex-column gap-4 approval-stack">
+    <!-- DISH -->
+    <div class="dashboard-card approval-section">
+        <div class="approval-section-header">
+            <div>
+                <div class="section-title mb-1">Món ăn chờ phê duyệt</div>
+                <div class="section-subtitle mb-0">Duyệt các món ăn mới hoặc món ăn vừa chỉnh sửa.</div>
+            </div>
+            <span class="approval-count">{{ pending_dishes|length }} yêu cầu</span>
+        </div>
+
+        {% if pending_dishes %}
+            <div class="d-flex flex-column gap-3">
+                {% for dish in pending_dishes %}
+                <div class="approval-item">
+                    <div class="approval-item-main">
+                        <div class="flex-grow-1">
+                            <div class="fw-bold">{{ dish.name }}</div>
+                            <div class="small text-muted mb-2">{{ dish.get_dish_type_display }}</div>
+
+                            <div class="approval-purchase-detail">
+                                <div>
+                                    {% if dish.image %}
+                                        <img src="{{ dish.image.url }}" class="approval-dish-img">
+                                    {% else %}
+                                        <div class="text-muted small">Không có ảnh</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="flex-grow-1">
+                                    <div class="small fw-semibold mb-2">Nguyên liệu</div>
+
+                                    {% if dish.ingredients.all %}
+                                        <div class="d-flex flex-wrap gap-1">
+                                            {% for ing in dish.ingredients.all %}
+                                                <span class="badge bg-light text-dark border">
+                                                    {{ ing.ingredient.name }}: {{ ing.quantity_per_person }} {{ ing.unit }}/người
+                                                </span>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        <div class="text-muted small">Chưa khai báo nguyên liệu.</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="approval-actions">
+                            <form method="post" action="{% url 'approve_dish' dish.id %}">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-success">Phê duyệt</button>
+                            </form>
+
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-danger btn-reject"
+                                    data-url="{% url 'reject_dish' dish.id %}"
+                                    data-date="{{ dish.name }}"
+                                    data-type="món ăn"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#rejectModal">
+                                Từ chối
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">Không có món ăn chờ phê duyệt.</div>
+        {% endif %}
+    </div>
+
+    <!-- MENU -->
+    <div class="dashboard-card approval-section">
+        <div class="approval-section-header">
+            <div>
+                <div class="section-title mb-1">Thực đơn chờ phê duyệt</div>
+                <div class="section-subtitle mb-0">Duyệt thực đơn do bếp tạo hoặc chỉnh sửa.</div>
+            </div>
+            <span class="approval-count">{{ pending_menus|length }} yêu cầu</span>
+        </div>
+
+        {% if pending_menus %}
+            <div class="d-flex flex-column gap-3">
+                {% for menu in pending_menus %}
+                <div class="approval-item">
+                    <div class="approval-item-main">
+                        <div>
+                            <div class="fw-bold">{{ menu.date|date:"d/m/Y" }}</div>
+                            <div class="small text-muted">
+                                Người tạo:
+                                {% if menu.created_by %}
+                                    {{ menu.created_by.username }} - {{ menu.created_by.profile.full_name|default:"Chưa có tên" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </div>
+
+                            <div class="approval-menu-lines mt-3">
+                                <div><span class="approval-menu-label">Món chính:</span>
+                                    {% for item in menu.items.all %}
+                                        {% if item.dish.dish_type == 'main' %}
+                                            <span class="dish-badge dish-main">{{ item.dish.name }}</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+
+                                <div><span class="approval-menu-label">Món phụ:</span>
+                                    {% for item in menu.items.all %}
+                                        {% if item.dish.dish_type == 'side' %}
+                                            <span class="dish-badge dish-side">{{ item.dish.name }}</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+
+                                <div><span class="approval-menu-label">Món canh:</span>
+                                    {% for item in menu.items.all %}
+                                        {% if item.dish.dish_type == 'soup' %}
+                                            <span class="dish-badge dish-soup">{{ item.dish.name }}</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+
+                                <div><span class="approval-menu-label">Tráng miệng:</span>
+                                    {% for item in menu.items.all %}
+                                        {% if item.dish.dish_type == 'dessert' %}
+                                            <span class="dish-badge dish-dessert">{{ item.dish.name }}</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            {% if menu.note %}
+                                <div class="small text-muted mt-2">Ghi chú: {{ menu.note }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="approval-actions">
+                            <form method="post" action="{% url 'approve_menu' menu.id %}">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-success">Phê duyệt</button>
+                            </form>
+
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-danger btn-reject"
+                                    data-url="{% url 'reject_menu' menu.id %}"
+                                    data-date="{{ menu.date|date:'d/m/Y' }}"
+                                    data-type="thực đơn"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#rejectModal">
+                                Từ chối
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">Không có thực đơn chờ phê duyệt.</div>
+        {% endif %}
+    </div>
+
+
+    <!-- EXTRA REQUEST -->
+    <div class="dashboard-card approval-section">
+        <div class="approval-section-header">
+            <div>
+                <div class="section-title mb-1">Đơn mua bổ sung chờ phê duyệt</div>
+                <div class="section-subtitle mb-0">Duyệt các yêu cầu mua phát sinh ngoài thực đơn chính.</div>
+            </div>
+            <span class="approval-count">{{ pending_extra_requests|length }} yêu cầu</span>
+        </div>
+
+        {% if pending_extra_requests %}
+            <div class="d-flex flex-column gap-3">
+                {% for req in pending_extra_requests %}
+                <div class="approval-item">
+                    <div class="approval-item-main">
+                        <div class="flex-grow-1">
+                            <div class="fw-bold">{{ req.date|date:"d/m/Y" }}</div>
+                            <div class="small text-muted">
+                                Người tạo:
+                                {% if req.created_by %}
+                                    {{ req.created_by.username }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </div>
+
+                            {% if req.note %}
+                                <div class="small text-muted mt-1">Ghi chú: {{ req.note }}</div>
+                            {% endif %}
+
+                            <div class="table-responsive mt-3">
+                                <table class="table table-sm align-middle mb-0 approval-mini-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nguyên liệu</th>
+                                            <th>Số lượng</th>
+                                            <th>Đơn vị</th>
+                                            <th>Đơn giá dự kiến</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in req.items.all %}
+                                        <tr>
+                                            <td>{{ item.ingredient_name }}</td>
+                                            <td>{{ item.quantity|floatformat:1 }}</td>
+                                            <td>{{ item.unit }}</td>
+                                            <td>
+                                                {% if item.unit_price %}
+                                                    {{ item.unit_price|floatformat:0 }} VNĐ
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="approval-actions">
+                            <form method="post" action="{% url 'approve_extra_request' req.id %}">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-success">Phê duyệt</button>
+                            </form>
+
+                            <form method="post" action="{% url 'reject_extra_request' req.id %}">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-outline-danger">Từ chối</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">Không có đơn mua bổ sung chờ phê duyệt.</div>
+        {% endif %}
+    </div>
+
+
+    <!-- PURCHASE -->
+    <div class="dashboard-card approval-section">
+        <div class="approval-section-header">
+            <div>
+                <div class="section-title mb-1">Chi phí chờ phê duyệt</div>
+                <div class="section-subtitle mb-0">Duyệt chi phí thực tế và bill đã được nhập.</div>
+            </div>
+            <span class="approval-count">{{ pending_purchases|length }} yêu cầu</span>
+        </div>
+
+        {% if pending_purchases %}
+            <div class="d-flex flex-column gap-3">
+                {% for purchase in pending_purchases %}
+                <div class="approval-item">
+                    <div class="approval-item-main">
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                                <div>
+                                    <div class="fw-bold">{{ purchase.date|date:"d/m/Y" }}</div>
+                                    <div class="fw-bold text-danger">{{ purchase.actual_cost|vnd }} VNĐ</div>
+                                    <div class="small text-muted">
+                                        Người nhập:
+                                        {% if purchase.created_by %}
+                                            {{ purchase.created_by.username }} - {{ purchase.created_by.profile.full_name|default:"Chưa có tên" }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    {% if purchase.purchase_type == 'extra' %}
+                                        <span class="badge bg-warning-subtle text-warning border border-warning">
+                                            {{ purchase.get_purchase_type_display }}
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-primary-subtle text-primary border border-primary">
+                                            {{ purchase.get_purchase_type_display }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="approval-purchase-detail mt-3">
+                                <div>
+                                    {% if purchase.bill_image %}
+                                        <a href="{{ purchase.bill_image.url }}" target="_blank">
+                                            <img src="{{ purchase.bill_image.url }}" class="approval-bill-img">
+                                        </a>
+                                    {% else %}
+                                        <div class="text-muted small">Không có ảnh bill</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold mb-2">
+                                        {% if purchase.purchase_type == 'extra' %}
+                                            Nguyên liệu mua bổ sung
+                                        {% else %}
+                                            Nguyên liệu cần chuẩn bị
+                                            {% if purchase.registered_count %}
+                                                cho {{ purchase.registered_count }} người
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+
+                                    {% if purchase.ingredients_preview %}
+                                        <div class="table-responsive">
+                                            <table class="table table-sm align-middle mb-0 approval-mini-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Nguyên liệu</th>
+                                                        {% if purchase.purchase_type == 'extra' %}
+                                                            <th>Số lượng</th>
+                                                            <th>Đơn giá</th>
+                                                        {% else %}
+                                                            <th>Tổng</th>
+                                                        {% endif %}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for ing in purchase.ingredients_preview %}
+                                                    <tr>
+                                                        <td>{{ ing.name }}</td>
+
+                                                        {% if purchase.purchase_type == 'extra' %}
+                                                            <td>{{ ing.quantity|floatformat:1 }} {{ ing.unit }}</td>
+                                                            <td>
+                                                                {% if ing.unit_price %}
+                                                                    {{ ing.unit_price|floatformat:0 }} VNĐ
+                                                                {% else %}
+                                                                    -
+                                                                {% endif %}
+                                                            </td>
+                                                        {% else %}
+                                                            <td>{{ ing.total_quantity|floatformat:1 }} {{ ing.unit }}</td>
+                                                        {% endif %}
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    {% else %}
+                                        <div class="text-muted small">Không có dữ liệu nguyên liệu.</div>
+                                    {% endif %}
+
+                                    {% if purchase.note %}
+                                        <div class="small text-muted mt-2">Ghi chú: {{ purchase.note }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="approval-actions">
+                            <form method="post" action="{% url 'approve_purchase' purchase.id %}">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-success">Phê duyệt</button>
+                            </form>
+
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-danger btn-reject"
+                                    data-url="{% url 'reject_purchase' purchase.id %}"
+                                    data-date="{{ purchase.date|date:'d/m/Y' }}"
+                                    data-type="chi phí"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#rejectModal">
+                                Từ chối
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">Không có chi phí chờ phê duyệt.</div>
+        {% endif %}
+    </div>
+
+
+    
+
+</div>
+
+<style>
+.approval-stack {
+    max-width: 1500px;
+    margin: 0 auto;
+}
+
+.approval-section {
+    border-radius: 22px;
+}
+
+.approval-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.approval-count {
+    white-space: nowrap;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.approval-item {
+    background: #ffffff;
+    border: 1px solid #dbe4f0;
+    border-radius: 18px;
+    padding: 16px;
+}
+
+.approval-item-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 18px;
+}
+
+.approval-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.approval-menu-lines {
+    display: grid;
+    gap: 8px;
+}
+
+.approval-menu-label {
+    display: inline-block;
+    min-width: 90px;
+    font-weight: 600;
+}
+
+.approval-mini-table thead {
+    background: #f8fafc;
+}
+
+.approval-mini-table th {
+    color: #475569;
+    font-weight: 700;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.approval-purchase-detail {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 18px;
+    align-items: start;
+}
+
+.approval-bill-img {
+    width: 220px;
+    height: 180px;
+    object-fit: cover;
+    border-radius: 16px;
+    border: 1px solid #dbe4f0;
+}
+
+.approval-dish-img {
+    width: 140px;
+    height: 105px;
+    object-fit: cover;
+    border-radius: 16px;
+    border: 1px solid #dbe4f0;
+}
+
+@media (max-width: 768px) {
+    .approval-section-header,
+    .approval-item-main,
+    .approval-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .approval-purchase-detail {
+        grid-template-columns: 1fr;
+    }
+
+    .approval-bill-img,
+    .approval-dish-img {
+        width: 100%;
+        height: auto;
+    }
+}
+</style>
+
+<!-- DANH SÁCH TỪ CHỐI -->
+<div class="dashboard-card mt-4">
+    <div class="section-title mb-1">Danh sách từ chối</div>
+    <div class="section-subtitle mb-3">
+        Danh sách các yêu cầu đã bị từ chối.
+    </div>
+
+    <div class="d-flex gap-2 mb-3 flex-wrap">
+        <button type="button" class="btn btn-outline-primary btn-sm reject-tab-btn" data-target="rejected-dish-box">
+            Món ăn
+        </button>
+
+        <button type="button" class="btn btn-primary btn-sm reject-tab-btn" data-target="rejected-menu-box">
+            Thực đơn
+        </button>
+
+        <button type="button" class="btn btn-outline-primary btn-sm reject-tab-btn" data-target="rejected-extra-box">
+            Bổ sung
+        </button>
+
+        <button type="button" class="btn btn-outline-primary btn-sm reject-tab-btn" data-target="rejected-purchase-box">
+            Chi phí
+        </button>
+   
+    </div>
+    <!-- REJECTED DISHES -->
+    <div id="rejected-dish-box" class="reject-tab-content d-none">
+        {% if rejected_dishes %}
+            <div class="table-responsive">
+                <table class="table table-modern align-middle">
+                    <thead>
+                        <tr>
+                            <th>Món ăn</th>
+                            <th>Loại món</th>
+                            <th>Người từ chối</th>
+                            <th>Lý do từ chối</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dish in rejected_dishes %}
+                        <tr>
+                            <td class="fw-semibold">{{ dish.dish_name }}</td>
+                            <td>{{ dish.dish_type }}</td>
+                            <td>
+                                {% if dish.rejected_by %}
+                                    {{ dish.rejected_by.username }} - {{ dish.rejected_by.profile.full_name|default:"Chưa có tên" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td class="text-danger fw-semibold">{{ dish.reject_reason|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">Chưa có món ăn nào bị từ chối.</div>
+        {% endif %}
+    </div>
+
+    <!-- REJECTED MENUS -->
+    <div id="rejected-menu-box" class="reject-tab-content">
+        {% if rejected_menus %}
+            <div class="table-responsive">
+                <table class="table table-modern align-middle">
+                    <thead>
+                        <tr>
+                            <th>Ngày</th>
+                            <th>Thực đơn</th>
+                            <th>Người tạo</th>
+                            <th>Người từ chối</th>
+                            <th>Lý do từ chối</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for menu in rejected_menus %}
+                        <tr>
+                            <td class="fw-semibold">{{ menu.date|date:"d/m/Y" }}</td>
+                            <td>{{ menu.menu_snapshot|default:"Không có dữ liệu món" }}</td>
+                            <td>
+                                {% if menu.created_by_username %}
+                                    {{ menu.created_by_username }} - {{ menu.created_by_full_name|default:"Chưa có tên" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if menu.rejected_by %}
+                                    {{ menu.rejected_by.username }} - {{ menu.rejected_by.profile.full_name|default:"Chưa có tên" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td class="text-danger fw-semibold">{{ menu.reject_reason|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">Chưa có thực đơn nào bị từ chối.</div>
+        {% endif %}
+    </div>
+
+    <!-- REJECTED EXTRA REQUESTS -->
+    <div id="rejected-extra-box" class="reject-tab-content d-none">
+        {% if rejected_extra_requests %}
+            <div class="table-responsive">
+                <table class="table table-modern align-middle">
+                    <thead>
+                        <tr>
+                            <th>Ngày</th>
+                            <th>Nguyên liệu bổ sung</th>
+                            <th>Người tạo</th>
+                            <th>Ghi chú</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in rejected_extra_requests %}
+                        <tr>
+                            <td class="fw-semibold">{{ req.date|date:"d/m/Y" }}</td>
+                            <td>
+                                {% if req.items.all %}
+                                    <div class="d-flex flex-column gap-1">
+                                        {% for item in req.items.all %}
+                                            <div>
+                                                <span class="fw-semibold">{{ item.ingredient_name }}</span>:
+                                                {{ item.quantity|floatformat:1 }} {{ item.unit }}
+                                                {% if item.unit_price %}
+                                                    - {{ item.unit_price|floatformat:0 }} VNĐ
+                                                {% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if req.created_by %}
+                                    {{ req.created_by.username }} - {{ req.created_by.profile.full_name|default:"Chưa có tên" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>{{ req.note|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">Chưa có đơn mua bổ sung nào bị từ chối.</div>
+        {% endif %}
+    </div>
+
+    <!-- REJECTED PURCHASES -->
+    <div id="rejected-purchase-box" class="reject-tab-content d-none">
+        {% if rejected_purchases %}
+            <div class="table-responsive">
+                <table class="table table-modern align-middle">
+                    <thead>
+                        <tr>
+                            <th>Ngày</th>
+                            <th>Chi phí</th>
+                            <th>Người nhập</th>
+                            <th>Người từ chối</th>
+                            <th>Lý do từ chối</th>
+                            <th>Ảnh bill</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for purchase in rejected_purchases %}
+                        <tr>
+                            <td class="fw-semibold">{{ purchase.date|date:"d/m/Y" }}</td>
+                            <td class="fw-bold text-danger">{{ purchase.actual_cost|vnd }} VNĐ</td>
+                            <td>
+                                {% if purchase.created_by_username %}
+                                    {{ purchase.created_by_username }} - {{ purchase.created_by_full_name|default:"Chưa có tên" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if purchase.rejected_by %}
+                                    {{ purchase.rejected_by.username }} - {{ purchase.rejected_by.profile.full_name|default:"Chưa có tên" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td class="text-danger fw-semibold">{{ purchase.reject_reason|default:"-" }}</td>
+                            <td>
+                                {% if purchase.bill_image_snapshot %}
+                                    <a href="{{ purchase.bill_image_snapshot.url }}" target="_blank">
+                                        <img src="{{ purchase.bill_image_snapshot.url }}"
+                                             class="rounded-3 border"
+                                             style="width:70px;height:70px;object-fit:cover;">
+                                    </a>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">Chưa có chi phí nào bị từ chối.</div>
+        {% endif %}
+    </div>
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const buttons = document.querySelectorAll('.reject-tab-btn');
+    const contents = document.querySelectorAll('.reject-tab-content');
+
+    buttons.forEach(button => {
+        button.addEventListener('click', function () {
+            const targetId = this.dataset.target;
+
+            buttons.forEach(btn => {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-outline-primary');
+            });
+
+            this.classList.remove('btn-outline-primary');
+            this.classList.add('btn-primary');
+
+            contents.forEach(content => {
+                content.classList.add('d-none');
+            });
+
+            const target = document.getElementById(targetId);
+            if (target) {
+                target.classList.remove('d-none');
+            }
+        });
+    });
+});
+</script>
+<!-- MODAL TỪ CHỐI -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4">
+
+            <form method="post" id="rejectForm">
+                {% csrf_token %}
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Từ chối <span id="rejectType">yêu cầu</span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <p class="text-muted">
+                        Nhập lý do từ chối ngày
+                        <strong id="rejectDate"></strong>
+                    </p>
+
+                    <textarea name="reject_reason"
+                              class="form-control"
+                              required
+                              rows="4"
+                              placeholder="Nhập lý do từ chối..."></textarea>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        Hủy
+                    </button>
+                    <button type="submit" class="btn btn-danger">
+                        Xác nhận từ chối
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<style>
+.approval-dish-badge {
+    display: inline-block;
+    background: #eff6ff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    margin: 2px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.btn-reject').forEach(btn => {
+        btn.addEventListener('click', function () {
+            document.getElementById('rejectForm').action = this.dataset.url;
+            document.getElementById('rejectDate').innerText = this.dataset.date;
+            document.getElementById('rejectType').innerText = this.dataset.type || 'yêu cầu';
+        });
+    });
+
+    document.querySelectorAll('.reject-tab-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            document.getElementById('rejected-menu-box').classList.add('d-none');
+            document.getElementById('rejected-purchase-box').classList.add('d-none');
+            document.getElementById('rejected-dish-box').classList.add('d-none');
+
+            document.querySelectorAll('.reject-tab-btn').forEach(b => {
+                b.classList.remove('btn-primary');
+                b.classList.add('btn-outline-primary');
+            });
+
+            document.getElementById(this.dataset.target).classList.remove('d-none');
+
+            this.classList.remove('btn-outline-primary');
+            this.classList.add('btn-primary');
+        });
+    });
+});
+</script>
+
+{% endblock %}

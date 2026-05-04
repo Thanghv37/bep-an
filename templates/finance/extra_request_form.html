@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <div class="section-title">{{ page_title }}</div>
+            <div class="section-subtitle">
+                Tạo yêu cầu mua bổ sung. Đơn này không nhập chi phí thực tế và không upload bill.
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="row g-4">
+                    <div class="col-lg-4">
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Ngày áp dụng</label>
+                            <input
+                                type="date"
+                                name="date"
+                                class="form-control"
+                                value="{{ default_date|date:'Y-m-d' }}"
+                                required
+                            >
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Ghi chú</label>
+                            <textarea
+                                name="note"
+                                class="form-control"
+                                rows="4"
+                                placeholder="Ghi chú thêm về lý do mua bổ sung..."
+                            ></textarea>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary flex-fill">
+                                Gửi phê duyệt
+                            </button>
+
+                            <a href="{% url 'menu_list' %}" class="btn btn-outline-secondary">
+                                Quay lại
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-8">
+                        <div class="dashboard-card h-100">
+                            <div class="fw-bold mb-2">Nguyên liệu mua bổ sung</div>
+                            <div class="text-muted small mb-3">
+                                Nhập danh sách nguyên liệu cần mua bổ sung để admin phê duyệt.
+                            </div>
+
+                            <div id="extra-items-wrapper" class="d-flex flex-column gap-2"></div>
+
+                            <button type="button" id="add-extra-item-btn" class="btn btn-sm btn-outline-primary mt-3">
+                                + Thêm nguyên liệu
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.extra-item-row {
+    background: #f8fafc;
+    border: 1px solid #dbe4f0;
+    border-radius: 14px;
+    padding: 12px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const wrapper = document.getElementById('extra-items-wrapper');
+    const addBtn = document.getElementById('add-extra-item-btn');
+
+    const units = ['g', 'kg', 'lít', 'ml', 'phần', 'cái', 'can', 'lon', 'chai', 'thùng', 'bó', 'túi', 'hộp'];
+
+    function unitOptions() {
+        return units.map(unit => `<option value="${unit}">${unit}</option>`).join('');
+    }
+
+    function createExtraRow() {
+        const row = document.createElement('div');
+        row.className = 'extra-item-row';
+
+        row.innerHTML = `
+            <div class="row g-2 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Nguyên liệu</label>
+                    <input type="text" name="extra_name[]" class="form-control" placeholder="Ví dụ: Rau thơm" required>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold">Số lượng</label>
+                    <input type="number" step="0.01" name="extra_quantity[]" class="form-control" placeholder="0" required>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold">Đơn vị</label>
+                    <select name="extra_unit[]" class="form-select">
+                        ${unitOptions()}
+                    </select>
+                </div>
+
+
+                <div class="col-md-1">
+                    <button type="button" class="btn btn-outline-danger w-100 remove-extra-item-btn">×</button>
+                </div>
+            </div>
+        `;
+
+        row.querySelector('.remove-extra-item-btn').addEventListener('click', function () {
+            row.remove();
+        });
+
+        wrapper.appendChild(row);
+    }
+
+    addBtn.addEventListener('click', createExtraRow);
+    createExtraRow();
+});
+</script>
+
+{% endblock %}

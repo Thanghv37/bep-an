@@ -1,0 +1,461 @@
+{% extends 'base.html' %}
+
+{% block title %}Danh sách đăng kí{% endblock %}
+{% block page_title %}Danh sách đăng kí{% endblock %}
+
+{% block content %}
+
+<div class="registration-page">
+
+    <div class="dashboard-card mb-4 registration-hero">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <div class="section-title mb-0">Danh sách đăng kí</div>
+
+                    <div class="total-badge">
+                        <span>Tổng suất</span>
+                        <strong>{{ total_quantity }}</strong>
+                    </div>
+                </div>
+
+                <div class="section-subtitle mt-2 mb-0">
+                    Theo dõi danh sách người đăng kí suất ăn theo ngày.
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <form method="post" action="{% url 'registration_import' %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <label class="btn btn-outline-success mb-0 action-btn">
+                        📄 Import Excel
+                        <input type="file" name="file" accept=".xlsx,.xls" hidden onchange="this.form.submit()">
+                    </label>
+                </form>
+
+                <a href="{% url 'registration_create' %}" class="btn btn-primary action-btn">
+                    + Thêm người đăng kí
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-card mb-4 filter-card">
+        <form method="get" id="registration-filter-form">
+            <div class="filter-grid">
+                <div class="filter-item">
+                    <label class="filter-label">Ngày</label>
+                    <input
+                        type="date"
+                        name="date"
+                        value="{{ selected_date|date:'Y-m-d' }}"
+                        class="form-control form-control-sm"
+                    >
+                </div>
+
+                <div class="filter-item filter-search">
+                    <label class="filter-label">Tìm kiếm</label>
+                    <input
+                        type="text"
+                        name="q"
+                        value="{{ keyword }}"
+                        class="form-control form-control-sm"
+                        placeholder="Tên hoặc mã nhân viên..."
+                        autocomplete="off"
+                    >
+                </div>
+
+                <div class="filter-item">
+                    <label class="filter-label">Bữa ăn</label>
+                    <select name="meal" class="form-select form-select-sm">
+                        <option value="">Tất cả bữa ăn</option>
+                        {% for meal in meal_choices %}
+                            <option value="{{ meal }}" {% if meal == meal_filter %}selected{% endif %}>
+                                {{ meal }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-item">
+                    <label class="filter-label">Bếp ăn</label>
+                    <select name="kitchen" class="form-select form-select-sm">
+                        <option value="">Tất cả bếp ăn</option>
+                        {% for kitchen in kitchen_choices %}
+                            <option value="{{ kitchen }}" {% if kitchen == kitchen_filter %}selected{% endif %}>
+                                {{ kitchen }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-item">
+                    <label class="filter-label">Trạng thái</label>
+                    <select name="status" class="form-select form-select-sm">
+                        <option value="">Tất cả trạng thái</option>
+                        {% for status in status_choices %}
+                            <option value="{{ status }}" {% if status == status_filter %}selected{% endif %}>
+                                {{ status }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-item filter-reset">
+                    <label class="filter-label d-none d-lg-block">&nbsp;</label>
+                    <a href="{% url 'registration_list' %}" class="btn btn-sm btn-outline-secondary w-100">
+                        Reset
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="dashboard-card user-list-card">
+        <div class="table-responsive">
+            <table class="table user-modern-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Người dùng</th>
+                        <th>Mã nhân viên</th>
+                        <th>Bữa ăn</th>
+                        <th>Tên bếp ăn</th>
+                        <th class="text-center">Số suất đặt</th>
+                        <th>Trạng thái</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for row in rows %}
+                        {% with item=row.registration profile=row.profile %}
+                        <tr>
+                            <td>
+                                <div class="user-cell">
+                                    <div class="user-list-avatar">
+                                        {% if profile and profile.avatar %}
+                                            <img src="{{ profile.avatar.url }}" alt="avatar">
+                                        {% else %}
+                                            <span>
+                                                {% if profile and profile.full_name %}
+                                                    {{ profile.full_name|first|upper }}
+                                                {% elif item.full_name %}
+                                                    {{ item.full_name|first|upper }}
+                                                {% else %}
+                                                    ?
+                                                {% endif %}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+
+                                    <div>
+                                        <div class="user-list-name">
+                                            {% if profile %}
+                                                {{ profile.full_name|default:item.full_name }}
+                                            {% else %}
+                                                {{ item.full_name|default:"-" }}
+                                            {% endif %}
+                                        </div>
+                                        <div class="user-list-sub">
+                                            Nhân sự đăng kí suất ăn
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <td>
+                                <span class="employee-code">{{ item.employee_code }}</span>
+                            </td>
+
+                            <td>
+                                <span class="meal-pill">{{ item.meal_name|default:"-" }}</span>
+                            </td>
+
+                            <td>{{ item.kitchen_name|default:"-" }}</td>
+
+                            <td class="text-center">
+                                <span class="quantity-pill">{{ item.quantity }}</span>
+                            </td>
+
+                            <td>
+                                <span class="status-pill">
+                                    <span class="status-dot"></span>
+                                    {{ item.status|default:"-" }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endwith %}
+                    {% empty %}
+                        <tr>
+                            <td colspan="6">
+                                <div class="empty-state enhanced-empty">
+                                    <div class="empty-icon">🍽️</div>
+                                    <div class="fw-bold mb-1">Không có dữ liệu đăng kí</div>
+                                    <div class="text-muted small">
+                                        Thử đổi ngày, bộ lọc hoặc import file Excel mới.
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<style>
+.registration-page {
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.registration-hero {
+    border-radius: 22px;
+}
+
+.action-btn {
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+    border-radius: 10px;
+}
+
+.total-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+    padding: 7px 14px;
+    border-radius: 999px;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
+}
+
+.total-badge span {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.total-badge strong {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.filter-card {
+    background: #f8fafc;
+    border-radius: 20px;
+}
+
+.filter-grid {
+    display: grid;
+    grid-template-columns: 170px minmax(240px, 1.4fr) 170px 220px 180px 90px;
+    gap: 12px;
+    align-items: end;
+}
+
+.filter-label {
+    display: block;
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.filter-card .form-control,
+.filter-card .form-select,
+.filter-card .btn {
+    height: 38px;
+    border-radius: 10px;
+}
+
+.user-list-card {
+    border-radius: 22px;
+    overflow: hidden;
+}
+
+.user-modern-table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.user-modern-table thead th {
+    background: #f8fafc;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+}
+
+.user-modern-table tbody td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #eef2f7;
+    vertical-align: middle;
+}
+
+.user-modern-table tbody tr:nth-child(even) {
+    background: #fcfdff;
+}
+
+.user-modern-table tbody tr:hover {
+    background: #f8fbff;
+}
+
+.user-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-list-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+    border: 1px solid #bfdbfe;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.user-list-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.user-list-avatar span {
+    color: #1d4ed8;
+    font-weight: 800;
+    font-size: 15px;
+}
+
+.user-list-name {
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.user-list-sub {
+    color: #94a3b8;
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.employee-code {
+    font-weight: 700;
+    color: #334155;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    padding: 4px 9px;
+    border-radius: 999px;
+}
+
+.meal-pill {
+    display: inline-flex;
+    align-items: center;
+    background: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #fed7aa;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.quantity-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 28px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+    font-weight: 800;
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+    font-weight: 800;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.16);
+}
+
+.enhanced-empty {
+    padding: 46px 16px;
+}
+
+.empty-icon {
+    font-size: 34px;
+    margin-bottom: 8px;
+}
+
+@media (max-width: 1200px) {
+    .filter-grid {
+        grid-template-columns: repeat(3, minmax(180px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .filter-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .filter-reset .filter-label {
+        display: none;
+    }
+
+    .user-list-sub {
+        display: none;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('registration-filter-form');
+    if (!form) return;
+
+    const search = form.querySelector('input[name="q"]');
+    const filters = form.querySelectorAll('input[name="date"], select');
+
+    filters.forEach(el => {
+        el.addEventListener('change', function () {
+            form.submit();
+        });
+    });
+
+    if (search) {
+        let timer = null;
+        search.addEventListener('input', function () {
+            clearTimeout(timer);
+            timer = setTimeout(() => form.submit(), 700);
+        });
+    }
+});
+</script>
+
+{% endblock %}

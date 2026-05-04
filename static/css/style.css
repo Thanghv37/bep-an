@@ -1,0 +1,557 @@
+/* =========================
+   TABLE STYLE
+========================= */
+.table-modern tbody tr {
+    transition: all 0.2s ease;
+}
+
+/* Hover row */
+.purchase-row {
+    cursor: pointer;
+}
+
+.purchase-row {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+/* Hover mạnh hơn, xanh nhạt */
+.purchase-row:hover {
+    background-color: #e6f0ff;   /* xanh nhẹ */
+    transform: translateY(-1px); /* nhô nhẹ */
+}
+
+/* Khi click (active) */
+.purchase-row:active {
+    background-color: #dbeafe;
+    transform: scale(0.998);
+}
+
+/* Dòng đang mở (có thể thêm class active sau này) */
+.purchase-row.active {
+    background-color: #dbeafe;
+}
+
+/* Không áp dụng hover cho row detail */
+.purchase-detail-row:hover {
+    background-color: transparent;
+}
+
+/* Row detail không hover */
+.purchase-detail-row:hover {
+    background-color: transparent;
+}
+
+/* =========================
+   BADGE STYLE (món ăn)
+========================= */
+.badge-main {
+    background-color: #e0ecff;
+    color: #0d6efd;
+}
+
+.badge-side {
+    background-color: #efe7ff;
+    color: #6f42c1;
+}
+
+.badge-soup {
+    background-color: #e6f7ee;
+    color: #198754;
+}
+
+.badge-dessert {
+    background-color: #fff4e0;
+    color: #fd7e14;
+}
+
+/* =========================
+   INGREDIENT TABLE
+========================= */
+.ingredient-table thead {
+    background-color: #f1f3f5;
+}
+
+.ingredient-table th {
+    font-weight: 600;
+    color: #6c757d;
+}
+
+.ingredient-table td {
+    font-weight: normal;
+}
+
+/* Tổng giữ màu xanh */
+.ingredient-total {
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+/* =========================
+   IMAGE BILL
+========================= */
+.bill-image {
+    width: 220px;
+    height: 220px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid #dee2e6;
+}
+.dish-gallery {
+    display: flex;
+    gap: 18px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+}
+
+.dish-gallery-card {
+    min-width: 190px;
+    max-width: 190px;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    background: #fff;
+    padding: 10px;
+}
+
+.dish-gallery-img {
+    width: 100%;
+    height: 125px;
+    object-fit: cover;
+    border-radius: 14px;
+    border: 1px solid #e5e7eb;
+}
+
+.dish-gallery-placeholder {
+    width: 100%;
+    height: 125px;
+    border-radius: 14px;
+    background: #f1f5f9;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+}
+
+.dish-gallery-name {
+    font-weight: 700;
+    margin-top: 10px;
+    margin-bottom: 6px;
+}
+.table img {
+    transition: transform 0.2s ease;
+}
+
+.table img:hover {
+    transform: scale(1.2);
+}
+.week-day-card {
+    min-height: 84px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    transition: 0.2s;
+}
+
+.week-day-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.week-day-card-selected {
+    border-color: #2563eb;
+    background: #dbeafe;
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.18);
+}
+
+.week-day-card-has-menu {
+    border-color: #bbf7d0;
+    background: #f8fafc;
+}
+
+.week-day-card-empty {
+    border-color: #e2e8f0;
+    background: #ffffff;
+}
+
+.week-day-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 12px;
+    align-items: center;
+}
+
+.user-name {
+    font-weight: 600;
+    color: #fff;
+}
+
+.user-role {
+    font-size: 13px;
+    color: #9ca3af;
+}
+
+.user-avatar img {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(255,255,255,0.2);
+}
+.sidebar-user-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    text-decoration: none;
+    color: inherit;
+    padding: 10px 12px;
+    border-radius: 14px;
+    transition: 0.2s;
+}
+
+.sidebar-user-link:hover {
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+}
+.sidebar {
+    height: 100vh;
+    padding-bottom: 10px;
+}
+
+
+.sidebar-user {
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+.sidebar-bottom {
+    margin-top: auto;
+    padding-top: 12px;
+    backdrop-filter: blur(6px);
+}
+.badge-register {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid #d1d5db;
+    color: #6b7280;
+    background: #f3f4f6;
+    white-space: nowrap;
+}
+
+.badge-register.success {
+    background: #e0f2fe;
+    border: 1px solid #38bdf8;
+    color: #dc2626;
+    font-weight: 700;
+    box-shadow: 0 2px 6px rgba(59,130,246,0.2);
+}
+.dish-search {
+    border-radius: 8px;
+}
+
+.dish-pagination button {
+    min-width: 34px;
+}
+
+.dish-item {
+    transition: 0.15s;
+}
+
+.dish-item:hover {
+    transform: translateY(-1px);
+}
+/* =========================
+   TOTAL BADGE (NEW)
+========================= */
+
+.total-badge {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    color: #fff;
+    border-radius: 16px;
+    padding: 10px 18px;
+    min-width: 120px;
+    text-align: center;
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+    transition: all 0.25s ease;
+    position: relative;
+}
+
+/* Hover effect */
+.total-badge:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(37, 99, 235, 0.35);
+}
+
+/* Label */
+.total-label {
+    font-size: 12px;
+    opacity: 0.85;
+    letter-spacing: 0.3px;
+}
+
+/* Value */
+.total-value {
+    font-size: 22px;
+    font-weight: 700;
+    margin-top: 2px;
+    line-height: 1.2;
+}
+
+/* Responsive đẹp hơn */
+@media (max-width: 768px) {
+    .total-badge {
+        min-width: 100px;
+        padding: 8px 14px;
+    }
+
+    .total-value {
+        font-size: 18px;
+    }
+}
+.report-expense-row {
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 2px 4px;
+}
+
+.report-expense-row:hover {
+    background: #fef2f2;
+}
+.purchase-item-detail-row td {
+    border-top: 0 !important;
+}
+
+.purchase-item-detail-row {
+    border-top: 0 !important;
+}
+
+.purchase-item-detail-row + tr td {
+    border-top: 0 !important;
+}
+
+/* 🔥 QUAN TRỌNG: bỏ border của row phía trên */
+.table > tbody > tr:has(+ .purchase-item-detail-row) td {
+    border-bottom: 0 !important;
+}
+/* =====================================
+   GLOBAL DESIGN SYSTEM V2 (APPEND ONLY)
+===================================== */
+
+:root {
+    --primary-color: #2563eb;
+    --primary-soft: #eff6ff;
+    --primary-border: #bfdbfe;
+
+    --success-color: #059669;
+    --success-soft: #ecfdf5;
+
+    --warning-color: #d97706;
+    --warning-soft: #fffbeb;
+
+    --danger-color: #dc2626;
+    --danger-soft: #fef2f2;
+
+    --page-bg: #f6f8fb;
+    --card-bg: #ffffff;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border-color: #e2e8f0;
+
+    --radius-lg: 20px;
+    --radius-md: 12px;
+}
+
+/* ===== BODY ===== */
+body {
+    font-family: "Be Vietnam Pro", Inter, sans-serif;
+    background: var(--page-bg);
+    color: var(--text-main);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ===== CARD ===== */
+.dashboard-card {
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+    padding: 22px;
+}
+
+/* ===== TITLE ===== */
+.section-title {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+}
+
+.section-subtitle {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+/* ===== BUTTON ===== */
+.btn {
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    border: none;
+    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.25);
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 18px rgba(37, 99, 235, 0.35);
+}
+
+/* ===== FORM ===== */
+.form-control,
+.form-select {
+    border-radius: 10px;
+    border-color: #dbe4f0;
+    font-weight: 500;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* ===== TABLE ===== */
+.table thead th {
+    background: #f8fafc;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+}
+
+.table tbody td {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* Hover bảng mượt hơn */
+.table tbody tr:hover {
+    background: #f8fbff;
+}
+
+/* ===== BADGE ===== */
+.badge {
+    border-radius: 999px;
+    font-weight: 700;
+    padding: 5px 10px;
+}
+
+/* ===== EMPTY STATE ===== */
+.empty-state {
+    border: 1px dashed #cbd5e1;
+    border-radius: 16px;
+    padding: 32px;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+/* ===== DETAIL TABLE (NGUYÊN LIỆU) ===== */
+.detail-table thead th {
+    font-size: 12px;
+    text-transform: uppercase;
+    color: #64748b;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.detail-table td {
+    font-size: 14px;
+}
+
+/* Số liệu nổi bật */
+.detail-table td:nth-child(2),
+.detail-table td:nth-child(3) {
+    text-align: center;
+    font-weight: 600;
+}
+
+/* Tổng màu xanh */
+.detail-table td:nth-child(3) {
+    color: #2563eb;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar {
+    background: linear-gradient(180deg, #0f172a, #111827);
+}
+
+.sidebar .nav-link {
+    font-weight: 600;
+}
+
+.sidebar .nav-link:hover {
+    background: rgba(59, 130, 246, 0.15);
+}
+
+.sidebar .nav-link.active {
+    background: rgba(59, 130, 246, 0.25);
+}
+
+/* ===== WEEK CARD ===== */
+.week-day-card {
+    border-radius: 14px;
+    transition: 0.2s;
+}
+
+.week-day-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(0,0,0,0.08);
+}
+
+/* ===== BILL IMAGE ===== */
+.bill-image {
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+}
+
+/* ===== TABLE DETAIL FIX (TRÁNH BỊ LỆCH) ===== */
+.purchase-item-detail-row td {
+    padding: 0 !important;
+}
+.badge-soft {
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 13px;
+    border: 1px solid transparent;
+}
+
+/* Đã nhập */
+.badge-soft-primary {
+    background: #e7f1ff;
+    color: #0d6efd;
+    border-color: #b6d4fe;
+}
+
+/* Chờ duyệt */
+.badge-soft-warning {
+    background: #fff3cd;
+    color: #b45309;
+    border-color: #ffe69c;
+}
+
+/* Chưa nhập */
+.badge-soft-secondary {
+    background: #f1f3f5;
+    color: #6c757d;
+    border-color: #dee2e6;
+}
+
+/* Bị từ chối */
+.badge-soft-danger {
+    background: #fde2e1;
+    color: #dc3545;
+    border-color: #f5c2c7;
+}

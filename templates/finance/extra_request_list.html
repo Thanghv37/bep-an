@@ -1,0 +1,492 @@
+{% extends 'base.html' %}
+
+{% block title %}Hóa đơn đặt hàng{% endblock %}
+{% block page_title %}Hóa đơn đặt hàng{% endblock %}
+
+{% block content %}
+
+<div class="dashboard-card mb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <div class="section-title mb-1">Hóa đơn đặt hàng</div>
+            <div class="section-subtitle mb-0">
+                Quản lý đơn đặt nguyên liệu chính và các đơn mua bổ sung theo ngày áp dụng.
+            </div>
+        </div>
+
+        <a href="{% url 'extra_request_create' %}" class="btn btn-primary">
+            + Tạo đơn hàng phụ
+        </a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="order-stat-card">
+            <div class="stat-label">Tổng đơn</div>
+            <div class="stat-number">{{ total_orders }}</div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="order-stat-card success">
+            <div class="stat-label">Đã duyệt</div>
+            <div class="stat-number">{{ approved_count }}</div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="order-stat-card warning">
+            <div class="stat-label">Chờ duyệt</div>
+            <div class="stat-number">{{ pending_count }}</div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="order-stat-card primary">
+            <div class="stat-label">Đã nhập chi phí</div>
+            <div class="stat-number">{{ cost_entered_count }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-card mb-4">
+    <form method="get" class="order-filter-form">
+        <div>
+            <label class="form-label small fw-semibold mb-1">Ngày áp dụng</label>
+            <input type="date"
+                   name="date"
+                   value="{{ selected_date|date:'Y-m-d' }}"
+                   class="form-control form-control-sm">
+        </div>
+
+        <div>
+            <label class="form-label small fw-semibold mb-1">Loại đơn</label>
+            <select name="type" class="form-select form-select-sm">
+                <option value="" {% if order_type == '' %}selected{% endif %}>Tất cả</option>
+                <option value="main" {% if order_type == 'main' %}selected{% endif %}>Nguyên liệu chính</option>
+                <option value="extra" {% if order_type == 'extra' %}selected{% endif %}>Đơn hàng phụ</option>
+            </select>
+        </div>
+
+        <div>
+            <label class="form-label small fw-semibold mb-1">Trạng thái</label>
+            <select name="status" class="form-select form-select-sm">
+                <option value="" {% if status_filter == '' %}selected{% endif %}>Tất cả</option>
+                <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Chờ duyệt</option>
+                <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Đã duyệt</option>
+                <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Đã từ chối</option>
+                <option value="cost_entered" {% if status_filter == 'cost_entered' %}selected{% endif %}>Đã nhập chi phí</option>
+                <option value="cost_not_entered" {% if status_filter == 'cost_not_entered' %}selected{% endif %}>Chưa nhập chi phí</option>
+            </select>
+        </div>
+
+        <div class="d-flex gap-2 align-items-end">
+            <button class="btn btn-primary btn-sm px-3">Xem</button>
+            <a href="{% url 'extra_request_list' %}" class="btn btn-outline-secondary btn-sm px-3">
+                Reset
+            </a>
+        </div>
+    </form>
+</div>
+
+<div class="dashboard-card">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+        <div>
+            <div class="section-title mb-1">
+                Danh sách hóa đơn ngày {{ selected_date|date:"d/m/Y" }}
+            </div>
+            <div class="section-subtitle mb-0">
+                Bấm vào từng dòng để xem chi tiết nguyên liệu.
+            </div>
+        </div>
+    </div>
+
+    {% if main_order or requests %}
+        <div class="table-responsive">
+            <table class="table order-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Ngày</th>
+                        <th>Loại đơn</th>
+                        <th>Số nguyên liệu</th>
+                        <th>Trạng thái</th>
+                        <th>Chi phí</th>
+                        <th>Người tạo</th>
+                        <th></th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% if main_order %}
+                    <tr class="order-row" data-target="main-order-detail">
+                        <td class="fw-bold">{{ main_order.date|date:"d/m/Y" }}</td>
+
+                        <td>
+                            <span class="badge bg-primary-subtle text-primary border border-primary">
+                                Nguyên liệu chính
+                            </span>
+                        </td>
+
+                        <td>{{ main_order.ingredients|length }} nguyên liệu</td>
+
+                        <td>
+                            {% if main_order.status == 'approved' %}
+                                <span class="badge bg-success-subtle text-success border border-success">Đã duyệt</span>
+                            {% elif main_order.status == 'pending' %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning">Chờ duyệt</span>
+                            {% elif main_order.status == 'rejected' %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger">Đã từ chối</span>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary border">{{ main_order.status_display }}</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if main_order.has_purchase %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary">Đã nhập chi phí</span>
+                            {% else %}
+                                <span class="badge bg-light text-muted border">Chưa nhập chi phí</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if main_order.created_by %}
+                                {{ main_order.created_by.username }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <td class="text-end">
+                            <button type="button" class="btn btn-sm btn-outline-primary">Chi tiết</button>
+                        </td>
+                    </tr>
+
+                    <tr id="main-order-detail" class="order-detail-row d-none">
+                        <td colspan="7">
+                            <div class="order-detail-box">
+                                <div class="detail-title">
+                                    Nguyên liệu chính cần chuẩn bị cho {{ main_order.registered_count }} người
+                                </div>
+
+                                <div class="table-responsive">
+                                    <table class="table table-sm align-middle mb-0 detail-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Nguyên liệu</th>
+                                                <th class="text-center">Khẩu phần/người</th>
+                                                <th class="text-center">Tổng dự kiến</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for ing in main_order.ingredients %}
+                                            <tr>
+                                                <td class="fw-semibold">{{ ing.name }}</td>
+                                                <td class="text-center">{{ ing.quantity_display }} {{ ing.quantity_unit }}</td>
+                                                <td class="text-center fw-bold text-primary">{{ ing.total_display }} {{ ing.total_unit }}</td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr>
+                                                <td colspan="3">
+                                                    <div class="text-muted small py-2">Không có nguyên liệu.</div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                    {% for req in requests %}
+                    <tr class="order-row" data-target="extra-order-detail-{{ req.id }}">
+                        <td class="fw-bold">{{ req.date|date:"d/m/Y" }}</td>
+
+                        <td>
+                            <span class="badge bg-warning-subtle text-warning border border-warning">
+                                Đơn hàng phụ #{{ req.id }}
+                            </span>
+                        </td>
+
+                        <td>{{ req.items.all|length }} nguyên liệu</td>
+
+                        <td>
+                            {% if req.status == 'approved' %}
+                                <span class="badge bg-success-subtle text-success border border-success">Đã duyệt</span>
+                            {% elif req.status == 'pending' %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning">Chờ duyệt</span>
+                            {% elif req.status == 'rejected' %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger">Đã từ chối</span>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary border">{{ req.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if req.has_purchase %}
+                                {% with purchase=req.purchases.first %}
+                                    {% if purchase.status == 'approved' %}
+                                        <span class="badge bg-primary-subtle text-primary border border-primary">
+                                            Đã nhập chi phí
+                                        </span>
+                                    {% elif purchase.status == 'pending' %}
+                                        <span class="badge bg-warning-subtle text-warning border border-warning">
+                                            Chờ phê duyệt
+                                        </span>
+                                    {% elif purchase.status == 'rejected' %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger">
+                                            Bị từ chối
+                                        </span>
+                                    {% endif %}
+                                {% endwith %}
+                            {% else %}
+                                <span class="badge bg-light text-muted border">
+                                    Chưa nhập chi phí
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if req.created_by %}
+                                {{ req.created_by.username }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <td class="text-end">
+                            <button type="button" class="btn btn-sm btn-outline-primary">Chi tiết</button>
+                        </td>
+                    </tr>
+
+                    <tr id="extra-order-detail-{{ req.id }}" class="order-detail-row d-none">
+                        <td colspan="7">
+                            <div class="order-detail-box">
+                                <div class="detail-title">
+                                    Nguyên liệu đơn hàng phụ #{{ req.id }}
+                                </div>
+
+                                {% if req.note %}
+                                <div class="detail-note mb-3">
+                                    Ghi chú: {{ req.note }}
+                                </div>
+                                {% endif %}
+
+                                <div class="table-responsive">
+                                    <table class="table table-sm align-middle mb-0 detail-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Nguyên liệu</th>
+                                                <th class="text-center">Số lượng</th>
+                                                <th class="text-center">Đơn vị</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for item in req.items.all %}
+                                            <tr>
+                                                <td class="fw-semibold">{{ item.ingredient_name }}</td>
+                                                <td class="text-center">{{ item.quantity|floatformat:"-2" }}</td>
+                                                <td class="text-center">{{ item.unit }}</td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr>
+                                                <td colspan="3">
+                                                    <div class="text-muted small py-2">Không có nguyên liệu.</div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            Chưa có hóa đơn đặt hàng cho ngày này.
+        </div>
+    {% endif %}
+</div>
+
+<style>
+.order-stat-card {
+    background: #ffffff;
+    border: 1px solid #dbe4f0;
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+.order-stat-card .stat-label {
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.order-stat-card .stat-number {
+    color: #0f172a;
+    font-size: 28px;
+    font-weight: 800;
+}
+
+.order-stat-card.success .stat-number {
+    color: #16a34a;
+}
+
+.order-stat-card.warning .stat-number {
+    color: #d97706;
+}
+
+.order-stat-card.primary .stat-number {
+    color: #2563eb;
+}
+
+.order-filter-form {
+    display: grid;
+    grid-template-columns: 220px 180px 220px auto;
+    gap: 12px;
+    align-items: end;
+}
+
+.order-filter-form .form-control,
+.order-filter-form .form-select,
+.order-filter-form .btn {
+    height: 38px;
+    border-radius: 10px;
+}
+
+.order-table thead th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 800;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.order-table tbody td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #eef2f7;
+}
+
+.order-row {
+    cursor: pointer;
+}
+
+.order-row:hover {
+    background: #f8fbff;
+}
+
+.order-detail-row td {
+    padding: 0 16px 14px 16px !important;
+    background: #ffffff;
+}
+
+.order-detail-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 16px;
+}
+
+.detail-title {
+    font-weight: 800;
+    margin-bottom: 12px;
+}
+
+.detail-note {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 10px 12px;
+    color: #475569;
+    font-size: 13px;
+}
+
+.detail-table thead th {
+    background: #ffffff;
+    color: #475569;
+    font-weight: 800;
+    padding: 12px;
+}
+
+.detail-table tbody td {
+    padding: 12px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+@media (max-width: 992px) {
+    .order-filter-form {
+        grid-template-columns: 1fr;
+    }
+}
+.badge-soft {
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 13px;
+    border: 1px solid transparent;
+}
+
+/* Đã nhập */
+.badge-soft-primary {
+    background: #e7f1ff;
+    color: #0d6efd;
+    border-color: #b6d4fe;
+}
+
+/* Chờ duyệt */
+.badge-soft-warning {
+    background: #fff3cd;
+    color: #b45309;
+    border-color: #ffe69c;
+}
+
+/* Chưa nhập */
+.badge-soft-secondary {
+    background: #f1f3f5;
+    color: #6c757d;
+    border-color: #dee2e6;
+}
+
+/* Bị từ chối */
+.badge-soft-danger {
+    background: #fde2e1;
+    color: #dc3545;
+    border-color: #f5c2c7;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.order-row').forEach(row => {
+        row.addEventListener('click', function (event) {
+            if (event.target.closest('a, button')) {
+                event.preventDefault();
+            }
+
+            const targetId = this.dataset.target;
+            const target = document.getElementById(targetId);
+
+            if (!target) return;
+
+            document.querySelectorAll('.order-detail-row').forEach(detail => {
+                if (detail.id !== targetId) {
+                    detail.classList.add('d-none');
+                }
+            });
+
+            target.classList.toggle('d-none');
+        });
+    });
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,495 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <div class="section-title">{{ page_title }}</div>
+            <div class="section-subtitle">
+                Chọn ngày và phân loại mua hàng để đối chiếu nguyên liệu, sau đó nhập chi phí thực tế và ảnh bill.
+            </div>
+
+            <form method="post" enctype="multipart/form-data" id="purchase-form">
+                {% csrf_token %}
+
+                <input type="hidden" name="extra_request" id="id_extra_request" value="{{ form.extra_request.value|default:'' }}">
+
+                <div class="row g-4">
+
+                    <div class="col-lg-4">
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Ngày</label>
+                            {{ form.date }}
+
+                            {% if form.date.errors %}
+                                <div class="text-danger small mt-1">{{ form.date.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Phân loại mua hàng</label>
+
+                            <div class="d-flex gap-3 flex-wrap">
+                                {% for radio in form.purchase_type %}
+                                    <label class="purchase-type-option">
+                                        {{ radio.tag }}
+                                        <span>{{ radio.choice_label }}</span>
+                                    </label>
+                                {% endfor %}
+                            </div>
+
+                            {% if form.purchase_type.errors %}
+                                <div class="text-danger small mt-1">{{ form.purchase_type.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Chi phí thực tế</label>
+                            {{ form.actual_cost }}
+
+                            {% if form.actual_cost.errors %}
+                                <div class="text-danger small mt-1">{{ form.actual_cost.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Ảnh bill</label>
+                            {{ form.bill_image }}
+
+                            {% if form.bill_image.errors %}
+                                <div class="text-danger small mt-1">{{ form.bill_image.errors }}</div>
+                            {% endif %}
+
+                            <div class="mt-3">
+                                {% if form.instance.bill_image %}
+                                    <img
+                                        id="bill-preview"
+                                        src="{{ form.instance.bill_image.url }}"
+                                        class="img-fluid rounded-4 border"
+                                        style="max-height: 220px;"
+                                    >
+                                {% else %}
+                                    <img
+                                        id="bill-preview"
+                                        class="img-fluid rounded-4 border d-none"
+                                        style="max-height: 220px;"
+                                    >
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Ghi chú</label>
+                            {{ form.note }}
+
+                            {% if form.note.errors %}
+                                <div class="text-danger small mt-1">{{ form.note.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" id="submit-purchase-btn" class="btn btn-primary flex-fill">
+                                {{ submit_label }}
+                            </button>
+
+                            <a href="{% url 'purchase_list' %}" class="btn btn-outline-secondary">
+                                Quay lại
+                            </a>
+                        </div>
+
+                    </div>
+
+                    <div class="col-lg-8">
+
+                        <div id="ingredient-preview" class="dashboard-card" style="height:100%;">
+                            <div id="ingredient-preview-title" class="fw-bold mb-2">
+                                Nguyên liệu đối chiếu
+                            </div>
+                            <div id="ingredient-preview-subtitle" class="text-muted small mb-3">
+                                Chọn ngày và loại mua hàng để xem danh sách nguyên liệu.
+                            </div>
+
+                            <div id="ingredient-preview-content">
+                                <div class="empty-state">
+                                    Chưa có dữ liệu.
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.purchase-type-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border: 1px solid #dbe4f0;
+    border-radius: 12px;
+    background: #f8fafc;
+    cursor: pointer;
+    font-weight: 600;
+}
+.extra-request-card {
+    transition: all 0.2s ease;
+}
+
+.extra-request-card:hover {
+    border-color: #0d6efd;
+    background: #f8fbff;
+}
+
+.extra-request-card-selected {
+    border: 2px solid #2563eb;
+    background: #eff6ff;
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.1);
+}
+.purchase-type-option:hover {
+    background: #eff6ff;
+    border-color: #93c5fd;
+}
+
+.purchase-type-option input {
+    margin: 0;
+}
+
+.purchase-type-option:has(input:checked) {
+    background: #eff6ff;
+    border-color: #2563eb;
+    color: #1d4ed8;
+}
+
+.ingredient-note-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 12px;
+}
+
+.extra-request-card {
+    border: 1px solid #dbe4f0;
+    border-radius: 16px;
+    padding: 14px;
+    background: #ffffff;
+    transition: 0.2s ease;
+}
+
+.extra-request-card:hover {
+    border-color: #93c5fd;
+    background: #f8fbff;
+}
+
+.extra-request-card-selected {
+    border: 2px solid #2563eb;
+    background: #eff6ff;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.08);
+}
+.table-header-custom {
+    background: #f1f5f9;
+}
+
+.table-header-custom th {
+    font-weight: 600;
+    font-size: 13px;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 10px 12px;
+    border-bottom: 2px solid #9daec4;
+}
+.table-header-custom th:first-child {
+    border-top-left-radius: 8px;
+}
+
+.table-header-custom th:last-child {
+    border-top-right-radius: 8px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const formEl = document.getElementById('purchase-form');
+    const dateInput = document.getElementById('id_date');
+    const title = document.getElementById('ingredient-preview-title');
+    const subtitle = document.getElementById('ingredient-preview-subtitle');
+    const content = document.getElementById('ingredient-preview-content');
+
+    const submitBtn = document.getElementById('submit-purchase-btn');
+    const billInput = document.getElementById('id_bill_image');
+    const purchaseTypeInputs = document.querySelectorAll('input[name="purchase_type"]');
+    const extraRequestInput = document.getElementById('id_extra_request');
+
+    function getSelectedType() {
+        const selected = document.querySelector('input[name="purchase_type"]:checked');
+        return selected ? selected.value : null;
+    }
+
+    function resetExtraRequest() {
+        if (extraRequestInput) {
+            extraRequestInput.value = '';
+        }
+    }
+
+    function checkBillRequired() {
+        if (!billInput || !submitBtn) return;
+
+        const hasFile = billInput.files.length > 0;
+        const hasOldImage = !!document.querySelector('#bill-preview[src]');
+
+        if (!hasFile && !hasOldImage) {
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.6';
+            submitBtn.style.cursor = 'not-allowed';
+        } else {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+        }
+    }
+
+    function renderEmpty(message) {
+        content.innerHTML = `
+            <div class="empty-state">
+                ${message}
+            </div>
+        `;
+    }
+
+    function loadMainIngredients(selectedDate) {
+        resetExtraRequest();
+
+        title.innerHTML = 'Nguyên liệu chính cần chuẩn bị';
+        subtitle.innerHTML = 'Danh sách này lấy từ thực đơn đã duyệt của ngày đã chọn.';
+
+        fetch("{% url 'purchase_ingredients_by_date' %}?date=" + selectedDate)
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success || !data.has_menu) {
+                    subtitle.innerHTML = '';
+                    renderEmpty(data.message || 'Ngày này chưa có thực đơn đã duyệt.');
+                    return;
+                }
+
+                subtitle.innerHTML = `Cho ${data.registered_count} người ăn.`;
+
+                if (!data.ingredients.length) {
+                    renderEmpty('Thực đơn ngày này chưa khai báo nguyên liệu.');
+                    return;
+                }
+
+                const rows = data.ingredients.map(item => `
+                    <tr>
+                        <td class="fw-semibold">${item.name}</td>
+                        <td>${Number(item.quantity_per_person).toLocaleString('vi-VN')} ${item.unit}/người</td>
+                        <td class="fw-bold text-primary">
+                            ${Number(item.total_quantity).toLocaleString('vi-VN')} ${item.unit}
+                        </td>
+                    </tr>
+                `).join('');
+
+                content.innerHTML = `
+                    <div class="table-responsive">
+                        <table class="table table-modern align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Nguyên liệu</th>
+                                    <th>Khẩu phần/người</th>
+                                    <th>Tổng dự kiến</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>
+                `;
+            })
+            .catch(() => {
+                renderEmpty('Không tải được dữ liệu nguyên liệu chính.');
+            });
+    }
+
+    function loadExtraRequestItems(selectedDate) {
+        resetExtraRequest();
+
+        title.innerHTML = 'Nguyên liệu mua bổ sung đã duyệt';
+        subtitle.innerHTML = 'Chọn đúng một đơn mua bổ sung để nhập chi phí thực tế.';
+
+        fetch("{% url 'extra_request_by_date' %}?date=" + selectedDate)
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    renderEmpty('Không tải được dữ liệu mua bổ sung.');
+                    return;
+                }
+
+                if (!data.requests || !data.requests.length) {
+                    renderEmpty('Không còn đơn mua bổ sung đã duyệt nào chưa nhập chi phí cho ngày này.');
+                    return;
+                }
+
+                const cards = data.requests.map(req => {
+                    const rows = req.items.map(item => `
+                        <tr>
+                            <td class="fw-semibold">${item.name}</td>
+                            <td>${Number(item.quantity).toLocaleString('vi-VN')}</td>
+                            <td>${item.unit || '-'}</td>
+                            <td class="text-danger fw-semibold">
+                                ${item.unit_price ? Number(item.unit_price).toLocaleString('vi-VN') + ' VNĐ' : '-'}
+                            </td>
+                        </tr>
+                    `).join('');
+
+                    return `
+                    <div class="extra-request-card mb-3"
+                        onclick="selectExtraRequest(${req.id}, this)">
+
+                        <!-- HEADER -->
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <div class="fw-bold">
+                                    🧾 Đơn #${req.id}
+                                </div>
+                                <div class="text-muted small">
+                                    ${req.date} • ${req.created_by}
+                                </div>
+                            </div>
+
+                            <div class="badge bg-info text-dark">
+                                ${req.items.length} nguyên liệu
+                            </div>
+                        </div>
+
+                        <!-- TABLE -->
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead class="table-header-custom">
+                                    <tr>
+                                        <th>Nguyên liệu</th>
+                                        <th class="text-center">Số lượng</th>
+                                        <th class="text-center">Đơn vị</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${req.items.map(item => `
+                                        <tr>
+                                            <td class="fw-semibold">${item.name}</td>
+                                            <td class="text-center">${item.quantity}</td>
+                                            <td class="text-center">${item.unit || '-'}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+
+                    </div>
+                    `;
+                }).join('');
+
+                content.innerHTML = `
+                    ${cards}
+                    <div class="ingredient-note-box mt-3 small text-muted">
+                        Chỉ chọn 1 đơn để nhập chi phí. Đơn đã nhập chi phí sẽ không hiện lại ở danh sách này.
+                    </div>
+                `;
+
+                
+            })
+            .catch(() => {
+                renderEmpty('Không tải được dữ liệu mua bổ sung.');
+            });
+    }
+
+    function loadIngredientPreview() {
+        if (!dateInput) return;
+
+        const selectedDate = dateInput.value;
+        const selectedType = getSelectedType();
+
+        resetExtraRequest();
+
+        if (!selectedDate) {
+            title.innerHTML = 'Nguyên liệu đối chiếu';
+            subtitle.innerHTML = 'Chọn ngày để xem danh sách nguyên liệu.';
+            renderEmpty('Chưa chọn ngày.');
+            return;
+        }
+
+        if (!selectedType) {
+            title.innerHTML = 'Nguyên liệu đối chiếu';
+            subtitle.innerHTML = 'Chọn phân loại mua hàng để xem danh sách nguyên liệu.';
+            renderEmpty('Chưa chọn phân loại.');
+            return;
+        }
+
+        if (selectedType === 'extra') {
+            loadExtraRequestItems(selectedDate);
+        } else {
+            loadMainIngredients(selectedDate);
+        }
+    }
+
+    purchaseTypeInputs.forEach(input => {
+        input.addEventListener('change', loadIngredientPreview);
+    });
+
+    if (dateInput) {
+        dateInput.addEventListener('change', loadIngredientPreview);
+    }
+
+    if (billInput) {
+        billInput.addEventListener('change', function () {
+            const file = billInput.files[0];
+            const preview = document.getElementById('bill-preview');
+
+            if (!file || !preview) return;
+
+            preview.src = URL.createObjectURL(file);
+            preview.classList.remove('d-none');
+            checkBillRequired();
+        });
+    }
+
+    if (formEl) {
+        formEl.addEventListener('submit', function (e) {
+            const selectedType = getSelectedType();
+
+            const currentExtraInput = document.getElementById('id_extra_request');
+
+            if (selectedType === 'extra' && (!currentExtraInput || !currentExtraInput.value)) {
+                e.preventDefault();
+                alert('Bạn phải chọn một đơn mua bổ sung đã duyệt trước khi gửi phê duyệt chi phí.');
+                return;
+            }
+        });
+    }
+
+    loadIngredientPreview();
+    checkBillRequired();
+});
+let selectedExtraRequestId = null;
+
+function selectExtraRequest(id, element) {
+    document.querySelectorAll('.extra-request-card').forEach(el => {
+        el.classList.remove('extra-request-card-selected');
+    });
+
+    element.classList.add('extra-request-card-selected');
+
+    const input = document.getElementById('id_extra_request');
+    if (input) {
+        input.value = id;
+    }
+}
+</script>
+
+{% endblock %}

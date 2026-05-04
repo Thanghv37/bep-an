@@ -1,0 +1,272 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <div class="section-title">{{ page_title }}</div>
+            <div class="section-subtitle">
+                Chọn ngày để kiểm tra nguyên liệu, sau đó nhập chi phí thực tế.
+            </div>
+
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <div class="row g-4">
+
+                    <!-- LEFT: 30% -->
+                    <div class="col-lg-4">
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Ngày</label>
+                            {{ form.date }}
+
+                            <div id="purchase-date-warning" class="text-danger fw-semibold small mt-2 d-none"></div>
+
+                            {% if form.date.errors %}
+                                <div class="text-danger small mt-1">{{ form.date.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Chi phí thực tế</label>
+                            {{ form.actual_cost }}
+
+                            {% if form.actual_cost.errors %}
+                                <div class="text-danger small mt-1">{{ form.actual_cost.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Ảnh bill</label>
+                            {{ form.bill_image }}
+
+                            {% if form.bill_image.errors %}
+                                <div class="text-danger small mt-1">{{ form.bill_image.errors }}</div>
+                            {% endif %}
+
+                            <div class="mt-3">
+                                {% if form.instance.bill_image %}
+                                    <img
+                                        id="bill-preview"
+                                        src="{{ form.instance.bill_image.url }}"
+                                        class="img-fluid rounded-4 border"
+                                        style="max-height: 220px;"
+                                    >
+                                {% else %}
+                                    <img
+                                        id="bill-preview"
+                                        class="img-fluid rounded-4 border d-none"
+                                        style="max-height: 220px;"
+                                    >
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Ghi chú</label>
+                            {{ form.note }}
+
+                            {% if form.note.errors %}
+                                <div class="text-danger small mt-1">{{ form.note.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" id="submit-purchase-btn" class="btn btn-primary flex-fill">
+                                {{ submit_label }}
+                            </button>
+
+                            <a href="{% url 'purchase_list' %}" class="btn btn-outline-secondary">
+                                Quay lại
+                            </a>
+                        </div>
+
+                    </div>
+
+                    <!-- RIGHT: 70% -->
+                    <div class="col-lg-8">
+
+                        <div id="ingredient-preview" class="dashboard-card d-none" style="height:100%;">
+                            <div class="fw-bold mb-2">Nguyên liệu cần chuẩn bị</div>
+                            <div id="ingredient-preview-subtitle" class="text-muted small mb-3"></div>
+
+                            <div id="ingredient-preview-content"></div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const dateInput = document.getElementById('id_date');
+    const previewBox = document.getElementById('ingredient-preview');
+    const subtitle = document.getElementById('ingredient-preview-subtitle');
+    const content = document.getElementById('ingredient-preview-content');
+
+    const warningBox = document.getElementById('purchase-date-warning');
+    const submitBtn = document.getElementById('submit-purchase-btn');
+    const billInput = document.getElementById('id_bill_image');
+
+    function checkBillRequired() {
+        if (!billInput || !submitBtn) return;
+
+        const hasFile = billInput.files.length > 0;
+
+        // nếu đang update mà đã có ảnh cũ thì vẫn cho submit
+        const hasOldImage = !!document.querySelector('#bill-preview[src]');
+
+        if (!hasFile && !hasOldImage) {
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.6';
+            submitBtn.style.cursor = 'not-allowed';
+        } else {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+        }
+    }
+
+    function lockSubmit(message) {
+        if (!warningBox || !submitBtn) return;
+
+        warningBox.textContent = message;
+        warningBox.classList.remove('d-none');
+
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.6';
+        submitBtn.style.cursor = 'not-allowed';
+    }
+
+    function unlockSubmit() {
+        if (!warningBox || !submitBtn) return;
+
+        warningBox.textContent = '';
+        warningBox.classList.add('d-none');
+
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+    }
+
+    
+
+    function loadIngredients() {
+        if (!dateInput || !previewBox) return;
+
+        const selectedDate = dateInput.value;
+
+        if (!selectedDate) {
+            previewBox.classList.add('d-none');
+            return;
+        }
+
+        fetch("{% url 'purchase_ingredients_by_date' %}?date=" + selectedDate)
+            .then(response => response.json())
+            .then(data => {
+                previewBox.classList.remove('d-none');
+
+                if (!data.success || !data.has_menu) {
+                    subtitle.innerHTML = '';
+                    content.innerHTML = `
+                        <div class="empty-state">
+                            ${data.message || 'Không có dữ liệu nguyên liệu.'}
+                        </div>
+                    `;
+                    return;
+                }
+
+                subtitle.innerHTML = `Cho ${data.registered_count} người ăn.`;
+
+                if (!data.ingredients.length) {
+                    content.innerHTML = `
+                        <div class="empty-state">
+                            Thực đơn ngày này chưa khai báo nguyên liệu.
+                        </div>
+                    `;
+                    return;
+                }
+
+                let rows = data.ingredients.map(item => `
+                    <tr>
+                        <td class="fw-semibold">${item.name}</td>
+                        <td>${item.quantity_per_person.toLocaleString('vi-VN')} ${item.unit}/người</td>
+                        <td class="fw-bold text-primary">
+                            ${item.total_quantity.toLocaleString('vi-VN')} ${item.unit}
+                        </td>
+                    </tr>
+                `).join('');
+
+                content.innerHTML = `
+                    <div class="table-responsive">
+                        <table class="table table-modern align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Nguyên liệu</th>
+                                    <th>Khẩu phần/người</th>
+                                    <th>Tổng cần chuẩn bị</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rows}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            })
+            .catch(() => {
+                previewBox.classList.remove('d-none');
+                content.innerHTML = `
+                    <div class="empty-state">
+                        Không tải được dữ liệu nguyên liệu.
+                    </div>
+                `;
+            });
+    }
+
+    if (dateInput) {
+        dateInput.addEventListener('change', function () {
+            loadIngredients();
+
+        });
+
+        const IS_CREATE = "{{ is_create|yesno:'true,false' }}" === "true";
+
+        if (dateInput.value) {
+            checkBillRequired();
+            loadIngredients();
+
+            if (IS_CREATE) {
+            }
+        }
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+    const input = document.getElementById('id_bill_image');
+    const preview = document.getElementById('bill-preview');
+
+    if (!input || !preview) return;
+
+    input.addEventListener('change', function () {
+        const file = input.files[0];
+
+        if (!file) return;
+
+        preview.src = URL.createObjectURL(file);
+        preview.classList.remove('d-none');
+        checkBillRequired(); // 🔥 THÊM DÒNG NÀY
+    });
+});
+</script>
+
+{% endblock %}
