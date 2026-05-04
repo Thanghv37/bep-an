@@ -312,6 +312,89 @@
 
     
 </div>
+<style>
+    #weekly-menu-section .week-menu-grid {
+        display: grid !important;
+        grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+        gap: 14px !important;
+        width: 100% !important;
+    }
+
+    #weekly-menu-section .week-menu-grid > div {
+        min-width: 0 !important;
+    }
+
+    #weekly-menu-section .week-menu-grid > div > a {
+        display: block !important;
+        height: 100% !important;
+    }
+
+    #weekly-menu-section .week-day-card {
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        min-height: 132px !important;
+        height: 100% !important;
+        padding: 14px !important;
+        border-radius: 16px !important;
+        border: 1px solid #e2e8f0 !important;
+        background: #fff !important;
+        transition: all 0.2s ease !important;
+    }
+
+    #weekly-menu-section .week-day-card:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08) !important;
+    }
+
+    #weekly-menu-section .week-day-card-selected {
+        border-color: #2563eb !important;
+        background: #eff6ff !important;
+        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.18) !important;
+    }
+
+    #weekly-menu-section .week-day-card-has-menu {
+        border-color: #86efac !important;
+        background: #f0fdf4 !important;
+    }
+
+    #weekly-menu-section .week-day-card-empty {
+        border-color: #e2e8f0 !important;
+        background: #ffffff !important;
+    }
+
+    #weekly-menu-section .badge-register {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 4px 9px !important;
+        border-radius: 999px !important;
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        white-space: nowrap !important;
+        background: #f8fafc !important;
+        color: #64748b !important;
+        border: 1px solid #cbd5e1 !important;
+    }
+
+    #weekly-menu-section .badge-register.success {
+        background: #dcfce7 !important;
+        color: #15803d !important;
+        border-color: #86efac !important;
+    }
+
+    @media (max-width: 1199px) {
+        #weekly-menu-section .week-menu-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        }
+    }
+
+    @media (max-width: 768px) {
+        #weekly-menu-section .week-menu-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+    }
+</style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 {{ chart_labels|json_script:"chart-labels-data" }}
