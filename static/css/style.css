@@ -604,10 +604,21 @@ body {
 
 @media (max-width: 768px) {
     .week-menu-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        grid-template-columns: 1fr !important;
     }
 }
+@media (max-width: 768px) {
+    .week-day-card {
+        min-height: auto !important;
+        padding: 14px !important;
+    }
 
+    .badge-register {
+        white-space: normal !important;
+        text-align: center !important;
+        line-height: 1.2;
+    }
+}
 @media (max-width: 480px) {
     .week-menu-grid {
         grid-template-columns: 1fr !important;
