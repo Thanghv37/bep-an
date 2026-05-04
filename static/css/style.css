@@ -555,3 +555,26 @@ body {
     color: #dc3545;
     border-color: #f5c2c7;
 }
+
+.week-menu-grid {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.week-day-card {
+    height: 100%;
+    min-height: 112px;
+}
+
+@media (max-width: 1199px) {
+    .week-menu-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .week-menu-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

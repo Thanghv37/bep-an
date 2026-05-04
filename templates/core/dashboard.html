@@ -131,9 +131,9 @@
                 </form>
             </div>
 
-            <div class="row g-2 mb-4">
+            <div class="week-menu-grid mb-4">
                 {% for day in week_menu_cards %}
-                <div class="col-6 col-md-4 col-lg-2-4">
+                <div>
                     <a href="?date={{ day.date_str }}#weekly-menu-section" class="text-decoration-none text-reset">
                         <div class="week-day-card
                             {% if day.is_selected %}
@@ -312,14 +312,6 @@
 
     
 </div>
-<style>
-    @media (min-width: 992px) {
-        .col-lg-2-4 {
-            flex: 0 0 auto;
-            width: 20%;
-        }
-    }
-</style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 {{ chart_labels|json_script:"chart-labels-data" }}
