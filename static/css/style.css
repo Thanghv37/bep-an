@@ -145,41 +145,7 @@
 .table img:hover {
     transform: scale(1.2);
 }
-.week-day-card {
-    min-height: 84px;
-    padding: 14px 16px;
-    border-radius: 16px;
-    border: 1px solid #e2e8f0;
-    transition: 0.2s;
-}
 
-.week-day-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
-}
-
-.week-day-card-selected {
-    border-color: #2563eb;
-    background: #dbeafe;
-    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.18);
-}
-
-.week-day-card-has-menu {
-    border-color: #bbf7d0;
-    background: #f8fafc;
-}
-
-.week-day-card-empty {
-    border-color: #e2e8f0;
-    background: #ffffff;
-}
-
-.week-day-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px 12px;
-    align-items: center;
-}
 
 .user-name {
     font-weight: 600;
@@ -499,16 +465,7 @@ body {
     background: rgba(59, 130, 246, 0.25);
 }
 
-/* ===== WEEK CARD ===== */
-.week-day-card {
-    border-radius: 14px;
-    transition: 0.2s;
-}
 
-.week-day-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 14px rgba(0,0,0,0.08);
-}
 
 /* ===== BILL IMAGE ===== */
 .bill-image {
@@ -556,25 +513,103 @@ body {
     border-color: #f5c2c7;
 }
 
+/* =========================
+   DASHBOARD WEEK MENU FIX
+========================= */
+
 .week-menu-grid {
     display: grid !important;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+    width: 100% !important;
+}
+
+.week-menu-grid > div {
+    min-width: 0 !important;
+}
+
+.week-menu-grid > div > a {
+    display: block !important;
+    height: 100% !important;
 }
 
 .week-day-card {
-    height: 100%;
-    min-height: 112px;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    min-height: 132px !important;
+    height: 100% !important;
+    padding: 14px 14px !important;
+    border-radius: 16px !important;
+    border: 1px solid #e2e8f0 !important;
+    background: #fff !important;
+    transition: all 0.2s ease !important;
+}
+
+.week-day-card:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08) !important;
+}
+
+.week-day-card-selected {
+    border-color: #2563eb !important;
+    background: #eff6ff !important;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.18) !important;
+}
+
+.week-day-card-has-menu {
+    border-color: #86efac !important;
+    background: #f0fdf4 !important;
+}
+
+.week-day-card-empty {
+    border-color: #e2e8f0 !important;
+    background: #ffffff !important;
+}
+
+.week-day-card .fw-bold {
+    font-size: 15px !important;
+    color: #0f172a !important;
+}
+
+.week-day-card .small {
+    font-size: 12px !important;
+}
+
+.badge-register {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 4px 9px !important;
+    border-radius: 999px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+    background: #f8fafc !important;
+    color: #64748b !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+.badge-register.success {
+    background: #dcfce7 !important;
+    color: #15803d !important;
+    border-color: #86efac !important;
 }
 
 @media (max-width: 1199px) {
     .week-menu-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     }
 }
 
 @media (max-width: 768px) {
     .week-menu-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .week-menu-grid {
+        grid-template-columns: 1fr !important;
     }
 }
