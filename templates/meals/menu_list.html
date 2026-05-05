@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-
+{% load unit_filters %}
 {% block title %}Lên thực đơn{% endblock %}
 {% block page_title %}Lên thực đơn{% endblock %}
 
@@ -411,7 +411,7 @@
                                 <td>{{ item.quantity_per_person }} {{ item.unit }}</td>
 
                                 <td class="text-primary fw-bold">
-                                    {{ item.required_total_quantity }} {{ item.unit }}
+                                    {{ item.required_total_quantity|format_weight }}
                                 </td>
                             </tr>
                             {% endfor %}
