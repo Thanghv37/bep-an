@@ -10,7 +10,8 @@ from .forms import ImportUserForm
 from .import_utils import import_users_from_excel
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
-
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
 @login_required
 @user_passes_test(can_manage_user)
 def user_list(request):
@@ -251,3 +252,25 @@ def reset_user_password(request, pk):
 
     messages.success(request, f'Đã reset mật khẩu của {user.username} về mã nhân viên.')
     return redirect('user_list')
+@require_GET
+def users_api(request):
+    profiles = UserProfile.objects.exclude(
+        employee_code__isnull=True
+    ).exclude(
+        employee_code=''
+    ).order_by('employee_code')
+
+    dict_users = {}
+
+    for profile in profiles:
+        employee_code = str(profile.employee_code).strip()
+        full_name = profile.full_name or profile.user.get_full_name() or profile.user.username
+
+        dict_users[employee_code] = full_name
+
+    return JsonResponse({
+        'total_users': len(dict_users),
+        'dict_users': dict_users,
+    }, json_dumps_params={
+        'ensure_ascii': False
+    })

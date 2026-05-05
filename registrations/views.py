@@ -15,6 +15,8 @@ from django.views.decorators.http import require_GET
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
 
+def is_admin(user):
+    return user.is_staff  # hoặc is_superuser
 @login_required
 @user_passes_test(can_manage_menu)
 def registration_list(request):
@@ -141,7 +143,7 @@ def registration_create(request):
         'submit_label': 'Lưu đăng kí',
     })
 @login_required
-@user_passes_test(can_manage_menu)
+@user_passes_test(is_admin)
 @require_POST
 def registration_delete(request, pk):
     item = get_object_or_404(MealRegistration, pk=pk)
