@@ -523,20 +523,44 @@
         /* SIDEBAR COLLAPSE DESKTOP */
         @media (min-width: 993px) {
             .sidebar {
-                width: 82px;
-                overflow: hidden;
-                transition: width 0.25s ease;
+                width: 76px !important;
+                padding: 22px 10px !important;
+                overflow-x: hidden !important;
+                transition: width 0.25s ease, padding 0.25s ease;
                 z-index: 100;
             }
 
             .sidebar:hover {
-                width: 270px;
+                width: 270px !important;
+                padding: 22px 16px !important;
             }
 
             .main-panel {
-                margin-left: 82px;
-                width: calc(100% - 82px);
-                transition: margin-left 0.25s ease, width 0.25s ease;
+                margin-left: 76px !important;
+                width: calc(100% - 76px) !important;
+            }
+
+            .brand-box {
+                height: 64px;
+                padding: 0 !important;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .brand-box::before {
+                content: "🍱";
+                font-size: 24px;
+            }
+
+            .sidebar:hover .brand-box {
+                height: auto;
+                padding: 14px 14px 16px !important;
+                display: block;
+            }
+
+            .sidebar:hover .brand-box::before {
+                content: "";
             }
 
             .brand-title,
@@ -545,12 +569,8 @@
             .sidebar .nav-link span,
             .sidebar-user .user-name,
             .sidebar-user .user-role,
-            .sidebar-user-link > div:first-child,
             .sidebar form {
-                opacity: 0;
-                visibility: hidden;
-                white-space: nowrap;
-                transition: opacity 0.15s ease;
+                display: none !important;
             }
 
             .sidebar:hover .brand-title,
@@ -559,30 +579,50 @@
             .sidebar:hover .nav-link span,
             .sidebar:hover .sidebar-user .user-name,
             .sidebar:hover .sidebar-user .user-role,
-            .sidebar:hover .sidebar-user-link > div:first-child,
             .sidebar:hover form {
-                opacity: 1;
-                visibility: visible;
-            }
-
-            .brand-box {
-                padding: 14px 10px;
+                display: block !important;
             }
 
             .sidebar .nav-link {
-                justify-content: center;
+                justify-content: center !important;
+                padding: 13px 0 !important;
+                margin-bottom: 10px !important;
             }
 
             .sidebar:hover .nav-link {
-                justify-content: flex-start;
+                justify-content: flex-start !important;
+                padding: 11px 13px !important;
+            }
+
+            .sidebar .nav-link i {
+                margin: 0 !important;
+                font-size: 18px;
+            }
+
+            .sidebar .nav-link.active::after {
+                display: none;
+            }
+
+            .sidebar:hover .nav-link.active::after {
+                display: block;
+            }
+
+            .sidebar-user {
+                padding-top: 14px !important;
             }
 
             .sidebar-user-link {
-                justify-content: center;
+                justify-content: center !important;
+                padding: 8px 0 !important;
             }
 
             .sidebar:hover .sidebar-user-link {
-                justify-content: space-between;
+                justify-content: space-between !important;
+                padding: 10px 12px !important;
+            }
+
+            .sidebar:hover .sidebar-user-link > div:first-child {
+                display: block !important;
             }
         }
     </style>
