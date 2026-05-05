@@ -122,6 +122,7 @@
                         <th>Tên bếp ăn</th>
                         <th class="text-center">Số suất đặt</th>
                         <th>Trạng thái</th>
+                        <th class="text-end">Thao tác</th>
                     </tr>
                 </thead>
 
@@ -182,11 +183,25 @@
                                     {{ item.status|default:"-" }}
                                 </span>
                             </td>
+                            <td class="text-end">
+                                <form
+                                    method="post"
+                                    action="{% url 'registration_delete' item.pk %}"
+                                    onsubmit="return confirm('Bạn chắc chắn muốn xóa đăng kí của {{ item.full_name|default:item.employee_code }}?');"
+                                    class="d-inline"
+                                >
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger delete-registration-btn">
+                                        Xóa
+                                    </button>
+                                </form>
+                            </td>
                         </tr>
                         {% endwith %}
                     {% empty %}
                         <tr>
-                            <td colspan="6">
+                            <td colspan="7">
                                 <div class="empty-state enhanced-empty">
                                     <div class="empty-icon">🍽️</div>
                                     <div class="fw-bold mb-1">Không có dữ liệu đăng kí</div>
@@ -411,6 +426,12 @@
 .empty-icon {
     font-size: 34px;
     margin-bottom: 8px;
+}
+
+.delete-registration-btn {
+    border-radius: 999px;
+    font-weight: 700;
+    padding: 4px 12px;
 }
 
 @media (max-width: 1200px) {

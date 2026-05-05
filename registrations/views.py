@@ -12,6 +12,8 @@ from .import_utils import import_registrations_from_excel
 from .models import MealRegistration
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
+from django.shortcuts import render, redirect, get_object_or_404
+from django.views.decorators.http import require_POST
 
 @login_required
 @user_passes_test(can_manage_menu)
@@ -138,6 +140,18 @@ def registration_create(request):
         'page_title': 'Thêm người đăng kí',
         'submit_label': 'Lưu đăng kí',
     })
+@login_required
+@user_passes_test(can_manage_menu)
+@require_POST
+def registration_delete(request, pk):
+    item = get_object_or_404(MealRegistration, pk=pk)
+
+    redirect_url = request.POST.get('next') or 'registration_list'
+    item.delete()
+
+    messages.success(request, 'Đã xóa đăng kí suất ăn.')
+    return redirect(redirect_url)
+
 @require_GET
 def registrations_by_date_api(request):
     date_str = request.GET.get('date')
