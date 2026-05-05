@@ -642,7 +642,11 @@
 
                         <div class="user-avatar">
                             {% if request.user.profile.avatar %}
-                                <img src="{{ request.user.profile.avatar.url }}" alt="avatar">
+                                <img 
+                                    src="{{ request.user.profile.avatar.url }}" 
+                                    alt="avatar"
+                                    onerror="this.onerror=null; this.src='{% static 'images/default-avatar.png' %}';"
+                                >
                             {% else %}
                                 <img src="{% static 'images/default-avatar.png' %}" alt="avatar">
                             {% endif %}
