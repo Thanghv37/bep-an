@@ -11,12 +11,29 @@ from accounts.permissions import can_view_dashboard, can_manage_meal_price
 from finance.models import DailyPurchase
 from .models import MealPriceSetting, MealPriceChangeLog
 from .forms import MealPriceSettingForm
-from meals.models import DailyMenu
 from django.db.models import Count
 import calendar
 from django.db.models import Q
+from django.utils import timezone
 
 
+today = timezone.now().date()
+start_of_week = today - timedelta(days=today.weekday())
+
+week_data = []
+
+for i in range(5):  # thứ 2 → thứ 6
+    day_date = start_of_week + timedelta(days=i)
+
+    menu = DailyMenu.objects.filter(date=day_date).first()
+
+    week_data.append({
+        "date": day_date,
+        "label": day_date.strftime("Thứ %w (%d/%m)"),
+        "menu_items": menu.items.all() if menu else []
+    })
+
+context["week_data"] = week_data
 
 def get_registered_count(target_date):
     total = MealRegistration.objects.filter(

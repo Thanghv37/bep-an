@@ -657,3 +657,32 @@ body {
     object-fit: cover !important;
     display: block !important;
 }
+.weekly-overview {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin-top: 12px;
+}
+
+.week-day {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.week-day-title {
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 6px;
+}
+
+.week-dish-list {
+    margin: 0;
+    padding-left: 16px;
+    font-size: 13px;
+}
+
+.week-dish-list li {
+    margin-bottom: 2px;
+}
