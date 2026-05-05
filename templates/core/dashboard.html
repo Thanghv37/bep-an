@@ -394,6 +394,43 @@
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         }
     }
+    .dish-gallery {
+        display: grid !important;
+        grid-template-columns: repeat(5, minmax(160px, 1fr)) !important;
+        gap: 18px !important;
+    }
+
+    .dish-gallery-card {
+        width: 100% !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 18px !important;
+        background: #fff !important;
+        padding: 12px !important;
+    }
+
+    .dish-gallery-img {
+        width: 100% !important;
+        height: 150px !important;
+        object-fit: cover !important;
+        border-radius: 14px !important;
+        display: block !important;
+    }
+
+    .dish-gallery-placeholder {
+        width: 100% !important;
+        height: 150px !important;
+        border-radius: 14px !important;
+        background: #f1f5f9 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    @media (max-width: 992px) {
+        .dish-gallery {
+            grid-template-columns: repeat(2, minmax(150px, 1fr)) !important;
+        }
+    }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
