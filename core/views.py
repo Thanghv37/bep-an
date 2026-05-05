@@ -134,6 +134,13 @@ def dashboard(request):
         date__range=(week_days[0], week_days[-1]),status=DailyMenu.STATUS_APPROVED
     ).annotate(item_count=Count('items')).prefetch_related('items__dish')
     week_menu_map = {m.date: m for m in week_menus_queryset}
+    weekday_labels = {
+        0: 'Thứ 2',
+        1: 'Thứ 3',
+        2: 'Thứ 4',
+        3: 'Thứ 5',
+        4: 'Thứ 6',
+    }
     week_data = []
 
     for d in week_days:
@@ -147,13 +154,7 @@ def dashboard(request):
             'menu_items': day_menu.items.all() if day_menu else [],
         })
 
-    weekday_labels = {
-        0: 'Thứ 2',
-        1: 'Thứ 3',
-        2: 'Thứ 4',
-        3: 'Thứ 5',
-        4: 'Thứ 6',
-    }
+    
 
     week_menu_cards = []
     employee_code = request.user.profile.employee_code or request.user.username
