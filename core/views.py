@@ -16,25 +16,6 @@ import calendar
 from django.db.models import Q
 from django.utils import timezone
 
-
-today = timezone.now().date()
-start_of_week = today - timedelta(days=today.weekday())
-
-week_data = []
-
-for i in range(5):  # thứ 2 → thứ 6
-    day_date = start_of_week + timedelta(days=i)
-
-    menu = DailyMenu.objects.filter(date=day_date).first()
-
-    week_data.append({
-        "date": day_date,
-        "label": day_date.strftime("Thứ %w (%d/%m)"),
-        "menu_items": menu.items.all() if menu else []
-    })
-
-context["week_data"] = week_data
-
 def get_registered_count(target_date):
     total = MealRegistration.objects.filter(
         date=target_date
@@ -153,6 +134,18 @@ def dashboard(request):
         date__range=(week_days[0], week_days[-1]),status=DailyMenu.STATUS_APPROVED
     ).annotate(item_count=Count('items')).prefetch_related('items__dish')
     week_menu_map = {m.date: m for m in week_menus_queryset}
+    week_data = []
+
+    for d in week_days:
+        day_menu = week_menu_map.get(d)
+
+        week_data.append({
+            'date': d,
+            'date_str': d.isoformat(),
+            'label': weekday_labels.get(d.weekday(), ''),
+            'menu': day_menu,
+            'menu_items': day_menu.items.all() if day_menu else [],
+        })
 
     weekday_labels = {
         0: 'Thứ 2',
@@ -220,6 +213,7 @@ def dashboard(request):
         'balance_data': balance_data,
         'week_menu_cards': week_menu_cards,
         'purchase_list': purchases_today,
+        'week_data': week_data,
     }
     return render(request, 'core/dashboard.html', context)
 
