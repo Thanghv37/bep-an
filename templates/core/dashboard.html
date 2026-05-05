@@ -415,17 +415,21 @@
     }
 
     .today-menu-item {
-        min-width: 0;
-        padding: 10px;
-        border: 1px solid #e2e8f0;
-        border-radius: 18px;
-        background: #fff;
+        display: flex;
+        gap: 12px;
+        align-items: center;
     }
 
     .today-menu-img {
-        width: 50%;
-        aspect-ratio: 4 / 3;
+        width: 90px;       /* cố định */
+        height: 70px;      /* cố định */
         object-fit: cover;
+        border-radius: 10px;
+        flex-shrink: 0;
+    }
+
+    .today-menu-info {
+        flex: 1;
     }
 
     .today-menu-placeholder {
