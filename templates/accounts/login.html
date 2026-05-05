@@ -238,11 +238,12 @@
                 </label>
             </div>
 
-            <button type="submit" class="login-btn">
-                LOGIN <i class="bi bi-arrow-right ms-2"></i>
-            </button>
-            <div style="text-align: center; margin-top: 14px;">
-                <a href="{% url 'set_initial_password' %}" style="font-size: 13px; color: #2563eb;">
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 14px;">
+                <button type="submit" class="login-btn">
+                    LOGIN <i class="bi bi-arrow-right ms-2"></i>
+                </button>
+
+                <a href="{% url 'set_initial_password' %}" style="font-size: 13px; color: #2563eb; font-weight: 700; text-decoration: none;">
                     Đặt mật khẩu lần đầu
                 </a>
             </div>
