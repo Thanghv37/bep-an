@@ -520,6 +520,71 @@
         .user-avatar {
             border: 2px solid rgba(255,255,255,0.3);
         }
+        /* SIDEBAR COLLAPSE DESKTOP */
+        @media (min-width: 993px) {
+            .sidebar {
+                width: 82px;
+                overflow: hidden;
+                transition: width 0.25s ease;
+                z-index: 100;
+            }
+
+            .sidebar:hover {
+                width: 270px;
+            }
+
+            .main-panel {
+                margin-left: 82px;
+                width: calc(100% - 82px);
+                transition: margin-left 0.25s ease, width 0.25s ease;
+            }
+
+            .brand-title,
+            .brand-subtitle,
+            .menu-section-title,
+            .sidebar .nav-link span,
+            .sidebar-user .user-name,
+            .sidebar-user .user-role,
+            .sidebar-user-link > div:first-child,
+            .sidebar form {
+                opacity: 0;
+                visibility: hidden;
+                white-space: nowrap;
+                transition: opacity 0.15s ease;
+            }
+
+            .sidebar:hover .brand-title,
+            .sidebar:hover .brand-subtitle,
+            .sidebar:hover .menu-section-title,
+            .sidebar:hover .nav-link span,
+            .sidebar:hover .sidebar-user .user-name,
+            .sidebar:hover .sidebar-user .user-role,
+            .sidebar:hover .sidebar-user-link > div:first-child,
+            .sidebar:hover form {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            .brand-box {
+                padding: 14px 10px;
+            }
+
+            .sidebar .nav-link {
+                justify-content: center;
+            }
+
+            .sidebar:hover .nav-link {
+                justify-content: flex-start;
+            }
+
+            .sidebar-user-link {
+                justify-content: center;
+            }
+
+            .sidebar:hover .sidebar-user-link {
+                justify-content: space-between;
+            }
+        }
     </style>
     <style>
         html {
