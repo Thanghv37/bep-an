@@ -163,7 +163,14 @@ def dashboard(request):
             'date_str': d.isoformat(),
             'label': weekday_labels.get(d.weekday(), ''),
             'menu': day_menu,
-            'menu_items': day_menu.items.all() if day_menu else [],  # 🔥 QUAN TRỌNG
+            'menu_items': sorted(
+                day_menu.items.all(),
+                key=lambda item: (
+                    dish_type_order.get(item.dish.dish_type, 99),
+                    item.sort_order,
+                    item.dish.name.lower(),
+                )
+            ) if day_menu else [],
             'is_registered': d in registration_dates,               # (nếu có dùng badge)
         })
 

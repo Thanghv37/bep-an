@@ -164,22 +164,25 @@
                                 {% endif %}
                             </div>
 
-                            {% if day.menu_items %}
-                                <ul class="week-menu-dishes">
-                                    {% for item in day.menu_items %}
-                                        <li>{{ item.dish.name }}</li>
-                                    {% endfor %}
-                                </ul>
-                            {% else %}
-                                <div class="small text-muted mt-3">Chưa có menu</div>
-                            {% endif %}
+                            <div class="week-card-body">
+                                {% if day.menu_items %}
+                                    <ul class="week-menu-dishes">
+                                        {% for item in day.menu_items %}
+                                            <li>{{ item.dish.name }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <div class="small text-muted mt-3">Chưa có menu</div>
+                                {% endif %}
+                            </div>
 
-                            <!-- Footer -->
-                            {% if day.date == selected_date %}
-                                <div class="small text-primary fw-semibold text-center mt-2">
-                                    Đang xem
-                                </div>
-                            {% endif %}
+                            <div class="week-card-footer">
+                                {% if day.date == selected_date %}
+                                    <span>Đang xem</span>
+                                {% endif %}
+                            </div>
+
+                            
                         </div>
                     </a>
                 </div>
@@ -360,18 +363,40 @@
             grid-template-columns: repeat(2, minmax(150px, 1fr)) !important;
         }
     }
+    
+
     #weekly-menu-section .week-day-card {
-        min-height: 280px !important;
+        min-height: 250px !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    .week-card-body {
+        flex: 1;
+        display: flex;
+        align-items: center;
     }
 
     .week-menu-dishes {
-        margin: 36px 0 0;
+        width: 100%;
+        margin: 0;
         padding-left: 18px;
+        column-count: 2;
+        column-gap: 18px;
         font-weight: 700;
     }
 
     .week-menu-dishes li {
         margin-bottom: 8px;
+        break-inside: avoid;
+    }
+
+    .week-card-footer {
+        height: 24px;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 800;
+        color: #2563eb;
     }
 
     .dish-gallery-side {
