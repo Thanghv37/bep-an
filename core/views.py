@@ -141,6 +141,12 @@ def dashboard(request):
         3: 'Thứ 5',
         4: 'Thứ 6',
     }
+    profile = getattr(request.user, 'profile', None)
+
+    if profile and profile.employee_code:
+        employee_code = profile.employee_code
+    else:
+        employee_code = request.user.username
     registration_dates = set(
         MealRegistration.objects.filter(
             employee_code=employee_code,
@@ -164,7 +170,7 @@ def dashboard(request):
     
 
     week_menu_cards = []
-    employee_code = request.user.profile.employee_code or request.user.username
+    
 
     
     for d in week_days:
