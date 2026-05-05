@@ -151,7 +151,8 @@ def dashboard(request):
             'date_str': d.isoformat(),
             'label': weekday_labels.get(d.weekday(), ''),
             'menu': day_menu,
-            'menu_items': day_menu.items.all() if day_menu else [],
+            'menu_items': day_menu.items.all() if day_menu else [],  # 🔥 QUAN TRỌNG
+            'is_registered': d in registration_dates,               # (nếu có dùng badge)
         })
 
     
