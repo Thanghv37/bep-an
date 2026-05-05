@@ -487,6 +487,39 @@
                 align-items: center;
             }
         }
+        .sidebar-user-link {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            overflow: hidden;          /* 🔥 quan trọng */
+            min-height: 50px;          /* 🔥 fix layout */
+        }
+
+        /* FIX AVATAR */
+        .user-avatar {
+            width: 42px !important;
+            height: 42px !important;
+            min-width: 42px !important;
+            max-width: 42px !important;
+            min-height: 42px !important;
+            max-height: 42px !important;
+            border-radius: 999px !important;
+            overflow: hidden !important;
+            flex: 0 0 42px !important;
+        }
+
+        .user-avatar img {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+            border-radius: 999px !important;
+            display: block !important;
+        }
+
+        .user-avatar {
+            border: 2px solid rgba(255,255,255,0.3);
+        }
     </style>
     <style>
         html {
