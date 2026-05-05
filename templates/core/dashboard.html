@@ -238,7 +238,9 @@
             <div class="section-subtitle">
                 So sánh Thu - Chi - Chênh lệch.
             </div>
-            <canvas id="financeChart" height="110"></canvas>
+            <div class="chart-container">
+                <canvas id="financeChart"></canvas>
+            </div>
         </div>
     </div>
 
@@ -444,6 +446,15 @@
         font-weight: 800;
         margin-bottom: 6px;
     }
+    .chart-container {
+        height: 220px;   /* 👈 chỉnh ở đây */
+        width: 100%;
+    }
+
+    .chart-container canvas {
+        height: 100% !important;
+        width: 100% !important;
+    }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -485,6 +496,7 @@
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: {
                     position: 'top'
