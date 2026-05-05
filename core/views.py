@@ -141,6 +141,12 @@ def dashboard(request):
         3: 'Thứ 5',
         4: 'Thứ 6',
     }
+    registration_dates = set(
+        MealRegistration.objects.filter(
+            employee_code=employee_code,
+            date__range=(week_days[0], week_days[-1]),
+        ).values_list('date', flat=True)
+    )
     week_data = []
 
     for d in week_days:
@@ -160,12 +166,7 @@ def dashboard(request):
     week_menu_cards = []
     employee_code = request.user.profile.employee_code or request.user.username
 
-    registration_dates = set(
-        MealRegistration.objects.filter(
-            employee_code=employee_code,
-            date__range=(week_days[0], week_days[-1]),
-        ).values_list('date', flat=True)
-    )
+    
     for d in week_days:
         count = get_registered_count(d)
         price = get_meal_price_for_date(d)

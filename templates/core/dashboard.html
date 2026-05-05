@@ -136,7 +136,7 @@
                 <div>
                     <a href="?date={{ day.date_str }}#weekly-menu-section" class="text-decoration-none text-reset">
                         <div class="week-day-card
-                            {% if day.is_selected %}
+                            {% if day.date == selected_date %}
                                 week-day-card-selected
                             {% elif day.menu %}
                                 week-day-card-has-menu
@@ -148,7 +148,7 @@
                             <div class="d-flex justify-content-between align-items-start mb-2">
 
                                 <div>
-                                    <div class="fw-bold">{{ day.weekday_label }}</div>
+                                    <div class="fw-bold">{{ day.label }}</div>
                                     <div class="small text-muted">{{ day.date|date:"d/m/Y" }}</div>
                                 </div>
 
@@ -175,7 +175,7 @@
                             {% endif %}
 
                             <!-- Footer -->
-                            {% if day.is_selected %}
+                            {% if day.date == selected_date %}
                                 <div class="small text-primary fw-semibold text-center mt-2">
                                     Đang xem
                                 </div>
