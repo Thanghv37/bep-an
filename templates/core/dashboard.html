@@ -186,73 +186,37 @@
                 {% endfor %}
             </div>
 
-            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
-                <div>
-                    <div class="section-title">Chi tiết ngày {{ selected_date|date:"d/m/Y" }}</div>
-                </div>
-            </div>
-
-            {% if menu %}
-
-            <div class="dish-gallery">
-                {% for item in ordered_menu_items %}
-                    <div class="dish-gallery-card">
-                        {% if item.dish.image %}
-                            <img src="{{ item.dish.image.url }}" class="dish-gallery-img">
-                        {% else %}
-                            <div class="dish-gallery-placeholder">
-                                Không có ảnh
-                            </div>
-                        {% endif %}
-
-                        <div class="dish-gallery-name">
-                            {{ item.dish.name }}
-                        </div>
-
-                        {% if item.dish.dish_type == 'main' %}
-                            <span class="dish-badge dish-main">Món chính</span>
-                        {% elif item.dish.dish_type == 'side' %}
-                            <span class="dish-badge dish-side">Món phụ</span>
-                        {% elif item.dish.dish_type == 'soup' %}
-                            <span class="dish-badge dish-soup">Món canh</span>
-                        {% elif item.dish.dish_type == 'dessert' %}
-                            <span class="dish-badge dish-dessert">Tráng miệng</span>
-                        {% endif %}
-                    </div>
-                {% endfor %}
-            </div>
-
-                        
-
-            {% if menu.note %}
-            <div class="mt-4 p-3 rounded-4" style="background:#f8fafc; border:1px solid #e2e8f0;">
-                <div class="fw-semibold mb-1">Ghi chú</div>
-                <div class="text-muted">{{ menu.note }}</div>
-            </div>
-            {% endif %}
-
-            {% else %}
-            <div class="empty-state">
-                Chưa có thực đơn cho ngày này.
-            </div>
-            {% endif %}
+            
         </div>
     </div>
     <div class="col-lg-4">
         <div class="dashboard-card h-100">
             <div class="section-title">Thực đơn ngày hôm nay</div>
-            <div class="section-subtitle">
-                {{ selected_date|date:"d/m/Y" }}
-            </div>
+            <div class="section-subtitle">{{ selected_date|date:"d/m/Y" }}</div>
 
             {% if menu %}
-                <div class="dish-gallery dish-gallery-side">
+                <div class="today-menu-list">
                     {% for item in ordered_menu_items %}
-                        <div class="dish-gallery-card">
+                        <div class="today-menu-item">
                             {% if item.dish.image %}
-                                <img src="{{ item.dish.image.url }}" class="dish-gallery-img">
+                                <img src="{{ item.dish.image.url }}" class="today-menu-img">
+                            {% else %}
+                                <div class="today-menu-img today-menu-placeholder">Không có ảnh</div>
                             {% endif %}
-                            <div class="dish-gallery-name">{{ item.dish.name }}</div>
+
+                            <div class="today-menu-info">
+                                <div class="today-menu-name">{{ item.dish.name }}</div>
+
+                                {% if item.dish.dish_type == 'main' %}
+                                    <span class="dish-badge dish-main">Món chính</span>
+                                {% elif item.dish.dish_type == 'side' %}
+                                    <span class="dish-badge dish-side">Món phụ</span>
+                                {% elif item.dish.dish_type == 'soup' %}
+                                    <span class="dish-badge dish-soup">Món canh</span>
+                                {% elif item.dish.dish_type == 'dessert' %}
+                                    <span class="dish-badge dish-dessert">Tráng miệng</span>
+                                {% endif %}
+                            </div>
                         </div>
                     {% endfor %}
                 </div>
@@ -416,6 +380,43 @@
 
     .dish-gallery-side .dish-gallery-img {
         height: 110px !important;
+    }
+    .today-menu-list {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .today-menu-item {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        gap: 12px;
+        align-items: center;
+        padding: 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        background: #fff;
+    }
+
+    .today-menu-img {
+        width: 120px;
+        height: 82px;
+        object-fit: cover;
+        border-radius: 14px;
+        background: #f1f5f9;
+    }
+
+    .today-menu-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #64748b;
+        font-size: 12px;
+    }
+
+    .today-menu-name {
+        font-weight: 800;
+        margin-bottom: 6px;
     }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
