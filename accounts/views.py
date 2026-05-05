@@ -12,6 +12,9 @@ from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
+from django.contrib.auth.models import User
+from django.contrib import messages
+from django.shortcuts import render, redirect
 @login_required
 @user_passes_test(can_manage_user)
 def user_list(request):
@@ -274,3 +277,34 @@ def users_api(request):
     }, json_dumps_params={
         'ensure_ascii': False
     })
+def set_initial_password(request):
+    if request.method == 'POST':
+        employee_code = request.POST.get('employee_code', '').strip()
+        password1 = request.POST.get('password1', '').strip()
+        password2 = request.POST.get('password2', '').strip()
+
+        if not employee_code or not password1 or not password2:
+            messages.error(request, 'Vui lòng nhập đầy đủ thông tin.')
+            return redirect('set_initial_password')
+
+        if password1 != password2:
+            messages.error(request, 'Mật khẩu nhập lại không khớp.')
+            return redirect('set_initial_password')
+
+        try:
+            user = User.objects.get(username=employee_code)
+        except User.DoesNotExist:
+            messages.error(request, 'Không tìm thấy mã nhân viên.')
+            return redirect('set_initial_password')
+
+        if user.has_usable_password():
+            messages.warning(request, 'Tài khoản này đã có mật khẩu. Vui lòng đăng nhập hoặc liên hệ admin.')
+            return redirect('login')
+
+        user.set_password(password1)
+        user.save()
+
+        messages.success(request, 'Đặt mật khẩu thành công. Bạn có thể đăng nhập.')
+        return redirect('login')
+
+    return render(request, 'accounts/set_initial_password.html')

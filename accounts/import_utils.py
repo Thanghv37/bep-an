@@ -64,7 +64,7 @@ def import_users_from_excel(file):
             user.is_staff = role in [UserProfile.ROLE_ADMIN, UserProfile.ROLE_KITCHEN]
 
             if created_flag:
-                user.set_password(employee_code)
+                user.set_unusable_password()
 
             user.save()
 
