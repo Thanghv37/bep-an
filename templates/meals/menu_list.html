@@ -47,7 +47,26 @@
         </div>
     </form>
 </div>
+<div class="dashboard-card mb-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+            <div class="section-title mb-1">🤖 Gợi ý thực đơn tuần sau</div>
+            <div class="section-subtitle">
+                Hệ thống đề xuất thực đơn từ Thứ 2 đến Thứ 6 dựa trên món có sẵn.
+            </div>
+        </div>
 
+        <button type="button" class="btn btn-primary" id="suggestWeekBtn">
+            Gợi ý thực đơn
+        </button>
+    </div>
+
+    <div id="suggestionPreview" class="row g-3 mt-3 d-none"></div>
+
+    <button type="button" class="btn btn-success mt-3 d-none" id="applySuggestionBtn">
+        Áp dụng gợi ý
+    </button>
+</div>
 <div class="dashboard-card mb-4">
     <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
         <div>
@@ -121,7 +140,11 @@
                                             bg-success-subtle border-success
                                         {% endif %}
                                     {% else %}
-                                        bg-light border-secondary-subtle
+                                        {% if day.has_draft %}
+                                            menu-day-draft
+                                        {% else %}
+                                            bg-light border-secondary-subtle
+                                        {% endif %}
                                     {% endif %}
                                     {% if day.is_today %} menu-day-today {% endif %}
                                     {% if focus_date and focus_date == day.date %} menu-day-selected {% endif %}"
@@ -142,8 +165,13 @@
 
                                         <div class="small text-primary">Bấm để xem</div>
                                     {% else %}
-                                        <div class="small text-muted mb-1">Chưa tạo</div>
-                                        <div class="small text-success">Bấm để tạo</div>
+                                        {% if day.has_draft %}
+                                            <div class="small text-primary fw-semibold mb-1">Đã chọn món</div>
+                                            <div class="small text-primary">Bấm để chỉnh</div>
+                                        {% else %}
+                                            <div class="small text-muted mb-1">Chưa tạo</div>
+                                            <div class="small text-success">Bấm để tạo</div>
+                                        {% endif %}
                                     {% endif %}
                                 </div>
                             </a>
@@ -169,6 +197,18 @@
             <span class="d-inline-block rounded-circle bg-warning-subtle border border-warning" style="width:16px; height:16px;"></span>
             <span class="small">Menu tạo / chỉnh sửa trễ</span>
         </div>
+            <div class="d-flex align-items-center gap-2">
+                <span 
+                    class="d-inline-block rounded-circle"
+                    style="
+                        width:16px;
+                        height:16px;
+                        background:#dbeafe;
+                        border:2px solid #60a5fa;
+                    ">
+                </span>
+                <span class="small">Đã chọn món</span>
+            </div>
         <div class="d-flex align-items-center gap-2">
             <span class="d-inline-block rounded-circle bg-danger-subtle border border-danger" style="width:16px; height:16px;"></span>
             <span class="small">Đã từ chối</span>
@@ -521,6 +561,10 @@
 .menu-legend-selected {
     border: 3px solid #2563eb;
 }
+.menu-day-draft {
+    background: #dbeafe !important;
+    border-color: #60a5fa !important;
+}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -546,5 +590,65 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+<script>
+let currentSuggestions = [];
 
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
+}
+
+document.getElementById('suggestWeekBtn')?.addEventListener('click', function () {
+    fetch("{% url 'suggest_next_week_menu' %}", {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": getCSRFToken(),
+        },
+    })
+    .then(res => res.json())
+    .then(data => {
+        currentSuggestions = data.suggestions || [];
+
+        const preview = document.getElementById('suggestionPreview');
+        const applyBtn = document.getElementById('applySuggestionBtn');
+
+        preview.innerHTML = '';
+        preview.classList.remove('d-none');
+        applyBtn.classList.remove('d-none');
+
+        currentSuggestions.forEach(item => {
+            preview.innerHTML += `
+                <div class="col-lg-2 col-md-4 col-sm-6">
+                    <div class="p-3 border rounded-4 bg-light h-100">
+                        <div class="fw-bold mb-2">${item.label}</div>
+                        <div class="small text-muted mb-2">${item.date}</div>
+
+                        <ul class="small ps-3 mb-0">
+                            ${item.dish_names.map(name => `<li>${name}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `;
+        });
+    });
+});
+
+document.getElementById('applySuggestionBtn')?.addEventListener('click', function () {
+    fetch("{% url 'apply_week_menu_draft' %}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCSRFToken(),
+        },
+        body: JSON.stringify({
+            suggestions: currentSuggestions
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        }
+    });
+});
+</script>
 {% endblock %}

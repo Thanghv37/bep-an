@@ -109,3 +109,15 @@ class MealPriceChangeLog(models.Model):
 
     def __str__(self):
         return f"{self.get_action_display()} - {self.changed_at:%d/%m/%Y %H:%M}"
+class DailyNutritionAnalysis(models.Model):
+    date = models.DateField(unique=True)
+    total_kcal = models.PositiveIntegerField(default=0)
+    level = models.CharField(max_length=50, blank=True)
+    summary = models.TextField(blank=True)
+    raw_json = models.JSONField(default=dict, blank=True)
+
+    generated_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.date} - {self.total_kcal} kcal"

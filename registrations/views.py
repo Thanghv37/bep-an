@@ -14,7 +14,10 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
-
+from django.contrib import messages
+from django.shortcuts import redirect
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseForbidden
 def is_admin(user):
     return user.is_staff  # hoặc is_superuser
 @login_required
@@ -197,3 +200,18 @@ def registrations_by_date_api(request):
     }, json_dumps_params={
         'ensure_ascii': False
     })
+@login_required
+def delete_all_registrations(request):
+
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("Bạn không có quyền xóa dữ liệu.")
+
+    if request.method == 'POST':
+        deleted_count, _ = MealRegistration.objects.all().delete()
+
+        messages.success(
+            request,
+            f'Đã xóa toàn bộ {deleted_count} đăng ký.'
+        )
+
+    return redirect('registration_list')

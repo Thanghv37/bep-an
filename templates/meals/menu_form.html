@@ -140,6 +140,19 @@
             <button type="submit" class="btn btn-primary">
                 {{ submit_label }}
             </button>
+
+            {% if has_draft %}
+            <button
+                type="submit"
+                name="action"
+                value="clear_draft"
+                class="btn btn-outline-danger"
+                formnovalidate
+                onclick="return confirm('Bạn có chắc muốn xóa toàn bộ lựa chọn gợi ý của ngày này?');">
+                Xóa lựa chọn
+            </button>
+            {% endif %}
+
             <a href="{% url 'menu_list' %}" class="btn btn-outline-secondary">
                 Quay lại
             </a>

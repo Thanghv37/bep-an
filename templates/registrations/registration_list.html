@@ -9,6 +9,7 @@
 
     <div class="dashboard-card mb-4 registration-hero">
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+
             <div>
                 <div class="d-flex align-items-center gap-3 flex-wrap">
                     <div class="section-title mb-0">Danh sách đăng kí</div>
@@ -24,19 +25,38 @@
                 </div>
             </div>
 
-            <div class="d-flex gap-2 align-items-center flex-wrap">
-                <form method="post" action="{% url 'registration_import' %}" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    <label class="btn btn-outline-success mb-0 action-btn">
-                        📄 Import Excel
-                        <input type="file" name="file" accept=".xlsx,.xls" hidden onchange="this.form.submit()">
-                    </label>
-                </form>
+            <div class="d-flex flex-column align-items-end gap-2">
 
-                <a href="{% url 'registration_create' %}" class="btn btn-primary action-btn">
-                    + Thêm người đăng kí
-                </a>
+                <div class="d-flex gap-2 align-items-center flex-wrap">
+
+                    <form method="post" action="{% url 'registration_import' %}" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <label class="btn btn-outline-success mb-0 action-btn">
+                            📄 Import Excel
+                            <input type="file" name="file" accept=".xlsx,.xls" hidden onchange="this.form.submit()">
+                        </label>
+                    </form>
+
+                    <a href="{% url 'registration_create' %}" class="btn btn-primary action-btn">
+                        + Thêm người đăng kí
+                    </a>
+
+                </div>
+
+                {% if request.user.is_superuser %}
+                <form method="post"
+                    action="{% url 'delete_all_registrations' %}"
+                    onsubmit="return confirm('Bạn có chắc muốn xóa toàn bộ đăng ký?');">
+                    {% csrf_token %}
+
+                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                        🗑 Xóa toàn bộ
+                    </button>
+                </form>
+                {% endif %}
+
             </div>
+
         </div>
     </div>
 

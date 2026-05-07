@@ -15,6 +15,14 @@ from django.db.models import Count
 import calendar
 from django.db.models import Q
 from django.utils import timezone
+from datetime import time
+from .models import DailyNutritionAnalysis
+from core.services.nutrition_ai import estimate_nutrition
+from django.http import JsonResponse
+from datetime import time
+from django.utils import timezone
+from .models import DailyNutritionAnalysis
+from .services.nutrition_ai import estimate_nutrition
 
 def get_registered_count(target_date):
     total = MealRegistration.objects.filter(
@@ -70,15 +78,16 @@ def dashboard(request):
         'soup': [],
         'dessert': [],
     }
-
-    if menu:
-        dish_type_order = {
+    dish_type_order = {
             'main': 1,
             'side': 2,
             'soup': 3,
             'dessert': 4,
         }
+    if menu:
+        
 
+        # 1. sort menu trước
         ordered_menu_items = sorted(
             menu.items.all(),
             key=lambda item: (
@@ -88,6 +97,7 @@ def dashboard(request):
             )
         )
 
+        # 2. group menu
         for item in ordered_menu_items:
             grouped_menu_items[item.dish.dish_type].append(item)
 
@@ -158,20 +168,46 @@ def dashboard(request):
     for d in week_days:
         day_menu = week_menu_map.get(d)
 
+        sorted_items = sorted(
+            day_menu.items.all(),
+            key=lambda item: (
+                dish_type_order.get(item.dish.dish_type, 99),
+                item.sort_order,
+                item.dish.name.lower(),
+            )
+        ) if day_menu else []
+
+        week_groups = [
+            {
+                'label': 'Món chính',
+                'type': 'main',
+                'items': [item for item in sorted_items if item.dish.dish_type == 'main'],
+            },
+            {
+                'label': 'Món phụ',
+                'type': 'side',
+                'items': [item for item in sorted_items if item.dish.dish_type == 'side'],
+            },
+            {
+                'label': 'Món canh',
+                'type': 'soup',
+                'items': [item for item in sorted_items if item.dish.dish_type == 'soup'],
+            },
+            {
+                'label': 'Tráng miệng',
+                'type': 'dessert',
+                'items': [item for item in sorted_items if item.dish.dish_type == 'dessert'],
+            },
+        ]
+
         week_data.append({
             'date': d,
             'date_str': d.isoformat(),
             'label': weekday_labels.get(d.weekday(), ''),
             'menu': day_menu,
-            'menu_items': sorted(
-                day_menu.items.all(),
-                key=lambda item: (
-                    dish_type_order.get(item.dish.dish_type, 99),
-                    item.sort_order,
-                    item.dish.name.lower(),
-                )
-            ) if day_menu else [],
-            'is_registered': d in registration_dates,               # (nếu có dùng badge)
+            'menu_items': sorted_items,
+            'menu_groups': week_groups,
+            'is_registered': d in registration_dates,
         })
 
     
@@ -210,7 +246,7 @@ def dashboard(request):
             'menu_count': day_menu.item_count if day_menu else None,
             'is_registered': d in registration_dates,
         })
-
+    nutrition_result = None
     context = {
         'selected_date': selected_date,
         'selected_date_str': selected_date.isoformat(),
@@ -371,3 +407,72 @@ def meal_price_update(request, pk):
         'page_title': 'Cập nhật giá suất ăn',
         'submit_label': 'Cập nhật',
     })
+@login_required
+def nutrition_analysis_api(request):
+    selected_date = timezone.localdate()
+
+    nutrition_obj = DailyNutritionAnalysis.objects.filter(
+        date=selected_date
+    ).first()
+
+    if nutrition_obj:
+        return JsonResponse(nutrition_obj.raw_json)
+
+    menu = DailyMenu.objects.filter(date=selected_date).first()
+
+    if not menu:
+        return JsonResponse({
+            "error": "Không có menu"
+        })
+
+    ordered_menu_items = menu.items.select_related(
+        'dish'
+    ).prefetch_related(
+        'dish__ingredients__ingredient'
+    )
+
+    nutrition_input = []
+
+    for item in ordered_menu_items:
+        dish = item.dish
+
+        ingredients = []
+
+        for ing in dish.ingredients.all():
+            ingredients.append({
+                "name": ing.ingredient.name,
+                "grams": float(ing.quantity_per_person),
+                "unit": ing.unit,
+            })
+
+        nutrition_input.append({
+            "dish": dish.name,
+            "ingredients": ingredients,
+        })
+
+    now = timezone.localtime()
+
+    if now.time() < time(8, 0):
+        return JsonResponse({
+            "error": "Chưa đến thời gian phân tích"
+        })
+
+    try:
+        result = estimate_nutrition(nutrition_input)
+
+        DailyNutritionAnalysis.objects.create(
+            date=selected_date,
+            total_kcal=result.get("total_kcal", 0),
+            level=result.get("level", ""),
+            summary=result.get("summary", ""),
+            raw_json=result,
+        )
+
+        return JsonResponse(result)
+
+    except Exception as e:
+        print("AI ERROR:", e)
+
+        return JsonResponse({
+            "error": "AI tạm thời bận"
+        })

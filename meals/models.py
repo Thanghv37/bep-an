@@ -19,7 +19,13 @@ def upload_dish_image(instance, filename):
     slug = slugify(name).replace('-', '_')
 
     return f'dish_images/{slug}.{ext}'
+def normalize_vietnamese_name(text):
+    if not text:
+        return text
 
+    text = text.strip()
+
+    return text[:1].upper() + text[1:].lower()
 
 
 
@@ -43,7 +49,10 @@ class Dish(models.Model):
         ('phần', 'Phần'),
         ('quả', 'Quả'),
     ]
+    def save(self, *args, **kwargs):
+        self.name = normalize_vietnamese_name(self.name)
 
+        super().save(*args, **kwargs)
     # 🔥 NEW: trạng thái
     STATUS_PENDING = 'pending'
     STATUS_APPROVED = 'approved'
@@ -103,7 +112,7 @@ class Dish(models.Model):
         blank=True,
         verbose_name='Ảnh món ăn'
     )
-
+    
     class Meta:
         ordering = ['name']
 
@@ -154,7 +163,10 @@ class DishRejectLog(models.Model):
 # =============================
 class Ingredient(models.Model):
     UNIT_CHOICES = Dish.UNIT_CHOICES
+    def save(self, *args, **kwargs):
+        self.name = normalize_vietnamese_name(self.name)
 
+        super().save(*args, **kwargs)
     name = models.CharField(max_length=255, unique=True)
     default_unit = models.CharField(max_length=20, choices=UNIT_CHOICES, default='g')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -283,3 +295,17 @@ class MenuRejectLog(models.Model):
 
     def __str__(self):
         return f"Từ chối menu {self.date}"
+class WeeklyMenuDraft(models.Model):
+    date = models.DateField()
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    dish_ids = models.JSONField(default=list)
+    reason = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('date',)
+        ordering = ['date']
+
+    def __str__(self):
+        return f"Draft menu {self.date} - {self.created_by}"

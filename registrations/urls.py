@@ -6,6 +6,7 @@ from .views import (
     registration_create,
     registrations_by_date_api,
     registration_delete,
+    delete_all_registrations
 )
 
 urlpatterns = [
@@ -14,4 +15,9 @@ urlpatterns = [
     path('create/', registration_create, name='registration_create'),
     path('api/by-date/', registrations_by_date_api, name='registrations_by_date_api'),
     path('<int:pk>/delete/', registration_delete, name='registration_delete'),
+    path(
+        'delete-all/',
+        delete_all_registrations,
+        name='delete_all_registrations'
+    ),
 ]

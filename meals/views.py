@@ -17,6 +17,7 @@ from .models import (
     DishIngredient,
     MenuRejectLog,
     DishRejectLog,
+    WeeklyMenuDraft,
 )
 from .forms import DishForm, DailyMenuForm
 from finance.models import DailyPurchase, PurchaseRejectLog, ExtraPurchaseRequest
@@ -33,6 +34,10 @@ from reportlab.lib.styles import getSampleStyleSheet
 from PIL import Image, ImageDraw, ImageFont
 from django.http import HttpResponse
 import io
+from datetime import timedelta
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from django.db import transaction
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from django.conf import settings
@@ -239,7 +244,121 @@ def dish_delete(request, pk):
     messages.success(request, "Đã xóa món ăn.")
     return redirect('dish_list')
 
+def get_next_week_days():
+    today = timezone.localdate()
+    next_monday = today + timedelta(days=(7 - today.weekday()))
+    return [next_monday + timedelta(days=i) for i in range(5)]
 
+
+def pick_dish(queryset, used_ids, keywords=None):
+    dishes = list(queryset)
+
+    if keywords:
+        prioritized = [
+            d for d in dishes
+            if any(k.lower() in d.name.lower() for k in keywords)
+            and d.id not in used_ids
+        ]
+        if prioritized:
+            return prioritized[0]
+
+    for dish in dishes:
+        if dish.id not in used_ids:
+            return dish
+
+    return dishes[0] if dishes else None
+
+
+@login_required
+@user_passes_test(can_manage_menu)
+@require_POST
+def suggest_next_week_menu(request):
+    grouped = get_grouped_dishes()
+
+    week_days = get_next_week_days()
+    used_ids = set()
+    suggestions = []
+
+    friday_keywords = ['mì', 'bún', 'phở', 'miến', 'mỳ', 'quảng']
+
+    last_friday = week_days[-1] - timedelta(days=7)
+    last_friday_menu = DailyMenu.objects.filter(
+        date=last_friday
+    ).prefetch_related('items__dish').first()
+
+    last_friday_names = []
+    if last_friday_menu:
+        last_friday_names = [
+            item.dish.name.lower()
+            for item in last_friday_menu.items.all()
+        ]
+
+    for day in week_days:
+        dish_ids = []
+        dish_names = []
+
+        is_friday = day.weekday() == 4
+
+        main_keywords = friday_keywords if is_friday else None
+        main = pick_dish(grouped['main'], used_ids, main_keywords)
+
+        if is_friday and main:
+            if any(main.name.lower() in name for name in last_friday_names):
+                used_ids.add(main.id)
+                main = pick_dish(grouped['main'], used_ids, friday_keywords)
+
+        side = pick_dish(grouped['side'], used_ids)
+        soup = pick_dish(grouped['soup'], used_ids)
+        dessert = pick_dish(grouped['dessert'], used_ids)
+
+        selected = [main, side, soup, dessert]
+
+        for dish in selected:
+            if dish:
+                dish_ids.append(dish.id)
+                dish_names.append(dish.name)
+                used_ids.add(dish.id)
+
+        reason = 'Đủ nhóm món chính, món phụ, canh và tráng miệng.'
+        if is_friday:
+            reason = 'Thứ 6 ưu tiên món đổi bữa, hạn chế lặp lại món thứ 6 tuần trước.'
+
+        suggestions.append({
+            'date': day.strftime('%Y-%m-%d'),
+            'label': ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6'][day.weekday()],
+            'dish_ids': dish_ids,
+            'dish_names': dish_names,
+            'reason': reason,
+        })
+
+    return JsonResponse({'suggestions': suggestions})
+
+
+@login_required
+@user_passes_test(can_manage_menu)
+@require_POST
+def apply_week_menu_draft(request):
+    import json
+
+    data = json.loads(request.body.decode('utf-8'))
+    suggestions = data.get('suggestions', [])
+
+    with transaction.atomic():
+        for item in suggestions:
+            target_date = datetime.strptime(item['date'], '%Y-%m-%d').date()
+
+            if DailyMenu.objects.filter(date=target_date).exists():
+                continue
+
+            WeeklyMenuDraft.objects.update_or_create(
+                date=target_date,
+                defaults={
+                    'dish_ids': item.get('dish_ids', []),
+                    'reason': item.get('reason', ''),
+                }
+            )
+
+    return JsonResponse({'success': True})
 @login_required
 @user_passes_test(can_manage_menu)
 def menu_list(request):
@@ -294,7 +413,12 @@ def menu_list(request):
         date__month=month
     )
     month_menu_map = {menu.date: menu for menu in month_menu_queryset}
+    draft_queryset = WeeklyMenuDraft.objects.filter(
+        date__year=year,
+        date__month=month,
+    )
 
+    draft_map = {draft.date: draft for draft in draft_queryset}
     calendar_weeks = []
     for week in month_days:
         week_data = []
@@ -311,6 +435,8 @@ def menu_list(request):
                 'is_late_menu': bool(menu and menu.edit_reason),
                 'status': menu.status if menu else None,
                 'status_display': menu.get_status_display() if menu else None,
+                'has_draft': day in draft_map,
+                'draft_dish_count': len(draft_map[day].dish_ids) if day in draft_map else 0,
             })
         calendar_weeks.append(week_data)
 
@@ -397,7 +523,7 @@ def menu_create(request):
 
     requires_reason = False
     initial_data = {}
-
+    draft_dish_ids = []
     if preselected_date:
         initial_data['date'] = preselected_date
         try:
@@ -405,6 +531,33 @@ def menu_create(request):
             requires_reason = is_late_menu_date(parsed_date, now=now)
         except ValueError:
             pass
+
+    if request.method == 'POST' and request.POST.get('action') == 'clear_draft':
+        clear_date_raw = request.POST.get('date') or preselected_date
+
+        try:
+            clear_date = datetime.strptime(clear_date_raw, '%Y-%m-%d').date()
+
+            WeeklyMenuDraft.objects.filter(
+                date=clear_date
+            ).delete()
+
+            messages.success(
+                request,
+                'Đã xóa lựa chọn món gợi ý.'
+            )
+
+            return redirect(
+                f"{request.path}?date={clear_date.strftime('%Y-%m-%d')}"
+            )
+
+        except (ValueError, TypeError):
+            messages.error(
+                request,
+                'Không xác định được ngày cần xóa lựa chọn.'
+            )
+            return redirect('menu_list')
+
 
     if request.method == 'POST':
         form = DailyMenuForm(request.POST, user=request.user)
@@ -440,6 +593,11 @@ def menu_create(request):
                 menu.edit_reason = edit_reason if requires_reason else ''
                 menu.last_edited_at = now
                 menu.save()
+                from core.models import DailyNutritionAnalysis
+
+                DailyNutritionAnalysis.objects.filter(
+                    date=menu.date
+                ).delete()
 
                 menu.items.all().delete()
 
@@ -453,15 +611,30 @@ def menu_create(request):
                 messages.success(request, f'Đã tạo thực đơn ngày {menu.date.strftime("%d/%m/%Y")}.')
                 return redirect('menu_list')
     else:
-        form = DailyMenuForm(initial=initial_data, user=request.user)
+        
 
+        if preselected_date:
+            try:
+                draft_date = datetime.strptime(preselected_date, '%Y-%m-%d').date()
+                draft = WeeklyMenuDraft.objects.filter(
+                    date=draft_date,
+                ).first()
+
+                if draft:
+                    draft_dish_ids = draft.dish_ids
+            except ValueError:
+                pass
+
+        form = DailyMenuForm(initial=initial_data, user=request.user)
+    has_draft = bool(draft_dish_ids)
     return render(request, 'meals/menu_form.html', {
         'form': form,
         'page_title': 'Lên thực đơn',
         'submit_label': 'Lưu thực đơn',
         'grouped_dishes': get_grouped_dishes(),
-        'selected_dish_ids': [],
+        'selected_dish_ids': draft_dish_ids,
         'requires_reason': requires_reason,
+        'has_draft': has_draft,
     })
 
 
@@ -512,6 +685,11 @@ def menu_update(request, pk):
                 menu.edit_reason = edit_reason if requires_reason else ''
                 menu.last_edited_at = now
                 menu.save()
+                from core.models import DailyNutritionAnalysis
+
+                DailyNutritionAnalysis.objects.filter(
+                    date=menu.date
+                ).delete()
 
                 menu.items.all().delete()
 
@@ -521,7 +699,9 @@ def menu_update(request, pk):
                         dish=dish,
                         sort_order=index
                     )
-
+                WeeklyMenuDraft.objects.filter(
+                    date=menu.date,
+                ).delete()
                 messages.success(request, 'Đã cập nhật thực đơn.')
                 return redirect('menu_list')
     else:

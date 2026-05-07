@@ -3,7 +3,9 @@ from .views import (
     dish_list, dish_create, dish_update, dish_delete,
     menu_list, menu_create, menu_update, menu_delete,
     approval_dashboard, approve_menu, approve_purchase, reject_purchase, reject_menu,
-    approve_dish, reject_dish,export_ingredients_pdf, approve_extra_request, reject_extra_request
+    approve_dish, reject_dish,export_ingredients_pdf, approve_extra_request, reject_extra_request,
+    suggest_next_week_menu,
+    apply_week_menu_draft,
 )
 
 urlpatterns = [
@@ -34,4 +36,7 @@ urlpatterns = [
     
     path('approvals/extra-requests/<int:pk>/approve/', approve_extra_request, name='approve_extra_request'),
     path('approvals/extra-requests/<int:pk>/reject/', reject_extra_request, name='reject_extra_request'),
+
+    path('menus/api/suggest-next-week/', suggest_next_week_menu, name='suggest_next_week_menu'),
+    path('menus/api/apply-week-draft/', apply_week_menu_draft, name='apply_week_menu_draft'),
 ]

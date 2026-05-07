@@ -7,7 +7,7 @@
 {% block content %}
 
 
-<div class="row g-4 mb-4">
+<div class="row g-3 mb-3">
     <div class="col-12 col-md-6 col-lg-3">
         <div class="stat-card stat-blue">
             <div class="stat-label">Người ăn</div>
@@ -166,11 +166,19 @@
 
                             <div class="week-card-body">
                                 {% if day.menu_items %}
-                                    <ul class="week-menu-dishes">
-                                        {% for item in day.menu_items %}
-                                            <li>{{ item.dish.name }}</li>
+                                    <div class="week-menu-groups">
+                                        {% for group in day.menu_groups %}
+                                            {% if group.items %}
+                                                <div class="week-menu-group week-menu-group-{{ group.type }}">
+                                                    <ul class="week-menu-dishes">
+                                                        {% for item in group.items %}
+                                                            <li>{{ item.dish.name }}</li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                </div>
+                                            {% endif %}
                                         {% endfor %}
-                                    </ul>
+                                    </div>
                                 {% else %}
                                     <div class="small text-muted mt-3">Chưa có menu</div>
                                 {% endif %}
@@ -231,9 +239,9 @@
     
 </div>
 
-<div class="row g-4 mb-4">
-    <div class="col-lg-12">
-        <div class="dashboard-card">
+<div class="row g-3 mb-3">
+    <div class="col-lg-8">
+        <div class="dashboard-card h-100">
             <div class="section-title">Xu hướng trong tuần</div>
             <div class="section-subtitle">
                 So sánh Thu - Chi - Chênh lệch.
@@ -244,13 +252,42 @@
         </div>
     </div>
 
-    
+    <div class="col-lg-4">
+        <div class="dashboard-card ai-chat-card h-100">
+            <div class="ai-chat-header">
+                <div class="ai-avatar">🤖</div>
+                <div>
+                    <div class="ai-title">AI dinh dưỡng</div>
+                    <div class="ai-subtitle">Phân tích menu hôm nay</div>
+                </div>
+            </div>
+
+            <div class="ai-chat-body">
+                <div class="ai-message">
+                    <div id="ai-nutrition-content">
+
+                        <div class="text-muted">
+                            🤖 AI đang phân tích dinh dưỡng hôm nay...
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="ai-message ai-tip">
+                    <div class="ai-message-title">Thông tin bổ ích</div>
+                    <div id="healthTipText">
+                        Uống đủ nước giúp cơ thể trao đổi chất tốt hơn.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 <style>
     #weekly-menu-section .week-menu-grid {
         display: grid !important;
         grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
-        gap: 14px !important;
+        gap: 10px !important;
         width: 100% !important;
     }
 
@@ -269,7 +306,7 @@
         justify-content: space-between !important;
         min-height: 132px !important;
         height: 100% !important;
-        padding: 14px !important;
+        padding: 10px !important;
         border-radius: 16px !important;
         border: 1px solid #e2e8f0 !important;
         background: #fff !important;
@@ -368,7 +405,7 @@
     
 
     #weekly-menu-section .week-day-card {
-        min-height: 250px !important;
+        min-height: 220px !important;
         display: flex !important;
         flex-direction: column !important;
     }
@@ -477,13 +514,129 @@
     }
 
     .stat-card {
-        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08) !important;
+        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06) !important;
+        padding: 18px 20px !important;
+        min-height: 105px !important;
     }
-
+    .dashboard-card {
+        padding: 18px !important;
+        border-radius: 20px !important;
+    }
     .stat-card .stat-label,
     .stat-card .stat-meta,
     .stat-card .stat-value {
         color: inherit !important;
+    }
+    .ai-chat-card {
+        background: linear-gradient(180deg, #ffffff, #f8fafc);
+        border: 1px solid #e2e8f0;
+    }
+
+    .ai-chat-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+
+    .ai-avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 999px;
+        background: #eff6ff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+    }
+
+    .ai-title {
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .ai-subtitle {
+        font-size: 13px;
+        color: #64748b;
+    }
+
+    .ai-chat-body {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .ai-message {
+        background: #f1f5f9;
+        border-radius: 18px 18px 18px 6px;
+        padding: 14px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .ai-message-title {
+        font-weight: 800;
+        margin-bottom: 8px;
+    }
+
+    .ai-kcal {
+        font-size: 26px;
+        font-weight: 900;
+        color: #2563eb;
+        margin-bottom: 4px;
+    }
+
+    .ai-level {
+        color: #334155;
+        margin-bottom: 8px;
+    }
+
+    .ai-summary {
+        color: #64748b;
+        font-size: 14px;
+    }
+
+    .ai-tip {
+        background: #ecfdf5;
+        border-color: #bbf7d0;
+    }
+    .week-menu-groups {
+        width: 100%;
+    }
+
+    .week-menu-group {
+        padding: 6px 8px;
+        margin-bottom: 6px;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        background: #ffffff80;
+    }
+
+    .week-menu-dishes {
+        margin: 0;
+        padding-left: 16px;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .week-menu-dishes li {
+        margin-bottom: 2px;
+        line-height: 1.25;
+    }
+
+    .week-menu-group-main {
+        border-color: #bfdbfe;
+    }
+
+    .week-menu-group-side {
+        border-color: #ddd6fe;
+    }
+
+    .week-menu-group-soup {
+        border-color: #bbf7d0;
+    }
+
+    .week-menu-group-dessert {
+        border-color: #fed7aa;
     }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -538,6 +691,84 @@ function toggleExpenseDetail() {
     const box = document.getElementById('expense-detail-box');
     box.classList.toggle('d-none');
 }
-</script>
+const healthTips = [
+    "Uống đủ nước giúp cơ thể trao đổi chất tốt hơn.",
+    "Ăn chậm giúp hệ tiêu hóa hoạt động hiệu quả hơn.",
+    "Rau xanh cung cấp chất xơ, hỗ trợ kiểm soát đường huyết.",
+    "Đi bộ nhẹ sau ăn giúp giảm cảm giác đầy bụng.",
+    "Ngủ đủ giấc giúp cơ thể phục hồi và giảm mệt mỏi.",
+    "Trái cây tươi là lựa chọn tráng miệng tốt hơn đồ ngọt.",
+    "Hạn chế đồ chiên rán giúp giảm gánh nặng cho hệ tiêu hóa.",
+    "Bổ sung protein trong bữa ăn giúp no lâu hơn."
+];
 
+let tipIndex = 0;
+setInterval(() => {
+    tipIndex = (tipIndex + 1) % healthTips.length;
+    const tipEl = document.getElementById('healthTipText');
+    if (tipEl) {
+        tipEl.textContent = healthTips[tipIndex];
+    }
+}, 60000);
+</script>
+<script>
+async function loadNutritionAnalysis() {
+
+    try {
+
+        const response = await fetch("/nutrition-analysis/");
+        const data = await response.json();
+
+        const container = document.getElementById(
+            "ai-nutrition-content"
+        );
+
+        if (data.error) {
+
+            container.innerHTML = `
+                <div class="text-muted">
+                    ${data.error}
+                </div>
+            `;
+
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="ai-message ai-message-bot">
+                <div class="fw-bold mb-2">
+                    Phân tích dinh dưỡng hôm nay
+                </div>
+
+                <div class="ai-kcal mb-2">
+                    ${data.total_kcal} kcal/suất
+                </div>
+
+                <div class="mb-2">
+                    Mức đánh giá:
+                    <strong>${data.level}</strong>
+                </div>
+
+                <div class="text-muted">
+                    ${data.summary}
+                </div>
+            </div>
+        `;
+
+    } catch (error) {
+
+        console.error(error);
+
+        document.getElementById(
+            "ai-nutrition-content"
+        ).innerHTML = `
+            <div class="text-danger">
+                Không thể tải AI dinh dưỡng.
+            </div>
+        `;
+    }
+}
+
+loadNutritionAnalysis();
+</script>
 {% endblock %}
