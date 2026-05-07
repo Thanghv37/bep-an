@@ -6,7 +6,8 @@ from .views import (
     registration_create,
     registrations_by_date_api,
     registration_delete,
-    delete_all_registrations
+    delete_all_registrations,
+    registration_participation
 )
 
 urlpatterns = [
@@ -20,4 +21,5 @@ urlpatterns = [
         delete_all_registrations,
         name='delete_all_registrations'
     ),
+    path('participation/', registration_participation, name='registration_participation'),
 ]

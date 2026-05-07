@@ -18,6 +18,8 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
+from core.models import AttendanceLog
+from django.utils.timezone import now
 def is_admin(user):
     return user.is_staff  # hoặc is_superuser
 @login_required
@@ -215,3 +217,33 @@ def delete_all_registrations(request):
         )
 
     return redirect('registration_list')
+@login_required
+@user_passes_test(is_admin)
+def registration_participation(request):
+    # Lấy ngày từ query param hoặc mặc định là hôm nay
+    date_str = request.GET.get('date')
+    if date_str:
+        try:
+            target_date = date.fromisoformat(date_str)
+        except ValueError:
+            target_date = date.today()
+    else:
+        target_date = date.today()
+
+    # Lọc theo tên/mã nhân viên và trạng thái
+    q_name = request.GET.get('q_name', '').strip()
+    q_status = request.GET.get('q_status', '').strip()
+
+    logs = AttendanceLog.objects.filter(scan_time__date=target_date)
+    if q_name:
+        logs = logs.filter(full_name__icontains=q_name)
+    if q_status:
+        logs = logs.filter(status=q_status)
+
+    context = {
+        'logs': logs.order_by('scan_time'),
+        'target_date': target_date,
+        'q_name': q_name,
+        'q_status': q_status,
+    }
+    return render(request, 'registrations/registration_participation.html', context)

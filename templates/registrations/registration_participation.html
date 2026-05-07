@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+
+{% block title %}Danh sách tham gia{% endblock %}
+{% block page_title %}Danh sách tham gia{% endblock %}
+
+{% block content %}
+<div class="registration-page">
+    
+    <div class="registration-header mb-4">
+        <div class="d-flex gap-2 align-items-center mb-2">
+            <a href="{% url 'registration_list' %}" class="btn btn-secondary tab-btn">
+                Danh sách đăng ký
+            </a>
+            <a href="{% url 'registration_participation' %}?date={{ target_date|date:'Y-m-d' }}" 
+               class="btn btn-primary tab-btn active">
+                Tham gia
+            </a>
+        </div>
+        <div class="section-subtitle">
+            Theo dõi lịch sử quét thẻ và tham gia ăn thực tế.
+        </div>
+    </div>
+
+    <div class="dashboard-card mb-4 filter-card">
+        <form method="get" id="participation-filter-form">
+            <div class="filter-grid-participation">
+                <div class="filter-item">
+                    <label class="filter-label">Ngày</label>
+                    <input
+                        type="date"
+                        name="date"
+                        id="date-filter"
+                        /* SỬA TẠI ĐÂY: Thêm filter date:'Y-m-d' để trình duyệt hiểu được */
+                        value="{{ target_date|date:'Y-m-d'|default:'' }}"
+                        class="form-control"
+                    >
+                </div>
+
+                <div class="filter-item filter-search">
+                    <label class="filter-label">Tìm kiếm</label>
+                    <input
+                        type="text"
+                        name="q_name"
+                        value="{{ q_name }}"
+                        class="form-control"
+                        placeholder="Tên hoặc mã nhân viên..."
+                        autocomplete="off"
+                    >
+                </div>
+
+                <div class="filter-item">
+                    <label class="filter-label">Trạng thái</label>
+                    <select name="q_status" class="form-select">
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="Đã đăng ký" {% if q_status == "Đã đăng ký" %}selected{% endif %}>Đã đăng ký</option>
+                        <option value="Chưa đăng ký" {% if q_status == "Chưa đăng ký" %}selected{% endif %}>Chưa đăng ký</option>
+                    </select>
+                </div>
+
+                <div class="filter-item filter-reset">
+                    <a href="{% url 'registration_participation' %}" class="btn btn-outline-secondary w-100">
+                        Reset
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="dashboard-card user-list-card">
+        <div class="table-responsive">
+            <table class="table user-modern-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 25%">Người dùng</th>
+                        <th>Mã nhân viên</th>
+                        <th>Thời gian quét</th>
+                        <th>Trạng thái</th>
+                        <th>Loại</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                        <tr>
+                            <td>
+                                <div class="user-cell">
+                                    <div class="user-list-avatar">
+                                        <span>{{ log.full_name|first|upper }}</span>
+                                    </div>
+                                    <div>
+                                        <div class="user-list-name">{{ log.full_name }}</div>
+                                        <div class="user-list-sub">Lịch sử tham gia ăn</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="employee-code">{{ log.employee_code }}</span></td>
+                            <td>
+                                <div class="scan-time">
+                                    <i class="far fa-clock me-1"></i>
+                                    {{ log.scan_time|date:"H:i" }}
+                                    <small class="text-muted d-block">{{ log.scan_time|date:"d/m/Y" }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                {% if log.status == "Đã đăng ký" %}
+                                    <span class="status-pill status-success">
+                                        <span class="status-dot dot-success"></span> {{ log.status }}
+                                    </span>
+                                {% else %}
+                                    <span class="status-pill status-warning">
+                                        <span class="status-dot dot-warning"></span> {{ log.status }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td><span class="type-badge">{{ log.type|default:"Quét thẻ" }}</span></td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5">
+                                <div class="empty-state py-5 text-center">
+                                    <div class="fs-2">📅</div>
+                                    <div class="fw-bold">Chưa có dữ liệu tham gia</div>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Giữ nguyên CSS cũ của bạn */
+.registration-page { max-width: 1600px; margin: 0 auto; }
+.tab-btn { border-radius: 12px; padding: 8px 20px; font-weight: 700; font-size: 14px; text-decoration: none; display: inline-block; }
+.tab-btn.btn-primary { background-color: #3b82f6; border: none; }
+.tab-btn.btn-secondary { background-color: #64748b; border: none; }
+.section-subtitle { color: #94a3b8; font-size: 14px; font-weight: 500; }
+.filter-card { background: #ffffff !important; border: 1px solid #f1f5f9; padding: 24px; border-radius: 16px; }
+.filter-grid-participation { display: grid; grid-template-columns: 180px minmax(250px, 1fr) 200px 100px; gap: 15px; align-items: end; }
+.filter-label { font-size: 13px; font-weight: 700; color: #64748b; margin-bottom: 6px; }
+.filter-card .form-control, .filter-card .form-select { height: 40px; border-radius: 10px; border: 1px solid #e2e8f0; }
+.user-list-card { border-radius: 16px; padding: 20px; border: 1px solid #f1f5f9; background: #fff; }
+.user-modern-table thead th { background: #f8fafc; color: #64748b; font-weight: 700; font-size: 13px; padding: 15px; border-bottom: 1px solid #f1f5f9; }
+.user-cell { display: flex; align-items: center; gap: 12px; }
+.user-list-avatar { width: 36px; height: 36px; border-radius: 50%; background: #f1f5f9; color: #64748b; display: flex; align-items: center; justify-content: center; font-weight: 800; border: 1px solid #e2e8f0; overflow: hidden; }
+.user-list-name { font-weight: 700; color: #1e293b; font-size: 14px; }
+.user-list-sub { font-size: 11px; color: #94a3b8; }
+.employee-code { background: #f8fafc; color: #475569; padding: 3px 10px; border-radius: 12px; font-size: 13px; font-weight: 600; border: 1px solid #e2e8f0; }
+.status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+.status-success { background: #ecfdf5; color: #059669; border: 1px solid #d1fae5; }
+.status-warning { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; }
+.dot-success { background: #10b981; }
+.dot-warning { background: #f59e0b; }
+.type-badge { color: #64748b; font-size: 13px; font-weight: 500; }
+.scan-time { font-weight: 600; color: #1e293b; line-height: 1.2; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('participation-filter-form');
+    const dateInput = document.getElementById('date-filter');
+
+    // 1. Tự động điền ngày hôm nay nếu value trống
+    if (dateInput && !dateInput.value) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.value = today;
+    }
+
+    if (!form) return;
+
+    const autoFilters = form.querySelectorAll('input[type="date"], select');
+    autoFilters.forEach(el => {
+        el.addEventListener('change', () => {
+            // Khi người dùng chọn ngày mới, form sẽ submit ngay lập tức
+            form.submit();
+        });
+    });
+
+    const searchInput = form.querySelector('input[name="q_name"]');
+    let timeout = null;
+    searchInput.addEventListener('input', () => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => form.submit(), 800);
+    });
+});
+</script>
+{% endblock %}
