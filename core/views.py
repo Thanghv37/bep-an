@@ -23,6 +23,11 @@ from datetime import time
 from django.utils import timezone
 from .models import DailyNutritionAnalysis
 from .services.nutrition_ai import estimate_nutrition
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+import json
+from .models import AttendanceLog
+from django.utils.dateparse import parse_datetime
 
 def get_registered_count(target_date):
     total = MealRegistration.objects.filter(
@@ -476,3 +481,38 @@ def nutrition_analysis_api(request):
         return JsonResponse({
             "error": "AI tạm thời bận"
         })
+from django.db import models
+
+@csrf_exempt
+def attendance_log_api(request):
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "POST method required"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "message": "Invalid JSON"}, status=400)
+
+    if isinstance(data, dict):
+        data = [data]  # convert single record to list
+
+    created = 0
+    for rec in data:
+        try:
+            scan_time = parse_datetime(rec.get("scan_time"))
+            if not scan_time:
+                continue
+
+            AttendanceLog.objects.create(
+                employee_code=rec.get("employee_code"),
+                full_name=rec.get("full_name", ""),
+                scan_time=scan_time,
+                type=rec.get("type", "bếp ăn"),
+                status=rec.get("status", "Chưa đăng ký")
+            )
+            created += 1
+        except Exception as e:
+            print(f"AttendanceLog error: {e}")
+            continue
+
+    return JsonResponse({"success": True, "created": created})

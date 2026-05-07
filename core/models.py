@@ -121,3 +121,15 @@ class DailyNutritionAnalysis(models.Model):
 
     def __str__(self):
         return f"{self.date} - {self.total_kcal} kcal"
+# core/models.py
+class AttendanceLog(models.Model):
+    employee_code = models.CharField(max_length=50)
+    full_name = models.CharField(max_length=255, blank=True)
+    scan_time = models.DateTimeField()
+    type = models.CharField(max_length=50, default="bếp ăn")
+    status = models.CharField(max_length=20, choices=[("Đã đăng ký", "Đã đăng ký"), ("Chưa đăng ký", "Chưa đăng ký")])
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.employee_code} | {self.scan_time} | {self.status}"
