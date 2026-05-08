@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0 fw-bold">Mã QR Đánh giá công khai</h4>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 text-center p-5">
+                <h5 class="fw-bold mb-3">Quét mã để đánh giá món ăn hôm nay</h5>
+                <p class="text-muted mb-4">In mã này và dán tại bàn ăn để người dùng dễ dàng đánh giá bằng điện thoại mà không cần đăng nhập.</p>
+                
+                <div class="mb-4">
+                    <img src="{{ qr_image_url }}" alt="QR Code" class="img-fluid border p-2 rounded" style="max-width: 300px;">
+                </div>
+                
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control text-center" value="{{ public_url }}" readonly id="publicUrlInput">
+                    <button class="btn btn-outline-secondary" type="button" onclick="copyUrl()">
+                        <i class="bi bi-clipboard"></i> Copy link
+                    </button>
+                </div>
+                
+                <a href="{{ public_url }}" target="_blank" class="btn btn-primary mt-3">Mở trang đánh giá thử</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyUrl() {
+    var copyText = document.getElementById("publicUrlInput");
+    copyText.select();
+    copyText.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(copyText.value).then(() => {
+        alert("Đã copy đường dẫn!");
+    });
+}
+</script>
+{% endblock %}

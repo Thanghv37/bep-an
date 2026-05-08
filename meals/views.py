@@ -81,8 +81,15 @@ def can_delete_menu(menu_date, now=None):
 def dish_list(request):
     keyword = request.GET.get('q', '').strip()
     dish_type = request.GET.get('type', '').strip()
+    sort_param = request.GET.get('sort', '').strip()
 
-    dishes = Dish.objects.all().order_by('name')
+    from django.db.models import Count, Q
+    from reviews.models import DishReview
+
+    dishes = Dish.objects.annotate(
+        like_count=Count('reviews', filter=Q(reviews__evaluation=DishReview.LIKE)),
+        dislike_count=Count('reviews', filter=Q(reviews__evaluation=DishReview.DISLIKE))
+    )
 
     if keyword:
         dishes = dishes.filter(name__icontains=keyword)
@@ -90,11 +97,28 @@ def dish_list(request):
     if dish_type:
         dishes = dishes.filter(dish_type=dish_type)
 
+    if sort_param == 'like_desc':
+        dishes = dishes.order_by('-like_count', 'name')
+    elif sort_param == 'like_asc':
+        dishes = dishes.order_by('like_count', 'name')
+    elif sort_param == 'dislike_desc':
+        dishes = dishes.order_by('-dislike_count', 'name')
+    elif sort_param == 'dislike_asc':
+        dishes = dishes.order_by('dislike_count', 'name')
+    else:
+        dishes = dishes.order_by('name')
+        
+    next_like_sort = 'like_asc' if sort_param == 'like_desc' else 'like_desc'
+    next_dislike_sort = 'dislike_asc' if sort_param == 'dislike_desc' else 'dislike_desc'
+
     context = {
         'dishes': dishes,
         'keyword': keyword,
         'dish_type': dish_type,
         'dish_type_choices': Dish.DISH_TYPE_CHOICES,
+        'sort_param': sort_param,
+        'next_like_sort': next_like_sort,
+        'next_dislike_sort': next_dislike_sort,
     }
     return render(request, 'meals/dish_list.html', context)
 

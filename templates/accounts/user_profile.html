@@ -80,7 +80,50 @@
         </div>
     </div>
 </div>
+{% if profile.role == 'admin' or request.user.is_superuser %}
+<div class="profile-card mt-4 p-4">
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <h5 class="fw-bold mb-0">🤖 Cấu hình BOT NetChat</h5>
+    </div>
+    
+    <form method="post" id="botConfigForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_bot_config">
+        
+        <div class="mb-3">
+            <label class="form-label text-muted fw-semibold" style="font-size: 13px;">URL Mattermost</label>
+            <input type="text" id="netchat_url" name="netchat_url" class="form-control bot-input" 
+                   placeholder="https://chat.congty.vn" value="{{ bot_config.netchat_url|default:'' }}"
+                   {% if bot_config.netchat_url %}disabled{% endif %}>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label text-muted fw-semibold" style="font-size: 13px;">BOT Token</label>
+            <input type="password" id="netchat_token" name="netchat_token" class="form-control bot-input" 
+                   placeholder="Personal Access Token" value="{{ bot_config.netchat_token|default:'' }}"
+                   {% if bot_config.netchat_token %}disabled{% endif %}>
+            <div id="verify-msg" class="mt-1 fw-bold" style="font-size: 12px;"></div>
+        </div>
 
+        <div class="d-flex gap-2 mt-4">
+            <button type="button" class="btn btn-outline-success fw-bold" id="btnVerifyBot">
+                Xác minh Token
+            </button>
+            <div class="ms-auto d-flex gap-2">
+                <button type="button" class="btn btn-secondary fw-bold" id="btnEditBot">
+                    Sửa
+                </button>
+                <button type="button" class="btn btn-outline-secondary fw-bold" id="btnCancelBot" disabled>
+                    Hủy
+                </button>
+                <button type="submit" class="btn btn-primary fw-bold" id="btnSaveBot" {% if bot_config.netchat_url %}disabled{% endif %}>
+                    Lưu cấu hình
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endif %}
 <!-- MODAL ĐỔI MẬT KHẨU -->
 <div class="modal fade" id="passwordModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
@@ -295,6 +338,28 @@
     border-radius: 14px;
     padding: 14px 16px;
 }
+/* Trạng thái XÁC MINH THÀNH CÔNG (Màu xanh lá nhạt) */
+    .border-success-verify { 
+        border: 1.5px solid #10b981 !important; /* Viền xanh Emerald mảnh hơn */
+        background-color: #ecfdf5 !important;   /* Nền xanh lá siêu nhạt */
+        box-shadow: 0 0 0 0.2rem rgba(16, 185, 129, 0.1) !important;
+    }
+
+    /* Trạng thái ĐANG SỬA (Màu đỏ nhạt) */
+    .border-danger-edit { 
+        border: 1.5px solid #f87171 !important; /* Viền đỏ nhạt mảnh */
+        background-color: #fef2f2 !important;   /* Nền đỏ siêu nhạt */
+        box-shadow: 0 0 0 0.2rem rgba(248, 113, 113, 0.1) !important;
+    }
+
+    /* Khi ô bị khóa (Disabled) - Cho màu xám nhẹ để phân biệt */
+    .bot-input:disabled { 
+        background-color: #f1f5f9 !important; 
+        border-color: #e2e8f0 !important;
+        color: #64748b !important;
+        cursor: not-allowed; 
+        opacity: 0.8; 
+    }
 </style>
 
 <script>
@@ -330,4 +395,94 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 {% endif %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const urlInput = document.getElementById('netchat_url');
+    const tokenInput = document.getElementById('netchat_token');
+    const btnVerify = document.getElementById('btnVerifyBot');
+    const btnEdit = document.getElementById('btnEditBot');
+    const btnCancel = document.getElementById('btnCancelBot'); // Nút Hủy
+    const btnSave = document.getElementById('btnSaveBot');
+    const verifyMsg = document.getElementById('verify-msg');
+    
+    // Ghi nhớ giá trị ban đầu từ lúc tải trang
+    let originalUrl = urlInput.value;
+    let originalToken = tokenInput.value;
+
+    function setEditMode(isEditing) {
+        urlInput.disabled = !isEditing;
+        tokenInput.disabled = !isEditing;
+        btnCancel.disabled = !isEditing; // Hiện/mờ nút Hủy
+        btnSave.disabled = true; // Mặc định khóa Lưu, phải xác minh mới cho Lưu
+        
+        if (isEditing) {
+            urlInput.classList.add('border-danger-edit');
+            tokenInput.classList.add('border-danger-edit');
+            verifyMsg.innerText = "Chế độ chỉnh sửa: Vui lòng xác minh lại sau khi sửa.";
+            verifyMsg.style.color = "#dc3545";
+        } else {
+            urlInput.classList.remove('border-danger-edit', 'border-success-verify');
+            tokenInput.classList.remove('border-danger-edit', 'border-success-verify');
+            verifyMsg.innerText = "";
+        }
+    }
+
+    // NÚT SỬA
+    btnEdit.addEventListener('click', function() {
+        setEditMode(true);
+    });
+
+    // NÚT HỦY: Khôi phục lại giá trị cũ và khóa lại
+    btnCancel.addEventListener('click', function() {
+        urlInput.value = originalUrl;
+        tokenInput.value = originalToken;
+        setEditMode(false);
+        // Nếu ban đầu đã có dữ liệu thì nút Lưu vẫn phải khóa
+        btnSave.disabled = true; 
+    });
+
+    // NÚT XÁC MINH
+    btnVerify.addEventListener('click', function() {
+        const url = urlInput.value.trim();
+        const token = tokenInput.value.trim();
+
+        if(!url || !token) {
+            alert("Vui lòng nhập đủ URL và Token!");
+            return;
+        }
+
+        btnVerify.innerText = "Đang kiểm tra...";
+        btnVerify.disabled = true;
+
+        fetch("{% url 'verify_bot_api' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ url: url, token: token })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.success) {
+                urlInput.classList.remove('border-danger-edit');
+                tokenInput.classList.remove('border-danger-edit');
+                urlInput.classList.add('border-success-verify');
+                tokenInput.classList.add('border-success-verify');
+                
+                btnSave.disabled = false; // Mở khóa nút Lưu
+                verifyMsg.innerText = "✅ Xác minh thành công! Tên Bot: " + data.bot_name;
+                verifyMsg.style.color = "#198754";
+            } else {
+                alert("Xác minh thất bại!");
+                btnSave.disabled = true;
+            }
+        })
+        .finally(() => {
+            btnVerify.innerText = "Xác minh Token";
+            btnVerify.disabled = false;
+        });
+    });
+});
+</script>
 {% endblock %}

@@ -15,6 +15,129 @@ from django.views.decorators.http import require_GET
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.shortcuts import render, redirect
+from core.models import SystemConfig
+import requests
+from django.http import JsonResponse
+import json
+import secrets
+from django.utils import timezone
+from django.contrib.auth import login as auth_login
+from .models import OTPToken, UserProfile
+from core.models import SystemConfig # Để lấy cấu hình Bot
+
+# --- HÀM 1: GỬI MÃ OTP QUA NETCHAT ---
+def request_otp(request):
+    if request.method == 'POST':
+        employee_code = request.POST.get('employee_code', '').strip()
+        
+        try:
+            # 1. Kiểm tra nhân viên có tồn tại không
+            user_profile = UserProfile.objects.get(employee_code=employee_code)
+            email = user_profile.email
+            if not email:
+                messages.error(request, "Tài khoản chưa cập nhật Email, không thể gửi OTP.")
+                return redirect('login')
+            
+            # 2. Tạo mã OTP 6 số (Dùng secrets cho bảo mật giống Net2ID)
+            otp_code = str(secrets.randbelow(900000) + 100000)
+            
+            # 3. Lưu OTP vào Database
+            OTPToken.objects.create(employee_code=employee_code, otp_code=otp_code)
+            
+            # 4. Lấy cấu hình Bot để gửi tin
+            config_url = SystemConfig.objects.filter(key='netchat_url').first()
+            config_token = SystemConfig.objects.filter(key='netchat_token').first()
+            
+            if not config_url or not config_token:
+                messages.error(request, "Hệ thống chưa cấu hình BOT. Vui lòng liên hệ Admin.")
+                return redirect('login')
+
+            # 5. Tiến hành gửi qua NetChat
+            url = config_url.value.strip().rstrip('/')
+            token = config_token.value.strip()
+            username = email.split('@')[0].strip().lower()
+            
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+                "User-Agent": "curl/8.7.1" # Vượt tường lửa
+            }
+
+            # A. Lấy ID của Bot và User
+            r_me = requests.get(f"{url}/api/v4/users/me", headers=headers, timeout=5)
+            r_user = requests.get(f"{url}/api/v4/users/username/{username}", headers=headers, timeout=5)
+            
+            if r_me.status_code == 200 and r_user.status_code == 200:
+                bot_id = r_me.json().get('id')
+                user_mm_id = r_user.json().get('id')
+                
+                # B. Mở kênh DM và gửi tin
+                r_chan = requests.post(f"{url}/api/v4/channels/direct", headers=headers, json=[bot_id, user_mm_id])
+                channel_id = r_chan.json().get('id')
+                
+                msg = f"🔒 **Mã xác thực đăng nhập của bạn là: {otp_code}**\n\nMã có hiệu lực trong 10 phút. Vui lòng không chia sẻ mã này cho bất kỳ ai."
+                requests.post(f"{url}/api/v4/posts", headers=headers, json={"channel_id": channel_id, "message": msg})
+                
+                # 6. Thành công: Lưu employee_code vào session và chuyển sang trang nhập mã
+                request.session['pending_employee_code'] = employee_code
+                return redirect('verify_otp')
+            else:
+                messages.error(request, "Không thể gửi tin nhắn qua NetChat. Hãy chắc chắn bạn đã đăng nhập NetChat.")
+                
+        except UserProfile.DoesNotExist:
+            messages.error(request, "Mã nhân viên không tồn tại trong hệ thống.")
+            
+    return redirect('login')
+
+# --- HÀM 2: XÁC THỰC OTP VÀ ĐĂNG NHẬP ---
+def verify_otp(request):
+    employee_code = request.session.get('pending_employee_code')
+    if not employee_code:
+        return redirect('login')
+
+    if request.method == 'POST':
+        otp_input = request.POST.get('otp_code', '').strip()
+        
+        # Lấy mã OTP mới nhất
+        otp_record = OTPToken.objects.filter(
+            employee_code=employee_code, 
+            otp_code=otp_input,
+            is_used=False
+        ).order_by('-created_at').first()
+
+        if otp_record and otp_record.is_valid():
+            otp_record.is_used = True
+            otp_record.save()
+            
+            try:
+                user = User.objects.get(username=employee_code)
+                
+                # BẮT BUỘC: Gán backend xác thực để Django duy trì phiên đăng nhập
+                if not hasattr(user, 'backend'):
+                    user.backend = 'django.contrib.auth.backends.ModelBackend'
+                
+                # Đăng nhập vào hệ thống
+                auth_login(request, user)
+                
+                # Tối ưu: Lưu session ngay lập tức để tránh lỗi race condition
+                request.session.modified = True 
+                
+                # Xóa mã tạm trong session
+                if 'pending_employee_code' in request.session:
+                    del request.session['pending_employee_code']
+                
+                messages.success(request, f"Đăng nhập thành công! Chào {user.first_name or user.username}.")
+                
+                # YÊU CẦU: 100% chuyển hướng về Dashboard chính
+                return redirect('/') 
+                
+            except User.DoesNotExist:
+                messages.error(request, "Lỗi: Tài khoản không tồn tại.")
+        else:
+            messages.error(request, "Mã OTP không chính xác hoặc đã hết hạn.")
+
+    return render(request, 'registration/otp_verify.html', {'employee_code': employee_code})
+
 @login_required
 @user_passes_test(can_manage_user)
 def user_list(request):
@@ -199,6 +322,16 @@ def import_users(request):
     return render(request, 'accounts/import_users.html', {
         'form': form,
     })
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import update_session_auth_hash
+from django.shortcuts import render, redirect
+from django.contrib import messages
+# TODO: Đảm bảo bạn đã import PasswordChangeForm ở đầu file
+# from django.contrib.auth.forms import PasswordChangeForm
+
+# TODO: Import model lưu cấu hình của bạn, ví dụ (nếu bạn tạo model SystemConfig):
+# from core.models import SystemConfig 
+
 @login_required
 def user_profile(request):
     profile = request.user.profile
@@ -207,6 +340,7 @@ def user_profile(request):
     if request.method == 'POST':
         action = request.POST.get('action')
 
+        # 1. XỬ LÝ ĐỔI ẢNH ĐẠI DIỆN
         if action == 'change_avatar':
             avatar = request.FILES.get('avatar')
             if avatar:
@@ -215,14 +349,11 @@ def user_profile(request):
                 messages.success(request, 'Đã cập nhật ảnh đại diện.')
             return redirect('user_profile')
 
+        # 2. XỬ LÝ ĐỔI MẬT KHẨU
         if action == 'change_password':
             password_form = PasswordChangeForm(request.user, request.POST)
-
             if password_form.is_valid():
                 new_password = password_form.cleaned_data.get('new_password1')
-                old_password = password_form.cleaned_data.get('old_password')
-
-                # 🔥 check trùng mật khẩu cũ
                 if request.user.check_password(new_password):
                     password_form.add_error('new_password1', 'Mật khẩu mới không được trùng mật khẩu cũ.')
                     messages.error(request, 'Mật khẩu mới không được trùng mật khẩu cũ.')
@@ -234,9 +365,32 @@ def user_profile(request):
             else:
                 messages.error(request, 'Đổi mật khẩu thất bại. Vui lòng kiểm tra lại thông tin.')
 
+        # 3. XỬ LÝ LƯU CẤU HÌNH BOT NETCHAT
+        # Kiểm tra quyền ADMIN hoặc Superuser
+        if action == 'save_bot_config' and (request.user.is_superuser or getattr(profile, 'role', '').lower() == 'admin'):
+            url = request.POST.get('netchat_url', '').strip()
+            token = request.POST.get('netchat_token', '').strip()
+
+            # Lưu vào Database
+            SystemConfig.objects.update_or_create(key='netchat_url', defaults={'value': url})
+            SystemConfig.objects.update_or_create(key='netchat_token', defaults={'value': token})
+
+            messages.success(request, 'Đã lưu cấu hình BOT NetChat thành công.')
+            return redirect('user_profile')
+
+    # 4. TRUY VẤN DỮ LIỆU ĐỂ HIỂN THỊ (SỬA LẠI TẠI ĐÂY)
+    config_url = SystemConfig.objects.filter(key='netchat_url').first()
+    config_token = SystemConfig.objects.filter(key='netchat_token').first()
+
+    bot_config = {
+        'netchat_url': config_url.value if config_url else '',
+        'netchat_token': config_token.value if config_token else '',
+    }
+
     return render(request, 'accounts/user_profile.html', {
         'profile': profile,
         'password_form': password_form,
+        'bot_config': bot_config,
     })
 
 
@@ -308,3 +462,33 @@ def set_initial_password(request):
         return redirect('login')
 
     return render(request, 'accounts/set_initial_password.html')
+
+
+@login_required
+def verify_bot_api(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            url = data.get('url', '').strip().rstrip('/')
+            token = data.get('token', '').strip()
+
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+                "User-Agent": "curl/8.7.1"
+            }
+            
+            # Gọi thử đến Mattermost để check token
+            response = requests.get(f"{url}/api/v4/users/me", headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                bot_data = response.json()
+                return JsonResponse({
+                    'success': True, 
+                    'bot_name': bot_data.get('full_name') or bot_data.get('username')
+                })
+            else:
+                return JsonResponse({'success': False, 'message': 'Token không hợp lệ hoặc sai URL.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)})
+    return JsonResponse({'success': False, 'message': 'Method not allowed'}, status=405)

@@ -1,0 +1,109 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Đánh giá bữa ăn hôm nay</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .review-card { border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .btn-outline-success input[type="radio"]:checked ~ .empty-icon { display: none !important; }
+        .btn-outline-success input[type="radio"]:checked ~ .fill-icon { display: inline-block !important; }
+        .btn-outline-danger input[type="radio"]:checked ~ .empty-icon { display: none !important; }
+        .btn-outline-danger input[type="radio"]:checked ~ .fill-icon { display: inline-block !important; }
+
+        .btn-outline-success input[type="radio"]:checked ~ i,
+        .btn-outline-success input[type="radio"]:checked ~ span { font-weight: bold; }
+        .btn-outline-success:has(input[type="radio"]:checked) { background-color: #198754; color: white; }
+        .btn-outline-danger:has(input[type="radio"]:checked) { background-color: #dc3545; color: white; }
+        
+        .dish-name { font-size: 1.1rem; font-weight: 600; }
+        .dish-type { font-size: 0.85rem; color: #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="container py-4 max-w-md mx-auto" style="max-width: 500px;">
+        <div class="text-center mb-4">
+            <h2 class="fw-bold text-primary">Thực đơn hôm nay</h2>
+            <p class="text-muted">{{ today|date:"d/m/Y" }}</p>
+        </div>
+
+        {% if not can_review %}
+            <div class="alert alert-warning text-center">
+                Hiện chưa có hoặc đã hết thời gian đánh giá thực đơn hôm nay.
+            </div>
+        {% elif not menu %}
+            <div class="alert alert-info text-center">
+                Hôm nay nhà bếp chưa lên thực đơn.
+            </div>
+        {% else %}
+            <div class="d-flex flex-column gap-3">
+                {% for item in menu.items.all %}
+                <div class="p-3 bg-white review-card">
+                    <div class="mb-3 text-center">
+                        <div class="dish-name">{{ item.dish.name }}</div>
+                        <div class="dish-type">{{ item.dish.get_dish_type_display }}</div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-center gap-3">
+                        <label class="btn btn-outline-success btn-lg d-flex align-items-center justify-content-center gap-2 flex-grow-1">
+                            <input type="radio" name="dish_{{ item.dish.id }}" value="like" class="d-none dish-review-radio" data-dish-id="{{ item.dish.id }}"
+                                {% if item.user_evaluation == 'like' %}checked{% endif %}>
+                            <i class="bi bi-hand-thumbs-up empty-icon"></i>
+                            <i class="bi bi-hand-thumbs-up-fill fill-icon d-none"></i>
+                            Thích
+                        </label>
+                        <label class="btn btn-outline-danger btn-lg d-flex align-items-center justify-content-center gap-2 flex-grow-1">
+                            <input type="radio" name="dish_{{ item.dish.id }}" value="dislike" class="d-none dish-review-radio" data-dish-id="{{ item.dish.id }}"
+                                {% if item.user_evaluation == 'dislike' %}checked{% endif %}>
+                            <i class="bi bi-hand-thumbs-down empty-icon"></i>
+                            <i class="bi bi-hand-thumbs-down-fill fill-icon d-none"></i>
+                            K. Thích
+                        </label>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="mt-4 text-center text-muted small">
+                Đánh giá của bạn được lưu tự động.
+            </div>
+        {% endif %}
+    </div>
+
+    {% csrf_token %}
+    <script>
+        document.querySelectorAll('.dish-review-radio').forEach(radio => {
+            radio.addEventListener('change', function() {
+                if(this.checked) {
+                    const dishId = this.dataset.dishId;
+                    const evaluation = this.value;
+                    const dateStr = "{{ today|date:'Y-m-d' }}";
+                    
+                    fetch("{% url 'ajax_public_review_dish' %}", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value
+                        },
+                        body: JSON.stringify({
+                            dish_id: dishId,
+                            evaluation: evaluation,
+                            date: dateStr
+                        })
+                    }).then(response => response.json()).then(data => {
+                        if(!data.success) {
+                            alert("Lỗi: " + data.message);
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

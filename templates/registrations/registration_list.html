@@ -111,7 +111,9 @@
                 <a href="{% url 'registration_create' %}" class="btn btn-primary action-btn-custom">
                     + Thêm người đăng kí
                 </a>
-
+                <button type="button" id="btn-send-message" class="btn btn-info action-btn-custom text-white" style="background-color: #0ea5e9; border: none;">
+                    <span class="me-1">💬</span> Gửi tin nhắn (<span id="selected-count">0</span>)
+                </button>
                 {% if request.user.is_superuser %}
                 <form method="post" action="{% url 'delete_all_registrations' %}" 
                       onsubmit="return confirm('Bạn có chắc muốn xóa toàn bộ đăng ký?');" class="m-0">
@@ -128,6 +130,9 @@
             <table class="table user-modern-table align-middle mb-0">
                 <thead>
                     <tr>
+                        <th style="width: 40px;" class="text-center">
+                            <input type="checkbox" id="checkAll" class="form-check-input" style="cursor: pointer;">
+                        </th>
                         <th style="width: 25%">Người dùng</th>
                         <th>Mã nhân viên</th>
                         <th>Bữa ăn</th>
@@ -142,55 +147,47 @@
                     {% for row in rows %}
                         {% with item=row.registration profile=row.profile %}
                         <tr>
+                            <td class="text-center">
+                                <input type="checkbox" class="form-check-input row-checkbox" value="{{ item.employee_code }}" data-name="{{ item.full_name }}" style="cursor: pointer;">
+                            </td>
                             <td>
-                                <div class="user-cell">
-                                    <div class="user-list-avatar">
-                                        {% if profile and profile.avatar %}
-                                            <img src="{{ profile.avatar.url }}" alt="avatar">
-                                        {% else %}
-                                            <span>
-                                                {% if profile and profile.full_name %}{{ profile.full_name|first|upper }}
-                                                {% elif item.full_name %}{{ item.full_name|first|upper }}
-                                                {% else %}?{% endif %}
-                                            </span>
-                                        {% endif %}
-                                    </div>
-                                    <div>
-                                        <div class="user-list-name">
-                                            {% if profile %}{{ profile.full_name|default:item.full_name }}
-                                            {% else %}{{ item.full_name|default:"-" }}{% endif %}
+                                <div class="d-flex align-items-center gap-3">
+                                    {% if profile.avatar %}
+                                        <img src="{{ profile.avatar.url }}" class="rounded-circle" style="width: 38px; height: 38px; object-fit: cover;">
+                                    {% else %}
+                                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                                            <span class="text-muted" style="font-size: 12px;">👤</span>
                                         </div>
-                                        <div class="user-list-sub">Nhân sự đăng kí suất ăn</div>
+                                    {% endif %}
+                                    <div>
+                                        <div class="fw-bold text-dark">{{ item.full_name|default:profile.full_name|default:"Chưa rõ tên" }}</div>
+                                        <div class="text-muted small">{{ profile.email|default:"" }}</div>
                                     </div>
                                 </div>
                             </td>
-                            <td><span class="employee-code">{{ item.employee_code }}</span></td>
-                            <td><span class="meal-pill">{{ item.meal_name|default:"Bữa trưa" }}</span></td>
-                            <td>{{ item.kitchen_name|default:"-" }}</td>
-                            <td class="text-center"><span class="quantity-pill">{{ item.quantity }}</span></td>
+                            <td class="fw-medium text-secondary">{{ item.employee_code }}</td>
+                            <td><span class="badge bg-light text-dark border">{{ item.meal_name }}</span></td>
+                            <td><div class="text-truncate" style="max-width: 150px;">{{ item.kitchen_name }}</div></td>
+                            <td class="text-center">
+                                <span class="quantity-pill">{{ item.quantity }}</span>
+                            </td>
                             <td>
                                 <span class="status-pill">
                                     <span class="status-dot"></span>
-                                    {{ item.status|default:"Đặt thành công" }}
+                                    {{ item.status }}
                                 </span>
                             </td>
                             <td class="text-end">
-                                <form method="post" action="{% url 'registration_delete' item.pk %}" 
-                                      onsubmit="return confirm('Xóa đăng kí này?');" class="d-inline">
+                                <form action="{% url 'registration_delete' item.pk %}" method="post" class="d-inline" onsubmit="return confirm('Xóa dòng này?')">
                                     {% csrf_token %}
-                                    <button type="submit" class="btn btn-sm btn-outline-danger delete-btn-rounded">Xóa</button>
+                                    <button type="submit" class="btn btn-outline-danger btn-sm delete-btn-rounded">Xóa</button>
                                 </form>
                             </td>
                         </tr>
                         {% endwith %}
                     {% empty %}
                         <tr>
-                            <td colspan="7">
-                                <div class="empty-state py-5 text-center">
-                                    <div class="fs-2">🍽️</div>
-                                    <div class="fw-bold">Không có dữ liệu đăng kí</div>
-                                </div>
-                            </td>
+                            <td colspan="8" class="text-center py-5 text-muted">Không có dữ liệu đăng ký cho ngày này.</td>
                         </tr>
                     {% endfor %}
                 </tbody>
@@ -357,6 +354,77 @@ document.addEventListener('DOMContentLoaded', function () {
     searchInput.addEventListener('input', () => {
         clearTimeout(timeout);
         timeout = setTimeout(() => form.submit(), 800);
+    });
+});
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const checkAll = document.getElementById('checkAll');
+    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+    const btnSend = document.getElementById('btn-send-message');
+    const selectedCountSpan = document.getElementById('selected-count');
+
+    // Hàm cập nhật số lượng đã chọn
+    function updateCount() {
+        const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
+        selectedCountSpan.textContent = checkedCount;
+        btnSend.disabled = checkedCount === 0;
+    }
+
+    // Xử lý nút Chọn tất cả
+    if(checkAll) {
+        checkAll.addEventListener('change', function() {
+            rowCheckboxes.forEach(cb => cb.checked = this.checked);
+            updateCount();
+        });
+    }
+
+    // Xử lý từng checkbox
+    rowCheckboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            const allChecked = document.querySelectorAll('.row-checkbox:checked').length === rowCheckboxes.length;
+            checkAll.checked = allChecked;
+            updateCount();
+        });
+    });
+
+    updateCount(); // Gọi lần đầu
+
+    // Xử lý khi nhấn "Gửi tin nhắn"
+    btnSend.addEventListener('click', function() {
+        const selectedIds = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
+        if (selectedIds.length === 0) return;
+
+        if(!confirm(`Bạn sẽ gửi tin nhắn báo cơm cho ${selectedIds.length} người. Hệ thống sẽ gửi từ từ 15 người/phút trong nền. Tiếp tục?`)) return;
+
+        // Gọi API gửi tin
+        fetch("{% url 'send_meal_notifications' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}' // Bắt buộc có CSRF Token
+            },
+            body: JSON.stringify({
+                employee_codes: selectedIds,
+                date: document.querySelector('input[name="date"]').value // Lấy ngày hiện tại đang xem
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.success) {
+                alert("Đã đẩy tiến trình vào chạy nền! Bạn có thể tắt tab hoặc làm việc khác.");
+                // Bỏ tick hết sau khi gửi lệnh thành công
+                if(checkAll) checkAll.checked = false;
+                rowCheckboxes.forEach(cb => cb.checked = false);
+                updateCount();
+            } else {
+                alert("Lỗi: " + data.message);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Đã xảy ra lỗi kết nối.");
+        });
     });
 });
 </script>

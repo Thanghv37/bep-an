@@ -20,10 +20,21 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
 from core.models import AttendanceLog
 from django.utils.timezone import now
+import threading
+import time
+import requests
+import json
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from accounts.models import UserProfile
+from .models import MealRegistration
+from core.models import SystemConfig  # Import bảng cấu hình Bot của bạn nếu có
+
+
 def is_admin(user):
     return user.is_staff  # hoặc is_superuser
 @login_required
-@user_passes_test(can_manage_menu)
+#@user_passes_test(can_manage_menu)
 def registration_list(request):
     selected_date_str = request.GET.get('date')
     keyword = request.GET.get('q', '').strip()
@@ -247,3 +258,138 @@ def registration_participation(request):
         'q_status': q_status,
     }
     return render(request, 'registrations/registration_participation.html', context)
+# --- HÀM CHẠY NGẦM GỬI TIN NHẮN (BACKGROUND THREAD) ---
+def _send_notifications_bg(employee_codes, target_date, config):
+    netchat_url = config.get('netchat_url', '').strip().rstrip('/')
+    netchat_token = config.get('netchat_token', '').strip()
+    
+    if not netchat_url or not netchat_token:
+        print("[NetChat] Lỗi: Chưa cấu hình Bot URL hoặc Token.")
+        return
+
+    headers = {
+        "Authorization": f"Bearer {netchat_token}",
+        "Content-Type": "application/json",
+        "User-Agent": "curl/8.7.1"  # <--- THÊM DÒNG NÀY ĐỂ VƯỢT TƯỜNG LỬA CLOUDRITY
+    }
+    # 1. Lấy ID của Bot
+    try:
+        r_me = requests.get(f"{netchat_url}/api/v4/users/me", headers=headers, timeout=10)
+        if r_me.status_code != 200:
+            print("[NetChat] Lỗi lấy Bot ID:", r_me.text)
+            return
+        bot_id = r_me.json().get('id')
+    except Exception as e:
+        print("[NetChat] Lỗi kết nối:", str(e))
+        return
+
+    # Lấy thông tin user (để lấy email -> username) và thông tin bữa ăn
+    profiles = UserProfile.objects.filter(employee_code__in=employee_codes)
+    profile_dict = {p.employee_code: p for p in profiles}
+
+    registrations = MealRegistration.objects.filter(date=target_date, employee_code__in=employee_codes)
+    reg_dict = {r.employee_code: r for r in registrations}
+
+    success_count = 0
+    
+    # 2. Vòng lặp gửi tin nhắn
+    for i, emp_code in enumerate(employee_codes):
+        # Logic chống Spam: Đủ 15 người thì ngủ 60s
+        if i > 0 and i % 15 == 0:
+            print(f"[NetChat] Đã gửi {i} tin. Tạm nghỉ 60s để tránh spam...")
+            time.sleep(60)
+
+        profile = profile_dict.get(emp_code)
+        reg = reg_dict.get(emp_code)
+        
+        if not profile or not profile.email or not reg:
+            print(f"[NetChat] Bỏ qua {emp_code}: Thiếu profile, email hoặc chưa đăng ký bữa ăn.")
+            continue
+
+        # Trích xuất username từ email (Bỏ đuôi @viettel.com.vn)
+        username = profile.email.split('@')[0].strip().lower()
+        full_name = profile.full_name or reg.full_name
+
+        try:
+            # Bước A: Tìm Mattermost ID theo Username
+            r_user = requests.get(f"{netchat_url}/api/v4/users/username/{username}", headers=headers, timeout=10)
+            if r_user.status_code != 200:
+                print(f"[NetChat] Bỏ qua {username}: Không tìm thấy tài khoản trên NetChat Viettel.")
+                continue # Bỏ qua nếu user chưa có trên NetChat
+            mm_user_id = r_user.json().get('id')
+
+            # Bước B: Mở Direct Message (DM)
+            r_channel = requests.post(
+                f"{netchat_url}/api/v4/channels/direct", 
+                headers=headers, json=[bot_id, mm_user_id], timeout=10
+            )
+            if r_channel.status_code not in (200, 201):
+                continue
+            channel_id = r_channel.json().get('id')
+
+            # Bước C: Gửi tin nhắn
+            message = (
+                f"Đang thử nghiệm, vui lòng bỏ qua tin nhắn này! Many Thanksss.\n"
+                f"Xin chào **{full_name}**,\n\n"
+                f"🍽️ Hệ thống xác nhận bạn đã đăng ký **{reg.meal_name}** ngày **{target_date}** tại **{reg.kitchen_name}**.\n"
+                f"Chúc bạn ngon miệng!"
+            )
+            
+            r_post = requests.post(
+                f"{netchat_url}/api/v4/posts", 
+                headers=headers, json={"channel_id": channel_id, "message": message}, timeout=10
+            )
+            
+            if r_post.status_code in (200, 201):
+                success_count += 1
+
+        except Exception as e:
+            print(f"[NetChat] Lỗi gửi cho {username}: {str(e)}")
+            continue
+
+    print(f"[NetChat] Hoàn tất tiến trình. Thành công: {success_count}/{len(employee_codes)}")
+
+
+@login_required
+@user_passes_test(can_manage_menu) # Phân quyền
+@require_POST
+def send_meal_notifications(request):
+    try:
+        data = json.loads(request.body)
+        employee_codes = data.get('employee_codes', [])
+        date_str = data.get('date', '')
+
+        if not employee_codes or not date_str:
+            return JsonResponse({'success': False, 'message': 'Dữ liệu không hợp lệ.'}, status=400)
+
+        # ---- ĐOẠN CODE MỚI LẤY CẤU HÌNH TỪ DATABASE ----
+        from core.models import SystemConfig  # Đảm bảo import đúng đường dẫn model SystemConfig của bạn
+
+        try:
+            # Tìm trong database cấu hình đã lưu
+            url_obj = SystemConfig.objects.get(key='netchat_url')
+            token_obj = SystemConfig.objects.get(key='netchat_token')
+            
+            config = {
+                'netchat_url': url_obj.value.strip(),
+                'netchat_token': token_obj.value.strip(),
+            }
+        except SystemConfig.DoesNotExist:
+            # Nếu chưa có ai nhập cấu hình trong tab Profile
+            return JsonResponse({
+                'success': False, 
+                'message': 'Chưa cấu hình URL hoặc Token BOT. Vui lòng vào Hồ sơ cá nhân để thiết lập.'
+            }, status=400)
+        # ------------------------------------------------
+
+        # Tạo thread chạy ngầm để không làm treo trình duyệt
+        thread = threading.Thread(
+            target=_send_notifications_bg,
+            args=(employee_codes, date_str, config)
+        )
+        thread.daemon = True # Thread sẽ tự tắt nếu server tắt
+        thread.start()
+
+        return JsonResponse({'success': True, 'message': 'Đã nhận lệnh gửi.'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)

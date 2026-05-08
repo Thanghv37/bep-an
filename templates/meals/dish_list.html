@@ -51,7 +51,19 @@
                         <th>Tên món</th>
                         <th>Loại món</th>
                         <th>Ảnh</th>
-                        <th>Nguyên liệu</th>  
+                        <th>Nguyên liệu</th>
+                        <th class="text-center text-nowrap" style="width: 75px;" title="Thích">
+                            <a href="?q={{ keyword|urlencode }}&type={{ dish_type|urlencode }}&sort={{ next_like_sort }}" class="text-decoration-none text-success d-inline-flex align-items-center gap-1">
+                                {% if sort_param == 'like_desc' %}<span style="font-size: 0.8em;">▼</span>{% elif sort_param == 'like_asc' %}<span style="font-size: 0.8em;">▲</span>{% endif %}
+                                <i class="bi bi-hand-thumbs-up-fill"></i>
+                            </a>
+                        </th>
+                        <th class="text-center text-nowrap" style="width: 75px;" title="Không thích">
+                            <a href="?q={{ keyword|urlencode }}&type={{ dish_type|urlencode }}&sort={{ next_dislike_sort }}" class="text-decoration-none text-danger d-inline-flex align-items-center gap-1">
+                                {% if sort_param == 'dislike_desc' %}<span style="font-size: 0.8em;">▼</span>{% elif sort_param == 'dislike_asc' %}<span style="font-size: 0.8em;">▲</span>{% endif %}
+                                <i class="bi bi-hand-thumbs-down-fill"></i>
+                            </a>
+                        </th>
                         <th>Trạng thái</th>
                         <th style="width: 190px;">Thao tác</th>
                     </tr>
@@ -84,6 +96,12 @@
                             {% else %}
                                 <span class="text-muted">Chưa khai báo</span>
                             {% endif %}
+                        </td>
+                        <td class="text-center align-middle">
+                            <span class="text-success fw-bold">{{ item.like_count }}</span>
+                        </td>
+                        <td class="text-center align-middle">
+                            <span class="text-danger fw-bold" style="color: #f87171 !important;">{{ item.dislike_count }}</span>
                         </td>
                         <td>
                             <div class="d-flex flex-column gap-1 align-items-start">
