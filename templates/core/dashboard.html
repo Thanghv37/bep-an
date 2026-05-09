@@ -202,8 +202,15 @@
     </div>
     <div class="col-lg-4">
         <div class="dashboard-card h-100">
-            <div class="section-title">Thực đơn ngày hôm nay</div>
-            <div class="section-subtitle">{{ selected_date|date:"d/m/Y" }}</div>
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <div class="section-title">Thực đơn ngày hôm nay</div>
+                    <div class="section-subtitle">{{ selected_date|date:"d/m/Y" }}</div>
+                </div>
+                <a href="{% url 'review_dashboard' %}" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold shadow-sm">
+                    <i class="bi bi-star-fill me-1"></i> Đánh giá
+                </a>
+            </div>
 
             {% if menu %}
                 <div class="today-menu-list">

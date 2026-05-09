@@ -311,63 +311,99 @@
                                     {% endif %}
                                 </div>
 
-                                <div class="flex-grow-1">
-                                    <div class="fw-bold mb-2">
-                                        {% if purchase.purchase_type == 'extra' %}
-                                            Nguyên liệu mua bổ sung
-                                        {% else %}
-                                            Nguyên liệu cần chuẩn bị
-                                            {% if purchase.registered_count %}
-                                                cho {{ purchase.registered_count }} người
+                                <div class="row g-3">
+                                    <!-- CỘT TRÁI: Nguyên liệu đề xuất -->
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold mb-2 text-primary">
+                                            <i class="bi bi-clipboard-check"></i>
+                                            {% if purchase.purchase_type == 'extra' %}
+                                                Nguyên liệu mua bổ sung (đề xuất)
+                                            {% else %}
+                                                Nguyên liệu cần chuẩn bị{% if purchase.registered_count %} ({{ purchase.registered_count }} người){% endif %}
                                             {% endif %}
+                                        </div>
+
+                                        {% if purchase.ingredients_preview %}
+                                            <div class="table-responsive">
+                                                <table class="table table-sm align-middle mb-0 approval-mini-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Nguyên liệu</th>
+                                                            {% if purchase.purchase_type == 'extra' %}
+                                                                <th>Số lượng</th>
+                                                                <th>Đơn giá</th>
+                                                            {% else %}
+                                                                <th>Tổng</th>
+                                                            {% endif %}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for ing in purchase.ingredients_preview %}
+                                                        <tr>
+                                                            <td>{{ ing.name }}</td>
+                                                            {% if purchase.purchase_type == 'extra' %}
+                                                                <td>{{ ing.quantity|floatformat:1 }} {{ ing.unit }}</td>
+                                                                <td>{% if ing.unit_price %}{{ ing.unit_price|floatformat:0 }} VNĐ{% else %}-{% endif %}</td>
+                                                            {% else %}
+                                                                <td>{{ ing.total_quantity|floatformat:1 }} {{ ing.unit }}</td>
+                                                            {% endif %}
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        {% else %}
+                                            <div class="text-muted small">Không có dữ liệu nguyên liệu đề xuất.</div>
                                         {% endif %}
                                     </div>
 
-                                    {% if purchase.ingredients_preview %}
-                                        <div class="table-responsive">
-                                            <table class="table table-sm align-middle mb-0 approval-mini-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Nguyên liệu</th>
-                                                        {% if purchase.purchase_type == 'extra' %}
-                                                            <th>Số lượng</th>
-                                                            <th>Đơn giá</th>
-                                                        {% else %}
-                                                            <th>Tổng</th>
-                                                        {% endif %}
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {% for ing in purchase.ingredients_preview %}
-                                                    <tr>
-                                                        <td>{{ ing.name }}</td>
-
-                                                        {% if purchase.purchase_type == 'extra' %}
-                                                            <td>{{ ing.quantity|floatformat:1 }} {{ ing.unit }}</td>
-                                                            <td>
-                                                                {% if ing.unit_price %}
-                                                                    {{ ing.unit_price|floatformat:0 }} VNĐ
-                                                                {% else %}
-                                                                    -
-                                                                {% endif %}
-                                                            </td>
-                                                        {% else %}
-                                                            <td>{{ ing.total_quantity|floatformat:1 }} {{ ing.unit }}</td>
-                                                        {% endif %}
-                                                    </tr>
-                                                    {% endfor %}
-                                                </tbody>
-                                            </table>
+                                    <!-- CỘT PHẢI: Mặt hàng thực tế từ hóa đơn -->
+                                    <div class="col-md-6">
+                                        <div class="fw-semibold mb-2 text-success">
+                                            <i class="bi bi-receipt"></i> Mặt hàng trong hóa đơn thực tế
                                         </div>
-                                    {% else %}
-                                        <div class="text-muted small">Không có dữ liệu nguyên liệu.</div>
-                                    {% endif %}
 
-                                    {% if purchase.note %}
-                                        <div class="small text-muted mt-2">Ghi chú: {{ purchase.note }}</div>
-                                    {% endif %}
+                                        {% if purchase.extra_items.all %}
+                                            <div class="table-responsive">
+                                                <table class="table table-sm align-middle mb-0 approval-mini-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Tên hàng</th>
+                                                            <th class="text-center">SL</th>
+                                                            <th class="text-center">ĐV</th>
+                                                            <th class="text-end">Đơn giá</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for ai_item in purchase.extra_items.all %}
+                                                        <tr>
+                                                            <td class="fw-semibold">{{ ai_item.ingredient_name }}</td>
+                                                            <td class="text-center">{{ ai_item.quantity|floatformat:2 }}</td>
+                                                            <td class="text-center">{{ ai_item.unit|default:"-" }}</td>
+                                                            <td class="text-end text-danger">{{ ai_item.unit_price|floatformat:0 }} đ</td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                    <tfoot>
+                                                        <tr class="table-light fw-bold">
+                                                            <td colspan="3">Tổng chi phí (tự nhập)</td>
+                                                            <td class="text-end text-danger">{{ purchase.actual_cost|floatformat:0 }} đ</td>
+                                                        </tr>
+                                                    </tfoot>
+                                                </table>
+                                            </div>
+                                        {% else %}
+                                            <div class="text-muted small border rounded-3 p-3 text-center">
+                                                <i class="bi bi-info-circle"></i> Chưa quét AI để lấy chi tiết mặt hàng.
+                                            </div>
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </div>
+
+                            {% if purchase.note %}
+                                <div class="small text-muted mt-2">Ghi chú: {{ purchase.note }}</div>
+                            {% endif %}
                         </div>
 
                         <div class="approval-actions">

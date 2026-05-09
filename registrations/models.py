@@ -31,3 +31,23 @@ def get_registered_count(target_date):
     ).aggregate(total=Sum('quantity'))['total']
 
     return total or 0
+
+class NotificationLog(models.Model):
+    STATUS_CHOICES = [
+        ('success', 'Thành công'),
+        ('failed', 'Thất bại'),
+    ]
+    target_date = models.DateField(verbose_name='Ngày đăng ký')
+    employee_code = models.CharField(max_length=50, verbose_name='Mã nhân viên')
+    full_name = models.CharField(max_length=255, blank=True, verbose_name='Họ và tên')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, verbose_name='Trạng thái')
+    error_message = models.TextField(blank=True, null=True, verbose_name='Chi tiết lỗi')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Thời gian gửi')
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Log gửi tin nhắn'
+        verbose_name_plural = 'Log gửi tin nhắn'
+
+    def __str__(self):
+        return f'{self.employee_code} - {self.target_date} - {self.status}'

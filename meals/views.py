@@ -19,6 +19,7 @@ from .models import (
     DishRejectLog,
     WeeklyMenuDraft,
 )
+from core.services.menu_ai import MenuAIService
 from .forms import DishForm, DailyMenuForm
 from finance.models import DailyPurchase, PurchaseRejectLog, ExtraPurchaseRequest
 from accounts.permissions import (
@@ -296,93 +297,122 @@ def pick_dish(queryset, used_ids, keywords=None):
 @login_required
 @user_passes_test(can_manage_menu)
 @require_POST
+@login_required
+@user_passes_test(can_manage_menu)
+@require_POST
 def suggest_next_week_menu(request):
-    grouped = get_grouped_dishes()
+    """
+    Sử dụng AI Gemini để gợi ý thực đơn tuần tới dựa trên món ăn sẵn có và tuần trước.
+    """
+    # 1. Lấy thực đơn 7 ngày gần nhất để AI tránh lặp
+    today = timezone.localdate()
+    last_week_start = today - timedelta(days=7)
+    past_menus = DailyMenu.objects.filter(date__range=[last_week_start, today])
+    
+    last_week_text = ""
+    for menu in past_menus:
+        dishes = [item.dish.name for item in menu.items.all()]
+        last_week_text += f"- Ngày {menu.date}: {', '.join(dishes)}\n"
+    
+    if not last_week_text:
+        last_week_text = "Chưa có dữ liệu thực đơn tuần trước."
 
+    # 2. Lấy danh sách món ăn khả dụng (đã duyệt)
+    available_dishes_qs = Dish.objects.filter(is_active=True, status=Dish.STATUS_APPROVED)
+    available_dishes = [
+        {'id': d.id, 'name': d.name, 'type': d.dish_type} 
+        for d in available_dishes_qs
+    ]
+
+    # 3. Gọi AI service
+    ai_service = MenuAIService()
+    ai_suggestion = ai_service.suggest_next_week_menu(available_dishes, last_week_text)
+    
+    if not ai_suggestion:
+        return JsonResponse({'error': 'AI không thể đưa ra gợi ý lúc này. Vui lòng thử lại.'}, status=500)
+
+    # 4. Map kết quả AI về ngày tháng tuần tới và lưu Draft
     week_days = get_next_week_days()
-    used_ids = set()
-    suggestions = []
+    day_map = {"Thứ 2": 0, "Thứ 3": 1, "Thứ 4": 2, "Thứ 5": 3, "Thứ 6": 4}
+    
+    response_data = []
+    
+    # Xóa draft cũ của tuần tới nếu có
+    WeeklyMenuDraft.objects.filter(date__in=week_days).delete()
 
-    friday_keywords = ['mì', 'bún', 'phở', 'miến', 'mỳ', 'quảng']
-
-    last_friday = week_days[-1] - timedelta(days=7)
-    last_friday_menu = DailyMenu.objects.filter(
-        date=last_friday
-    ).prefetch_related('items__dish').first()
-
-    last_friday_names = []
-    if last_friday_menu:
-        last_friday_names = [
-            item.dish.name.lower()
-            for item in last_friday_menu.items.all()
-        ]
-
-    for day in week_days:
-        dish_ids = []
-        dish_names = []
-
-        is_friday = day.weekday() == 4
-
-        main_keywords = friday_keywords if is_friday else None
-        main = pick_dish(grouped['main'], used_ids, main_keywords)
-
-        if is_friday and main:
-            if any(main.name.lower() in name for name in last_friday_names):
-                used_ids.add(main.id)
-                main = pick_dish(grouped['main'], used_ids, friday_keywords)
-
-        side = pick_dish(grouped['side'], used_ids)
-        soup = pick_dish(grouped['soup'], used_ids)
-        dessert = pick_dish(grouped['dessert'], used_ids)
-
-        selected = [main, side, soup, dessert]
-
-        for dish in selected:
-            if dish:
-                dish_ids.append(dish.id)
-                dish_names.append(dish.name)
-                used_ids.add(dish.id)
-
-        reason = 'Đủ nhóm món chính, món phụ, canh và tráng miệng.'
-        if is_friday:
-            reason = 'Thứ 6 ưu tiên món đổi bữa, hạn chế lặp lại món thứ 6 tuần trước.'
-
-        suggestions.append({
-            'date': day.strftime('%Y-%m-%d'),
-            'label': ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6'][day.weekday()],
-            'dish_ids': dish_ids,
-            'dish_names': dish_names,
-            'reason': reason,
+    for item in ai_suggestion:
+        offset = day_map.get(item['day'], None)
+        if offset is None: continue
+        
+        target_date = week_days[offset]
+        
+        # Lưu draft
+        WeeklyMenuDraft.objects.create(
+            date=target_date,
+            created_by=request.user,
+            dish_ids=item['dish_ids'],
+            reason=''
+        )
+        
+        # Chuẩn bị dữ liệu trả về cho UI preview
+        dishes_info = []
+        dish_objs = Dish.objects.filter(id__in=item['dish_ids'])
+        dish_map_objs = {d.id: d for d in dish_objs}
+        for d_id in item['dish_ids']:
+            if d_id in dish_map_objs:
+                d = dish_map_objs[d_id]
+                dishes_info.append({
+                    'name': d.name,
+                    'type_display': d.get_dish_type_display()
+                })
+        
+        response_data.append({
+            'date': target_date.strftime('%Y-%m-%d'),
+            'date_display': target_date.strftime('%d/%m'),
+            'day_name': item['day'],
+            'dishes': dishes_info
         })
 
-    return JsonResponse({'suggestions': suggestions})
+    return JsonResponse({'success': True, 'suggestions': response_data})
 
 
 @login_required
 @user_passes_test(can_manage_menu)
 @require_POST
 def apply_week_menu_draft(request):
-    import json
-
-    data = json.loads(request.body.decode('utf-8'))
-    suggestions = data.get('suggestions', [])
-
-    with transaction.atomic():
-        for item in suggestions:
-            target_date = datetime.strptime(item['date'], '%Y-%m-%d').date()
-
-            if DailyMenu.objects.filter(date=target_date).exists():
-                continue
-
-            WeeklyMenuDraft.objects.update_or_create(
-                date=target_date,
-                defaults={
-                    'dish_ids': item.get('dish_ids', []),
-                    'reason': item.get('reason', ''),
-                }
-            )
-
-    return JsonResponse({'success': True})
+    """
+    Chấp nhận các gợi ý từ AI và tạo DailyMenu chính thức
+    """
+    try:
+        data = json.loads(request.body)
+        selected_dates = data.get('dates', [])
+        
+        with transaction.atomic():
+            drafts = WeeklyMenuDraft.objects.filter(date__in=selected_dates)
+            for draft in drafts:
+                # Tạo hoặc cập nhật DailyMenu
+                menu, created = DailyMenu.objects.update_or_create(
+                    date=draft.date,
+                    defaults={'created_by': request.user, 'status': DailyMenu.STATUS_PENDING}
+                )
+                
+                # Xóa item cũ
+                menu.items.all().delete()
+                
+                # Thêm item mới
+                for idx, dish_id in enumerate(draft.dish_ids):
+                    DailyMenuItem.objects.create(
+                        daily_menu=menu,
+                        dish_id=dish_id,
+                        sort_order=idx
+                    )
+            
+            # Xóa các bản nháp đã áp dụng
+            drafts.delete()
+            
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 @login_required
 @user_passes_test(can_manage_menu)
 def menu_list(request):
@@ -785,7 +815,8 @@ def approval_dashboard(request):
         'created_by',
         'extra_request'
     ).prefetch_related(
-        'extra_request__items'
+        'extra_request__items',
+        'extra_items'
     ).order_by('-date', '-created_at')
     pending_extra_requests = ExtraPurchaseRequest.objects.filter(
         status=ExtraPurchaseRequest.STATUS_PENDING

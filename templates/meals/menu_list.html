@@ -598,6 +598,11 @@ function getCSRFToken() {
 }
 
 document.getElementById('suggestWeekBtn')?.addEventListener('click', function () {
+    const btn = this;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Đang tính toán...';
+
     fetch("{% url 'suggest_next_week_menu' %}", {
         method: "POST",
         headers: {
@@ -606,6 +611,14 @@ document.getElementById('suggestWeekBtn')?.addEventListener('click', function ()
     })
     .then(res => res.json())
     .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+
         currentSuggestions = data.suggestions || [];
 
         const preview = document.getElementById('suggestionPreview');
@@ -617,22 +630,43 @@ document.getElementById('suggestWeekBtn')?.addEventListener('click', function ()
 
         currentSuggestions.forEach(item => {
             preview.innerHTML += `
-                <div class="col-lg-2 col-md-4 col-sm-6">
-                    <div class="p-3 border rounded-4 bg-light h-100">
-                        <div class="fw-bold mb-2">${item.label}</div>
-                        <div class="small text-muted mb-2">${item.date}</div>
+                <div class="col-lg">
+                    <div class="p-3 border rounded-4 bg-white h-100 shadow-sm" style="border-top: 4px solid #2563eb !important;">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="fw-bold text-primary">${item.day_name}</div>
+                            <div class="badge bg-light text-dark border">${item.date_display}</div>
+                        </div>
 
-                        <ul class="small ps-3 mb-0">
-                            ${item.dish_names.map(name => `<li>${name}</li>`).join('')}
+                        <div class="small fw-semibold mb-2 border-bottom pb-1 text-muted">Chi tiết thực đơn:</div>
+                        <ul class="list-unstyled small mb-0">
+                            ${item.dishes.map(d => `
+                                <li class="mb-2 d-flex gap-2">
+                                    <span class="text-muted" style="min-width: 60px;">[${d.type_display}]</span>
+                                    <span class="fw-medium">${d.name}</span>
+                                </li>
+                            `).join('')}
                         </ul>
                     </div>
                 </div>
             `;
         });
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        alert("Có lỗi xảy ra khi gọi AI.");
     });
 });
 
 document.getElementById('applySuggestionBtn')?.addEventListener('click', function () {
+    if (!confirm("Bạn có chắc muốn áp dụng thực đơn gợi ý này? Các thực đơn cũ của tuần tới (nếu có) sẽ bị ghi đè.")) return;
+
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Đang áp dụng...';
+
+    const dates = currentSuggestions.map(s => s.date);
+
     fetch("{% url 'apply_week_menu_draft' %}", {
         method: "POST",
         headers: {
@@ -640,15 +674,21 @@ document.getElementById('applySuggestionBtn')?.addEventListener('click', functio
             "X-CSRFToken": getCSRFToken(),
         },
         body: JSON.stringify({
-            suggestions: currentSuggestions
+            dates: dates
         })
     })
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-            window.location.reload();
+            window.location.href = "{% url 'menu_list' %}?dates=" + dates.join(',');
+        } else {
+            alert(data.error);
+            btn.disabled = false;
+            btn.innerHTML = 'Áp dụng gợi ý';
         }
     });
+});
+</script>    });
 });
 </script>
 {% endblock %}

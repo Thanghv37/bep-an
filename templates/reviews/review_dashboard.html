@@ -68,7 +68,14 @@
 <div class="row g-4 mb-4">
     <div class="col-lg-6">
         <div class="dashboard-card h-100">
-            <div class="section-title mb-1">Thực đơn ngày {{ selected_date|date:"d/m/Y" }}</div>
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div class="section-title mb-0">Thực đơn ngày {{ selected_date|date:"d/m/Y" }}</div>
+                {% if request.user.is_staff or request.user.is_superuser %}
+                <a href="{% url 'qr_code_page' %}" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" title="Lấy mã QR">
+                    <i class="bi bi-qr-code"></i> <span class="d-none d-sm-inline">QR-CODE</span>
+                </a>
+                {% endif %}
+            </div>
 
             {% if menu %}
                 <div class="d-flex flex-column gap-2 mt-3">

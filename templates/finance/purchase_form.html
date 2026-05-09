@@ -66,6 +66,16 @@
                             {% endif %}
 
                             <div class="mt-3">
+                                <button type="button" id="btn-scan-ai" class="btn btn-sm btn-outline-primary mb-2 d-none">
+                                    <i class="bi bi-magic"></i> ✨ Quét bằng AI
+                                </button>
+                                
+                                <div id="ai-scan-loading" class="text-primary small mb-2 d-none">
+                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                    Đang phân tích hóa đơn, vui lòng đợi...
+                                </div>
+                                
+                                <div id="ai-scan-error" class="text-danger small mb-2 d-none"></div>
                                 {% if form.instance.bill_image %}
                                     <img
                                         id="bill-preview"
@@ -105,6 +115,42 @@
                     </div>
 
                     <div class="col-lg-8">
+                    
+                        <div class="dashboard-card mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="fw-bold">Các mặt hàng trong hóa đơn</div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addAiItemRow()">+ Thêm dòng</button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-sm align-middle" id="ai-items-table">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Tên hàng</th>
+                                            <th style="width: 90px;">Số lượng</th>
+                                            <th style="width: 90px;">Đơn vị</th>
+                                            <th style="width: 120px;">Đơn giá</th>
+                                            <th style="width: 40px;"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="ai-items-tbody">
+                                        {% if form.instance.pk and form.instance.extra_items.all %}
+                                            {% for item in form.instance.extra_items.all %}
+                                            <tr>
+                                                <td><input type="text" name="ai_item_name[]" class="form-control form-control-sm" value="{{ item.ingredient_name }}"></td>
+                                                <td><input type="number" step="0.01" name="ai_item_quantity[]" class="form-control form-control-sm" value="{{ item.quantity|stringformat:'f'|slice:'0:-4' }}"></td>
+                                                <td><input type="text" name="ai_item_unit[]" class="form-control form-control-sm" value="{{ item.unit }}"></td>
+                                                <td><input type="number" name="ai_item_price[]" class="form-control form-control-sm" value="{{ item.unit_price|stringformat:'f'|slice:'0:-7' }}"></td>
+                                                <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-trash"></i></button></td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="text-muted small">
+                                Sau khi tải ảnh hóa đơn lên, bấm "Quét bằng AI" để tự động điền danh sách này. Bạn có thể tự sửa lại nếu AI nhận diện sai.
+                            </div>
+                        </div>
 
                         <div id="ingredient-preview" class="dashboard-card" style="height:100%;">
                             <div id="ingredient-preview-title" class="fw-bold mb-2">
@@ -450,12 +496,78 @@ document.addEventListener('DOMContentLoaded', function () {
         billInput.addEventListener('change', function () {
             const file = billInput.files[0];
             const preview = document.getElementById('bill-preview');
+            const btnScan = document.getElementById('btn-scan-ai');
 
             if (!file || !preview) return;
 
             preview.src = URL.createObjectURL(file);
             preview.classList.remove('d-none');
+            
+            if (btnScan) {
+                btnScan.classList.remove('d-none');
+            }
+            
             checkBillRequired();
+        });
+    }
+
+    const btnScan = document.getElementById('btn-scan-ai');
+    if (btnScan) {
+        btnScan.addEventListener('click', function() {
+            const file = billInput.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('bill_image', file);
+            formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+            btnScan.classList.add('d-none');
+            document.getElementById('ai-scan-loading').classList.remove('d-none');
+            document.getElementById('ai-scan-error').classList.add('d-none');
+
+            fetch("{% url 'scan_bill_ajax' %}", {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('ai-scan-loading').classList.add('d-none');
+                btnScan.classList.remove('d-none');
+                
+                if (data.error) {
+                    document.getElementById('ai-scan-error').textContent = data.error;
+                    document.getElementById('ai-scan-error').classList.remove('d-none');
+                    return;
+                }
+
+                // Fill total cost
+                if (data.total_cost) {
+                    document.getElementById('id_actual_cost').value = data.total_cost;
+                }
+
+                // Fill items
+                const tbody = document.getElementById('ai-items-tbody');
+                if (data.items && data.items.length > 0) {
+                    tbody.innerHTML = '';
+                    data.items.forEach(item => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><input type="text" name="ai_item_name[]" class="form-control form-control-sm" value="${item.name || ''}"></td>
+                            <td><input type="number" step="0.01" name="ai_item_quantity[]" class="form-control form-control-sm" value="${item.quantity || 0}"></td>
+                            <td><input type="text" name="ai_item_unit[]" class="form-control form-control-sm" value="${item.unit || ''}"></td>
+                            <td><input type="number" name="ai_item_price[]" class="form-control form-control-sm" value="${item.unit_price || 0}"></td>
+                            <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-trash"></i></button></td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            })
+            .catch(err => {
+                document.getElementById('ai-scan-loading').classList.add('d-none');
+                btnScan.classList.remove('d-none');
+                document.getElementById('ai-scan-error').textContent = 'Lỗi hệ thống khi quét AI.';
+                document.getElementById('ai-scan-error').classList.remove('d-none');
+            });
         });
     }
 
@@ -489,6 +601,19 @@ function selectExtraRequest(id, element) {
     if (input) {
         input.value = id;
     }
+}
+
+function addAiItemRow() {
+    const tbody = document.getElementById('ai-items-tbody');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td><input type="text" name="ai_item_name[]" class="form-control form-control-sm" value=""></td>
+        <td><input type="number" step="0.01" name="ai_item_quantity[]" class="form-control form-control-sm" value="0"></td>
+        <td><input type="text" name="ai_item_unit[]" class="form-control form-control-sm" value=""></td>
+        <td><input type="number" name="ai_item_price[]" class="form-control form-control-sm" value="0"></td>
+        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-trash"></i></button></td>
+    `;
+    tbody.appendChild(tr);
 }
 </script>
 

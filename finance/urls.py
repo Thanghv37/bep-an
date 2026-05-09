@@ -7,6 +7,7 @@ from .views import (
     extra_request_create,
     extra_request_by_date,
     extra_request_list,
+    scan_bill_ajax,
 )
 
 urlpatterns = [
@@ -14,6 +15,7 @@ urlpatterns = [
     path('purchases/create/', purchase_create, name='purchase_create'),
     path('purchases/<int:pk>/edit/', purchase_update, name='purchase_update'),
     path('purchases/ingredients/', purchase_ingredients_by_date, name='purchase_ingredients_by_date'),
+    path('purchases/scan-bill/', scan_bill_ajax, name='scan_bill_ajax'),
 
     path('extra-requests/', extra_request_list, name='extra_request_list'),
     path('extra-requests/create/', extra_request_create, name='extra_request_create'),

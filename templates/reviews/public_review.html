@@ -11,68 +11,111 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         body { background-color: #f8f9fa; }
-        .review-card { border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .review-card { border-radius: 16px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: transform 0.2s; }
+        
+        /* Cấu trúc radio buttons */
         .btn-outline-success input[type="radio"]:checked ~ .empty-icon { display: none !important; }
         .btn-outline-success input[type="radio"]:checked ~ .fill-icon { display: inline-block !important; }
         .btn-outline-danger input[type="radio"]:checked ~ .empty-icon { display: none !important; }
         .btn-outline-danger input[type="radio"]:checked ~ .fill-icon { display: inline-block !important; }
 
-        .btn-outline-success input[type="radio"]:checked ~ i,
-        .btn-outline-success input[type="radio"]:checked ~ span { font-weight: bold; }
-        .btn-outline-success:has(input[type="radio"]:checked) { background-color: #198754; color: white; }
-        .btn-outline-danger:has(input[type="radio"]:checked) { background-color: #dc3545; color: white; }
+        .btn-outline-success:has(input[type="radio"]:checked) { background-color: #198754; color: white; border-color: #198754; }
+        .btn-outline-danger:has(input[type="radio"]:checked) { background-color: #dc3545; color: white; border-color: #dc3545; }
         
-        .dish-name { font-size: 1.1rem; font-weight: 600; }
-        .dish-type { font-size: 0.85rem; color: #6c757d; }
+        /* Nút đánh giá dạng tròn */
+        .review-btn-circle {
+            width: 48px;
+            height: 48px;
+            border-radius: 50% !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            font-size: 1.2rem;
+            border-width: 2px;
+        }
+
+        .dish-name { font-size: 1.05rem; font-weight: 700; color: #1e293b; line-height: 1.3; }
+        .dish-type { font-size: 0.8rem; color: #94a3b8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .login-cta-card {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-top: 32px;
+            box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
+        }
     </style>
 </head>
 <body>
-    <div class="container py-4 max-w-md mx-auto" style="max-width: 500px;">
+    <div class="container py-4 mx-auto" style="max-width: 500px;">
         <div class="text-center mb-4">
-            <h2 class="fw-bold text-primary">Thực đơn hôm nay</h2>
-            <p class="text-muted">{{ today|date:"d/m/Y" }}</p>
+            <h2 class="fw-bold text-primary mb-1">Thực đơn hôm nay</h2>
+            <div class="badge bg-primary-subtle text-primary rounded-pill px-3 py-2">
+                <i class="bi bi-calendar3 me-2"></i>{{ today|date:"d/m/Y" }}
+            </div>
         </div>
 
         {% if not can_review %}
-            <div class="alert alert-warning text-center">
-                Hiện chưa có hoặc đã hết thời gian đánh giá thực đơn hôm nay.
+            <div class="alert alert-warning text-center border-0 shadow-sm rounded-4">
+                <i class="bi bi-exclamation-triangle me-2"></i> Hiện chưa có hoặc đã hết thời gian đánh giá thực đơn hôm nay.
             </div>
         {% elif not menu %}
-            <div class="alert alert-info text-center">
-                Hôm nay nhà bếp chưa lên thực đơn.
+            <div class="alert alert-info text-center border-0 shadow-sm rounded-4">
+                <i class="bi bi-info-circle me-2"></i> Hôm nay nhà bếp chưa lên thực đơn.
             </div>
         {% else %}
             <div class="d-flex flex-column gap-3">
                 {% for item in menu.items.all %}
-                <div class="p-3 bg-white review-card">
-                    <div class="mb-3 text-center">
+                <div class="p-3 bg-white review-card d-flex align-items-center justify-content-between">
+                    <div class="dish-info pe-2">
+                        <div class="dish-type mb-1">{{ item.dish.get_dish_type_display }}</div>
                         <div class="dish-name">{{ item.dish.name }}</div>
-                        <div class="dish-type">{{ item.dish.get_dish_type_display }}</div>
                     </div>
                     
-                    <div class="d-flex justify-content-center gap-3">
-                        <label class="btn btn-outline-success btn-lg d-flex align-items-center justify-content-center gap-2 flex-grow-1">
+                    <div class="d-flex gap-2 flex-shrink-0">
+                        <label class="btn btn-outline-success review-btn-circle">
                             <input type="radio" name="dish_{{ item.dish.id }}" value="like" class="d-none dish-review-radio" data-dish-id="{{ item.dish.id }}"
                                 {% if item.user_evaluation == 'like' %}checked{% endif %}>
                             <i class="bi bi-hand-thumbs-up empty-icon"></i>
                             <i class="bi bi-hand-thumbs-up-fill fill-icon d-none"></i>
-                            Thích
                         </label>
-                        <label class="btn btn-outline-danger btn-lg d-flex align-items-center justify-content-center gap-2 flex-grow-1">
+                        <label class="btn btn-outline-danger review-btn-circle">
                             <input type="radio" name="dish_{{ item.dish.id }}" value="dislike" class="d-none dish-review-radio" data-dish-id="{{ item.dish.id }}"
                                 {% if item.user_evaluation == 'dislike' %}checked{% endif %}>
                             <i class="bi bi-hand-thumbs-down empty-icon"></i>
                             <i class="bi bi-hand-thumbs-down-fill fill-icon d-none"></i>
-                            K. Thích
                         </label>
                     </div>
                 </div>
                 {% endfor %}
             </div>
             
-            <div class="mt-4 text-center text-muted small">
-                Đánh giá của bạn được lưu tự động.
+            <div class="mt-3 text-center text-muted" style="font-size: 0.85rem;">
+                <i class="bi bi-check2-circle me-1 text-success"></i> Đánh giá của bạn được lưu tự động.
             </div>
+        {% endif %}
+
+        <!-- Login CTA for feedback -->
+        {% if not request.user.is_authenticated %}
+        <div class="login-cta-card text-center">
+            <div class="mb-3">
+                <i class="bi bi-chat-dots-fill" style="font-size: 2.5rem; opacity: 0.9;"></i>
+            </div>
+            <h5 class="fw-bold mb-2">Bạn muốn góp ý thêm?</h5>
+            <p class="small mb-4 opacity-75">Để gửi lời góp ý chi tiết tới bếp ăn, vui lòng đăng nhập vào hệ thống.</p>
+            <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-light fw-bold w-100 rounded-pill py-2 shadow-sm">
+                Đăng nhập ngay
+            </a>
+        </div>
+        {% else %}
+        <div class="mt-5 text-center">
+            <p class="text-muted small">Bạn đã đăng nhập với tên <strong>{{ request.user.username }}</strong></p>
+            <a href="{% url 'review_dashboard' %}" class="btn btn-outline-primary btn-sm rounded-pill px-4">
+                Đến trang góp ý chi tiết
+            </a>
+        </div>
         {% endif %}
     </div>
 

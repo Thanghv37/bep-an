@@ -9,6 +9,7 @@ from .views import (
     delete_all_registrations,
     registration_participation,
     send_meal_notifications,
+    get_notification_logs_api,
 )
 
 urlpatterns = [
@@ -24,4 +25,5 @@ urlpatterns = [
     ),
     path('participation/', registration_participation, name='registration_participation'),
     path('api/send-notifications/', send_meal_notifications, name='send_meal_notifications'),
+    path('api/notification-logs/', get_notification_logs_api, name='get_notification_logs_api'),
 ]

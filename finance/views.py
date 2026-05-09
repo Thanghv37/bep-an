@@ -8,18 +8,27 @@ from decimal import Decimal, InvalidOperation
 from datetime import date
 
 from meals.models import DailyMenu
-from .models import DailyPurchase, ExtraPurchaseRequest
+from .models import DailyPurchase, ExtraPurchaseRequest, PurchaseExtraItem
 from accounts.permissions import is_admin, is_kitchen
 from .forms import DailyPurchaseForm
-from .models import (
-    DailyPurchase,
-    ExtraPurchaseRequest,
-    ExtraPurchaseRequestItem,
-)
-
+from core.services.finance_ai import scan_receipt_image
 
 def can_manage_purchase(user):
     return is_admin(user) or is_kitchen(user)
+
+@login_required
+@user_passes_test(can_manage_purchase)
+def scan_bill_ajax(request):
+    if request.method == 'POST' and request.FILES.get('bill_image'):
+        bill_file = request.FILES['bill_image']
+        file_bytes = bill_file.read()
+        mime_type = bill_file.content_type
+        
+        result = scan_receipt_image(file_bytes, mime_type)
+        return JsonResponse(result)
+        
+    return JsonResponse({'error': 'Yêu cầu không hợp lệ.'}, status=400)
+
 
 
 @login_required
@@ -42,7 +51,8 @@ def purchase_list(request):
         'approved_by',
         'extra_request',
     ).prefetch_related(
-        'extra_request__items'
+        'extra_request__items',
+        'extra_items'
     ).order_by('-date', '-created_at')
 
     purchase_map = {}
@@ -137,6 +147,33 @@ def purchase_create(request):
             purchase.rejected_at = None
             purchase.save()
 
+            # Process dynamic items
+            names = request.POST.getlist('ai_item_name[]')
+            quantities = request.POST.getlist('ai_item_quantity[]')
+            units = request.POST.getlist('ai_item_unit[]')
+            prices = request.POST.getlist('ai_item_price[]')
+
+            for i, raw_name in enumerate(names):
+                name = (raw_name or '').strip()
+                if not name: continue
+                
+                try: quantity = Decimal(quantities[i].replace(',', '.'))
+                except: quantity = Decimal('0')
+                
+                unit = units[i] if i < len(units) else ''
+                
+                try: price = Decimal(prices[i].replace(',', '.'))
+                except: price = Decimal('0')
+
+                PurchaseExtraItem.objects.create(
+                    purchase=purchase,
+                    date=purchase.date,
+                    ingredient_name=name,
+                    quantity=quantity,
+                    unit=unit,
+                    unit_price=price
+                )
+
             messages.success(request, 'Đã gửi chi phí, đang chờ phê duyệt.')
             return redirect('purchase_list')
     else:
@@ -174,6 +211,35 @@ def purchase_update(request, pk):
             purchase.rejected_by = None
             purchase.rejected_at = None
             purchase.save()
+            
+            # Update dynamic items: delete old ones, recreate new ones
+            purchase.extra_items.all().delete()
+            
+            names = request.POST.getlist('ai_item_name[]')
+            quantities = request.POST.getlist('ai_item_quantity[]')
+            units = request.POST.getlist('ai_item_unit[]')
+            prices = request.POST.getlist('ai_item_price[]')
+
+            for i, raw_name in enumerate(names):
+                name = (raw_name or '').strip()
+                if not name: continue
+                
+                try: quantity = Decimal(quantities[i].replace(',', '.'))
+                except: quantity = Decimal('0')
+                
+                unit = units[i] if i < len(units) else ''
+                
+                try: price = Decimal(prices[i].replace(',', '.'))
+                except: price = Decimal('0')
+
+                PurchaseExtraItem.objects.create(
+                    purchase=purchase,
+                    date=purchase.date,
+                    ingredient_name=name,
+                    quantity=quantity,
+                    unit=unit,
+                    unit_price=price
+                )
 
             messages.success(request, 'Đã cập nhật chi phí, đang chờ phê duyệt lại.')
             return redirect('purchase_list')

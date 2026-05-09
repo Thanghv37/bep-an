@@ -404,4 +404,187 @@ function toggleDayDetail(date) {
     background: #fef2f2;
 }
 </style>
-{% endblock %}
+
+<!-- ================================================================ -->
+<!-- XUẤT BÁO CÁO -->
+<!-- ================================================================ -->
+<div class="dashboard-card mt-4" id="export-section">
+    <div class="section-title mb-1"><i class="bi bi-file-earmark-arrow-down"></i> Xuất báo cáo Excel</div>
+    <div class="section-subtitle mb-4">Tải xuống file .xlsx để lưu trữ hoặc gửi báo cáo.</div>
+
+    <div class="row g-4">
+
+        <!-- BÁO CÁO 1: THU – CHI -->
+        <div class="col-lg-4">
+            <div class="border rounded-4 p-4 h-100" style="border-color:#dbe4f0!important; background:#fafcff;">
+                <div class="fw-bold mb-1" style="color:#1e40af;">
+                    <i class="bi bi-bar-chart-line"></i> Báo cáo Thu – Chi
+                </div>
+                <div class="text-muted small mb-3">
+                    Tuần/Tháng → chi tiết theo ngày<br>
+                    Năm → tổng hợp theo tháng
+                </div>
+                <form method="get" action="{% url 'export_revenue_report' %}">
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold mb-1">Kỳ báo cáo</label>
+                        <select name="period" class="form-select form-select-sm" id="rev-period" onchange="toggleExportFields('rev', this.value)">
+                            <option value="week">Tuần</option>
+                            <option value="month" selected>Tháng</option>
+                            <option value="year">Năm</option>
+                        </select>
+                    </div>
+                    <div id="rev-week-fields" class="mb-2 d-none">
+                        <label class="form-label small mb-1">Chọn ngày trong tuần</label>
+                        <input type="date" name="date" value="{{ selected_date }}" class="form-control form-control-sm">
+                    </div>
+                    <div id="rev-month-fields" class="mb-2">
+                        <div class="d-flex gap-2">
+                            <div class="flex-fill">
+                                <label class="form-label small mb-1">Tháng</label>
+                                <select name="month" class="form-select form-select-sm">
+                                    {% for m in month_choices %}<option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>{{ m }}</option>{% endfor %}
+                                </select>
+                            </div>
+                            <div class="flex-fill">
+                                <label class="form-label small mb-1">Năm</label>
+                                <select name="year" class="form-select form-select-sm">
+                                    {% for y in year_choices %}<option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="rev-year-fields" class="mb-2 d-none">
+                        <label class="form-label small mb-1">Năm</label>
+                        <select name="year" class="form-select form-select-sm">
+                            {% for y in year_choices %}<option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <button class="btn btn-primary btn-sm w-100 mt-1">
+                        <i class="bi bi-download"></i> Tải xuống Excel
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- BÁO CÁO 2: CHI PHÍ -->
+        <div class="col-lg-4">
+            <div class="border rounded-4 p-4 h-100" style="border-color:#dbe4f0!important; background:#fafcff;">
+                <div class="fw-bold mb-1" style="color:#065f46;">
+                    <i class="bi bi-receipt"></i> Báo cáo Chi phí
+                </div>
+                <div class="text-muted small mb-3">
+                    Ngày/Tuần → chi tiết từng mặt hàng bill<br>
+                    Tháng/Năm → tổng hợp theo kỳ
+                </div>
+                <form method="get" action="{% url 'export_cost_report' %}">
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold mb-1">Kỳ báo cáo</label>
+                        <select name="period" class="form-select form-select-sm" id="cost-period" onchange="toggleExportFields('cost', this.value)">
+                            <option value="day">Ngày</option>
+                            <option value="week">Tuần</option>
+                            <option value="month" selected>Tháng</option>
+                            <option value="year">Năm</option>
+                        </select>
+                    </div>
+                    <div id="cost-week-fields" class="mb-2 d-none">
+                        <label class="form-label small mb-1">Chọn ngày trong tuần</label>
+                        <input type="date" name="date" value="{{ selected_date }}" class="form-control form-control-sm">
+                    </div>
+                    <div id="cost-day-fields" class="mb-2 d-none">
+                        <label class="form-label small mb-1">Chọn ngày</label>
+                        <input type="date" name="date" value="{{ selected_date }}" class="form-control form-control-sm">
+                    </div>
+                    <div id="cost-month-fields" class="mb-2">
+                        <div class="d-flex gap-2">
+                            <div class="flex-fill">
+                                <label class="form-label small mb-1">Tháng</label>
+                                <select name="month" class="form-select form-select-sm">
+                                    {% for m in month_choices %}<option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>{{ m }}</option>{% endfor %}
+                                </select>
+                            </div>
+                            <div class="flex-fill">
+                                <label class="form-label small mb-1">Năm</label>
+                                <select name="year" class="form-select form-select-sm">
+                                    {% for y in year_choices %}<option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="cost-year-fields" class="mb-2 d-none">
+                        <label class="form-label small mb-1">Năm</label>
+                        <select name="year" class="form-select form-select-sm">
+                            {% for y in year_choices %}<option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <button class="btn btn-success btn-sm w-100 mt-1">
+                        <i class="bi bi-download"></i> Tải xuống Excel
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- BÁO CÁO 3: ĐÁNH GIÁ MÓN ĂN -->
+        <div class="col-lg-4">
+            <div class="border rounded-4 p-4 h-100" style="border-color:#dbe4f0!important; background:#fafcff;">
+                <div class="fw-bold mb-1" style="color:#7c3aed;">
+                    <i class="bi bi-hand-thumbs-up"></i> Báo cáo Đánh giá món ăn
+                </div>
+                <div class="text-muted small mb-3">
+                    Gồm thống kê Like/Dislike + sheet riêng chứa toàn bộ góp ý typing
+                </div>
+                <form method="get" action="{% url 'export_review_report' %}">
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold mb-1">Kỳ báo cáo</label>
+                        <select name="period" class="form-select form-select-sm" id="rev2-period" onchange="toggleExportFields('rev2', this.value)">
+                            <option value="day">Ngày</option>
+                            <option value="week">Tuần</option>
+                            <option value="month" selected>Tháng</option>
+                        </select>
+                    </div>
+                    <div id="rev2-week-fields" class="mb-2 d-none">
+                        <label class="form-label small mb-1">Chọn ngày trong tuần</label>
+                        <input type="date" name="date" value="{{ selected_date }}" class="form-control form-control-sm">
+                    </div>
+                    <div id="rev2-day-fields" class="mb-2 d-none">
+                        <label class="form-label small mb-1">Chọn ngày</label>
+                        <input type="date" name="date" value="{{ selected_date }}" class="form-control form-control-sm">
+                    </div>
+                    <div id="rev2-month-fields" class="mb-2">
+                        <div class="d-flex gap-2">
+                            <div class="flex-fill">
+                                <label class="form-label small mb-1">Tháng</label>
+                                <select name="month" class="form-select form-select-sm">
+                                    {% for m in month_choices %}<option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>{{ m }}</option>{% endfor %}
+                                </select>
+                            </div>
+                            <div class="flex-fill">
+                                <label class="form-label small mb-1">Năm</label>
+                                <select name="year" class="form-select form-select-sm">
+                                    {% for y in year_choices %}<option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-sm w-100 mt-1" style="background:#7c3aed; color:white;">
+                        <i class="bi bi-download"></i> Tải xuống Excel
+                    </button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+function toggleExportFields(prefix, period) {
+    const allGroups = ['week', 'month', 'year', 'day'];
+    allGroups.forEach(g => {
+        const el = document.getElementById(`${prefix}-${g}-fields`);
+        if (el) el.classList.add('d-none');
+    });
+    const show = document.getElementById(`${prefix}-${period}-fields`);
+    if (show) show.classList.remove('d-none');
+}
+</script>
+
+{% endblock %}

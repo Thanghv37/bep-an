@@ -137,6 +137,8 @@ class PurchaseExtraItem(models.Model):
         verbose_name='Phiếu mua bổ sung'
     )
 
+    date = models.DateField(null=True, blank=True, verbose_name='Ngày')
+
     ingredient_name = models.CharField(max_length=255, verbose_name='Nguyên liệu')
     quantity = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Số lượng')
     unit = models.CharField(max_length=50, blank=True, verbose_name='Đơn vị')
@@ -147,6 +149,13 @@ class PurchaseExtraItem(models.Model):
         default=0,
         verbose_name='Đơn giá'
     )
+
+    class Meta:
+        verbose_name = 'Mặt hàng trong hóa đơn'
+        verbose_name_plural = 'Mặt hàng trong hóa đơn'
+
+    def __str__(self):
+        return f"{self.date} - {self.ingredient_name}"
 
 
 class PurchaseRejectLog(models.Model):

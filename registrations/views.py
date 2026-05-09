@@ -27,7 +27,7 @@ import json
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from accounts.models import UserProfile
-from .models import MealRegistration
+from .models import MealRegistration, NotificationLog
 from core.models import SystemConfig  # Import bảng cấu hình Bot của bạn nếu có
 
 
@@ -315,6 +315,13 @@ def _send_notifications_bg(employee_codes, target_date, config):
             r_user = requests.get(f"{netchat_url}/api/v4/users/username/{username}", headers=headers, timeout=10)
             if r_user.status_code != 200:
                 print(f"[NetChat] Bỏ qua {username}: Không tìm thấy tài khoản trên NetChat Viettel.")
+                NotificationLog.objects.create(
+                    target_date=target_date,
+                    employee_code=emp_code,
+                    full_name=full_name,
+                    status='failed',
+                    error_message='Không tìm thấy tài khoản trên NetChat'
+                )
                 continue # Bỏ qua nếu user chưa có trên NetChat
             mm_user_id = r_user.json().get('id')
 
@@ -324,6 +331,13 @@ def _send_notifications_bg(employee_codes, target_date, config):
                 headers=headers, json=[bot_id, mm_user_id], timeout=10
             )
             if r_channel.status_code not in (200, 201):
+                NotificationLog.objects.create(
+                    target_date=target_date,
+                    employee_code=emp_code,
+                    full_name=full_name,
+                    status='failed',
+                    error_message=f'Lỗi mở kênh chat: {r_channel.text}'
+                )
                 continue
             channel_id = r_channel.json().get('id')
 
@@ -342,9 +356,30 @@ def _send_notifications_bg(employee_codes, target_date, config):
             
             if r_post.status_code in (200, 201):
                 success_count += 1
+                NotificationLog.objects.create(
+                    target_date=target_date,
+                    employee_code=emp_code,
+                    full_name=full_name,
+                    status='success'
+                )
+            else:
+                NotificationLog.objects.create(
+                    target_date=target_date,
+                    employee_code=emp_code,
+                    full_name=full_name,
+                    status='failed',
+                    error_message=f'Lỗi gửi tin: {r_post.text}'
+                )
 
         except Exception as e:
             print(f"[NetChat] Lỗi gửi cho {username}: {str(e)}")
+            NotificationLog.objects.create(
+                target_date=target_date,
+                employee_code=emp_code,
+                full_name=full_name,
+                status='failed',
+                error_message=str(e)[:500]
+            )
             continue
 
     print(f"[NetChat] Hoàn tất tiến trình. Thành công: {success_count}/{len(employee_codes)}")
@@ -393,3 +428,46 @@ def send_meal_notifications(request):
         return JsonResponse({'success': True, 'message': 'Đã nhận lệnh gửi.'})
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=500)
+
+@login_required
+@require_GET
+def get_notification_logs_api(request):
+    date_str = request.GET.get('date')
+    if not date_str:
+        date_str = date.today().isoformat()
+    
+    try:
+        target_date = date.fromisoformat(date_str)
+    except ValueError:
+        return JsonResponse({'success': False, 'message': 'Sai định dạng ngày'})
+
+    logs = NotificationLog.objects.filter(target_date=target_date).order_by('-created_at')
+    
+    # Lấy log mới nhất của mỗi người dùng trong ngày đó (nếu gửi nhiều lần, chỉ lấy lần cuối)
+    # Vì SQLite không hỗ trợ DISTINCT ON, ta xử lý bằng code Python
+    latest_logs = {}
+    for log in logs:
+        if log.employee_code not in latest_logs:
+            latest_logs[log.employee_code] = log
+
+    final_logs = list(latest_logs.values())
+    
+    success_count = sum(1 for log in final_logs if log.status == 'success')
+    failed_count = sum(1 for log in final_logs if log.status == 'failed')
+    
+    log_data = []
+    for log in final_logs:
+        log_data.append({
+            'employee_code': log.employee_code,
+            'full_name': log.full_name,
+            'status': log.status,
+            'error_message': log.error_message,
+            'time': log.created_at.strftime('%H:%M')
+        })
+        
+    return JsonResponse({
+        'success': True,
+        'success_count': success_count,
+        'failed_count': failed_count,
+        'logs': log_data
+    })
