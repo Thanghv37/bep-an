@@ -1,11 +1,7 @@
-import os
 import json
 import re
-import google.generativeai as genai
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-genai.configure(api_key=GEMINI_API_KEY)
+from core.ai_config import get_genai_model
 
 
 def clean_json(text):
@@ -42,7 +38,7 @@ def scan_receipt_image(file_bytes, mime_type):
     """
 
     try:
-        model = genai.GenerativeModel("gemini-2.5-flash")
+        model = get_genai_model()
         
         image_part = {
             "mime_type": mime_type,

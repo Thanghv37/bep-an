@@ -39,6 +39,13 @@ def can_view_report(user):
     return can_view_dashboard(user)
 
 
+def can_export_report(user):
+    return user.is_authenticated and get_user_role(user) in [
+        UserProfile.ROLE_ADMIN,
+        UserProfile.ROLE_KITCHEN,
+    ]
+
+
 def can_manage_dish(user):
     return user.is_authenticated and get_user_role(user) in [
         UserProfile.ROLE_ADMIN,

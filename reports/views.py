@@ -7,7 +7,7 @@ from django.shortcuts import render
 from django.db.models import Sum
 from finance.models import DailyPurchase
 from core.views import get_registered_count, get_meal_price_for_date
-from accounts.permissions import can_view_report
+from accounts.permissions import can_view_report, can_export_report
 def staff_required(user):
     return user.is_staff or user.is_superuser
 
@@ -248,6 +248,7 @@ def report_dashboard(request):
         'balance_chart_values': balance_chart_values,
         'start_date': start_date,
         'end_date': end_date,
+        'can_export_report': can_export_report(request.user),
     }
     return render(request, 'reports/report_dashboard.html', context)
 
@@ -339,7 +340,7 @@ def _get_period(request, prefix=""):
 # 1. BÁO CÁO THU – CHI
 # ================================================================
 @login_required
-@user_passes_test(can_view_report)
+@user_passes_test(can_export_report)
 def export_revenue_report(request):
     period, start_date, end_date, label, sel_year, sel_month = _get_period(request)
 
@@ -467,7 +468,7 @@ def export_revenue_report(request):
 # 2. BÁO CÁO CHI PHÍ
 # ================================================================
 @login_required
-@user_passes_test(can_view_report)
+@user_passes_test(can_export_report)
 def export_cost_report(request):
     period, start_date, end_date, label, sel_year, sel_month = _get_period(request)
 
@@ -595,7 +596,7 @@ def export_cost_report(request):
 # 3. BÁO CÁO ĐÁNH GIÁ MÓN ĂN
 # ================================================================
 @login_required
-@user_passes_test(can_view_report)
+@user_passes_test(can_export_report)
 def export_review_report(request):
     period, start_date, end_date, label, sel_year, sel_month = _get_period(request)
 

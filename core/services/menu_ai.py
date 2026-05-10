@@ -1,8 +1,8 @@
-import google.generativeai as genai
-import os
 import json
 import logging
 import re
+
+from core.ai_config import get_genai_model
 
 logger = logging.getLogger(__name__)
 
@@ -22,12 +22,9 @@ def clean_json(text):
 
 class MenuAIService:
     def __init__(self):
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            logger.error("GEMINI_API_KEY not found in environment variables")
-        genai.configure(api_key=api_key)
-        # Sử dụng model gemini-2.5-flash như các service khác đang dùng thành công
-        self.model = genai.GenerativeModel('gemini-2.5-flash')
+        # API key + model name lấy từ SystemConfig (UI Profile),
+        # fallback env var GEMINI_API_KEY nếu DB chưa cấu hình.
+        self.model = get_genai_model()
 
     def suggest_next_week_menu(self, available_dishes, last_week_menu_text):
         prompt = f"""

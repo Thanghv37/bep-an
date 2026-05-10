@@ -1,29 +1,39 @@
+import json
+import secrets
+
+import requests
+
 from django.contrib import messages
+from django.contrib.auth import login as auth_login
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
 from django.db.models import Q
-from django.shortcuts import render, redirect, get_object_or_404
-from accounts.permissions import can_manage_user
-from .forms import UserCreateForm, UserUpdateForm
-from .models import UserProfile
-from .forms import ImportUserForm
-from .import_utils import import_users_from_excel
-from django.contrib.auth import update_session_auth_hash
-from django.contrib.auth.forms import PasswordChangeForm
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET
-from django.contrib.auth.models import User
-from django.contrib import messages
-from django.shortcuts import render, redirect
+
+from accounts.permissions import can_manage_user
+from core.ai_config import (
+    AVAILABLE_MODELS,
+    KEY_GEMINI_API_KEY,
+    KEY_GEMINI_MODEL,
+    get_gemini_api_key,
+    get_gemini_model,
+)
+from core.message_templates import (
+    KEY_MEAL,
+    KEY_OTP,
+    VARS_MEAL,
+    VARS_OTP,
+    get_meal_template,
+    get_otp_template,
+    render_template,
+)
 from core.models import SystemConfig
-import requests
-from django.http import JsonResponse
-import json
-import secrets
-from django.utils import timezone
-from django.contrib.auth import login as auth_login
+
+from .forms import ImportUserForm, UserCreateForm, UserUpdateForm
+from .import_utils import import_users_from_excel
 from .models import OTPToken, UserProfile
-from core.models import SystemConfig # Để lấy cấu hình Bot
 
 # --- HÀM 1: GỬI MÃ OTP QUA NETCHAT ---
 def request_otp(request):
@@ -75,7 +85,6 @@ def request_otp(request):
                 r_chan = requests.post(f"{url}/api/v4/channels/direct", headers=headers, json=[bot_id, user_mm_id])
                 channel_id = r_chan.json().get('id')
                 
-                from core.message_templates import get_otp_template, render_template
                 msg = render_template(
                     get_otp_template(),
                     otp_code=otp_code,
@@ -338,20 +347,9 @@ def import_users(request):
     return render(request, 'accounts/import_users.html', {
         'form': form,
     })
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth import update_session_auth_hash
-from django.shortcuts import render, redirect
-from django.contrib import messages
-# TODO: Đảm bảo bạn đã import PasswordChangeForm ở đầu file
-# from django.contrib.auth.forms import PasswordChangeForm
-
-# TODO: Import model lưu cấu hình của bạn, ví dụ (nếu bạn tạo model SystemConfig):
-# from core.models import SystemConfig 
-
 @login_required
 def user_profile(request):
     profile = request.user.profile
-    password_form = PasswordChangeForm(request.user)
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -365,23 +363,7 @@ def user_profile(request):
                 messages.success(request, 'Đã cập nhật ảnh đại diện.')
             return redirect('user_profile')
 
-        # 2. XỬ LÝ ĐỔI MẬT KHẨU
-        if action == 'change_password':
-            password_form = PasswordChangeForm(request.user, request.POST)
-            if password_form.is_valid():
-                new_password = password_form.cleaned_data.get('new_password1')
-                if request.user.check_password(new_password):
-                    password_form.add_error('new_password1', 'Mật khẩu mới không được trùng mật khẩu cũ.')
-                    messages.error(request, 'Mật khẩu mới không được trùng mật khẩu cũ.')
-                else:
-                    user = password_form.save()
-                    update_session_auth_hash(request, user)
-                    messages.success(request, 'Đã đổi mật khẩu thành công.')
-                    return redirect('user_profile')
-            else:
-                messages.error(request, 'Đổi mật khẩu thất bại. Vui lòng kiểm tra lại thông tin.')
-
-        # 3. XỬ LÝ LƯU CẤU HÌNH BOT NETCHAT
+        # 2. XỬ LÝ LƯU CẤU HÌNH BOT NETCHAT
         # Kiểm tra quyền ADMIN hoặc Superuser
         is_admin = request.user.is_superuser or getattr(profile, 'role', '').lower() == 'admin'
 
@@ -398,14 +380,26 @@ def user_profile(request):
 
         # 4. XỬ LÝ LƯU TEMPLATE TIN NHẮN OTP / ĐẶT CƠM
         if action in ('save_msg_otp', 'save_msg_meal') and is_admin:
-            from core.message_templates import KEY_OTP, KEY_MEAL
-
             template_value = request.POST.get('template_value', '').strip()
             cfg_key = KEY_OTP if action == 'save_msg_otp' else KEY_MEAL
             label = 'OTP' if action == 'save_msg_otp' else 'đặt cơm'
 
             SystemConfig.objects.update_or_create(key=cfg_key, defaults={'value': template_value})
             messages.success(request, f'Đã lưu mẫu tin nhắn {label}.')
+            return redirect('user_profile')
+
+        # 5. XỬ LÝ LƯU CẤU HÌNH AI GEMINI
+        if action == 'save_ai_config' and is_admin:
+            api_key = request.POST.get('gemini_api_key', '').strip()
+            model_name = request.POST.get('gemini_model', '').strip()
+
+            if model_name and model_name not in AVAILABLE_MODELS:
+                messages.error(request, 'Model không hợp lệ.')
+                return redirect('user_profile')
+
+            SystemConfig.objects.update_or_create(key=KEY_GEMINI_API_KEY, defaults={'value': api_key})
+            SystemConfig.objects.update_or_create(key=KEY_GEMINI_MODEL, defaults={'value': model_name})
+            messages.success(request, 'Đã lưu cấu hình AI Gemini.')
             return redirect('user_profile')
 
     # 5. TRUY VẤN DỮ LIỆU ĐỂ HIỂN THỊ
@@ -417,10 +411,6 @@ def user_profile(request):
         'netchat_token': config_token.value if config_token else '',
     }
 
-    from core.message_templates import (
-        get_otp_template, get_meal_template,
-        VARS_OTP, VARS_MEAL,
-    )
     msg_templates = {
         'otp': get_otp_template(),
         'meal': get_meal_template(),
@@ -428,11 +418,17 @@ def user_profile(request):
         'meal_vars': VARS_MEAL,
     }
 
+    ai_config = {
+        'api_key': get_gemini_api_key(),
+        'model': get_gemini_model(),
+        'available_models': AVAILABLE_MODELS,
+    }
+
     return render(request, 'accounts/user_profile.html', {
         'profile': profile,
-        'password_form': password_form,
         'bot_config': bot_config,
         'msg_templates': msg_templates,
+        'ai_config': ai_config,
     })
 
 

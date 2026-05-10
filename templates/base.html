@@ -520,6 +520,28 @@
         .user-avatar {
             border: 2px solid rgba(255,255,255,0.3);
         }
+        /* MOBILE: giảm padding để tránh tràn ngang trên màn hình nhỏ */
+        @media (max-width: 576px) {
+            .content-wrap {
+                padding: 12px;
+            }
+            .dashboard-card {
+                padding: 16px;
+                border-radius: 16px;
+            }
+            .page-title {
+                font-size: 20px;
+            }
+            .stat-card {
+                border-radius: 16px;
+            }
+            /* Báo cáo: trên màn rất nhỏ (<576px) chuyển 1 card/dòng cho dễ đọc */
+            .report-day-col {
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
+        }
+
         /* SIDEBAR COLLAPSE DESKTOP */
         @media (min-width: 993px) {
             .sidebar {

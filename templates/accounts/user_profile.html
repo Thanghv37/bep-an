@@ -37,9 +37,6 @@
             <div class="profile-sub">{{ request.user.username }}</div>
         </div>
 
-        <button class="btn btn-primary ms-auto" data-bs-toggle="modal" data-bs-target="#passwordModal">
-            Đổi mật khẩu
-        </button>
     </div>
 
     <div class="profile-info-grid">
@@ -81,47 +78,98 @@
     </div>
 </div>
 {% if profile.role == 'admin' or request.user.is_superuser %}
-<div class="profile-card mt-4 p-4">
-    <div class="d-flex align-items-center gap-2 mb-3">
-        <h5 class="fw-bold mb-0">🤖 Cấu hình BOT NetChat</h5>
-    </div>
-    
-    <form method="post" id="botConfigForm">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="save_bot_config">
-        
-        <div class="mb-3">
-            <label class="form-label text-muted fw-semibold" style="font-size: 13px;">URL Mattermost</label>
-            <input type="text" id="netchat_url" name="netchat_url" class="form-control bot-input" 
-                   placeholder="https://chat.congty.vn" value="{{ bot_config.netchat_url|default:'' }}"
-                   {% if bot_config.netchat_url %}disabled{% endif %}>
-        </div>
-        
-        <div class="mb-3">
-            <label class="form-label text-muted fw-semibold" style="font-size: 13px;">BOT Token</label>
-            <input type="password" id="netchat_token" name="netchat_token" class="form-control bot-input" 
-                   placeholder="Personal Access Token" value="{{ bot_config.netchat_token|default:'' }}"
-                   {% if bot_config.netchat_token %}disabled{% endif %}>
-            <div id="verify-msg" class="mt-1 fw-bold" style="font-size: 12px;"></div>
-        </div>
-
-        <div class="d-flex gap-2 mt-4">
-            <button type="button" class="btn btn-outline-success fw-bold" id="btnVerifyBot">
-                Xác minh Token
-            </button>
-            <div class="ms-auto d-flex gap-2">
-                <button type="button" class="btn btn-secondary fw-bold" id="btnEditBot">
-                    Sửa
-                </button>
-                <button type="button" class="btn btn-outline-secondary fw-bold" id="btnCancelBot" disabled>
-                    Hủy
-                </button>
-                <button type="submit" class="btn btn-primary fw-bold" id="btnSaveBot" {% if bot_config.netchat_url %}disabled{% endif %}>
-                    Lưu
-                </button>
+<div class="row g-4 mt-1 mb-0">
+    <!-- CỘT TRÁI: BOT NETCHAT -->
+    <div class="col-lg-6">
+        <div class="profile-card p-4 h-100">
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <h5 class="fw-bold mb-0">🤖 Cấu hình BOT NetChat</h5>
             </div>
+
+            <form method="post" id="botConfigForm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_bot_config">
+
+                <div class="mb-3">
+                    <label class="form-label text-muted fw-semibold" style="font-size: 13px;">URL Mattermost</label>
+                    <input type="text" id="netchat_url" name="netchat_url" class="form-control bot-input"
+                           placeholder="https://chat.congty.vn" value="{{ bot_config.netchat_url|default:'' }}"
+                           {% if bot_config.netchat_url %}disabled{% endif %}>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-muted fw-semibold" style="font-size: 13px;">BOT Token</label>
+                    <input type="password" id="netchat_token" name="netchat_token" class="form-control bot-input"
+                           placeholder="Personal Access Token" value="{{ bot_config.netchat_token|default:'' }}"
+                           {% if bot_config.netchat_token %}disabled{% endif %}>
+                    <div id="verify-msg" class="mt-1 fw-bold" style="font-size: 12px;"></div>
+                </div>
+
+                <div class="d-flex gap-2 mt-4 flex-wrap">
+                    <button type="button" class="btn btn-outline-success fw-bold" id="btnVerifyBot">
+                        Xác minh Token
+                    </button>
+                    <div class="ms-auto d-flex gap-2">
+                        <button type="button" class="btn btn-secondary fw-bold" id="btnEditBot">
+                            Sửa
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary fw-bold" id="btnCancelBot" disabled>
+                            Hủy
+                        </button>
+                        <button type="submit" class="btn btn-primary fw-bold" id="btnSaveBot" {% if bot_config.netchat_url %}disabled{% endif %}>
+                            Lưu
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
-    </form>
+    </div>
+
+    <!-- CỘT PHẢI: AI GEMINI -->
+    <div class="col-lg-6">
+        <div class="profile-card p-4 h-100">
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <h5 class="fw-bold mb-0">✨ Cấu hình AI Gemini</h5>
+            </div>
+
+            <form method="post" id="aiConfigForm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_ai_config">
+
+                <div class="mb-3">
+                    <label class="form-label text-muted fw-semibold" style="font-size: 13px;">Model</label>
+                    <select id="gemini_model" name="gemini_model" class="form-select ai-input"
+                            {% if ai_config.api_key %}disabled{% endif %}>
+                        {% for m in ai_config.available_models %}
+                            <option value="{{ m }}" {% if m == ai_config.model %}selected{% endif %}>{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-muted fw-semibold" style="font-size: 13px;">API Key</label>
+                    <input type="password" id="gemini_api_key" name="gemini_api_key" class="form-control ai-input"
+                           placeholder="AIza..." value="{{ ai_config.api_key|default:'' }}"
+                           {% if ai_config.api_key %}disabled{% endif %}>
+                    <div class="form-text" style="font-size: 12px;">
+                        Lấy API key tại <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mt-4 justify-content-end">
+                    <button type="button" class="btn btn-secondary fw-bold" id="btnEditAi">
+                        Sửa
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary fw-bold" id="btnCancelAi" disabled>
+                        Hủy
+                    </button>
+                    <button type="submit" class="btn btn-primary fw-bold" id="btnSaveAi" {% if ai_config.api_key %}disabled{% endif %}>
+                        Lưu
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <!-- CẤU HÌNH MẪU TIN NHẮN OTP -->
@@ -188,78 +236,6 @@
     </form>
 </div>
 {% endif %}
-<!-- MODAL ĐỔI MẬT KHẨU -->
-<div class="modal fade" id="passwordModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content rounded-4 border-0">
-            <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="change_password">
-
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold">Đổi mật khẩu</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-
-                <div class="modal-body pt-3">
-
-                    <div class="password-field mb-3">
-                        <label class="form-label fw-semibold">Mật khẩu hiện tại</label>
-                        <div class="password-input-wrap">
-                            {{ password_form.old_password }}
-                            <button type="button" class="password-toggle" data-target="id_old_password">👁</button>
-                        </div>
-                        {% if password_form.old_password.errors %}
-                            <div class="text-danger small mt-1">{{ password_form.old_password.errors }}</div>
-                        {% endif %}
-                    </div>
-
-                    <div class="password-field mb-3">
-                        <label class="form-label fw-semibold">Mật khẩu mới</label>
-                        <div class="password-input-wrap">
-                            {{ password_form.new_password1 }}
-                            <button type="button" class="password-toggle" data-target="id_new_password1">👁</button>
-                        </div>
-                        {% if password_form.new_password1.errors %}
-                            <div class="text-danger small mt-1">{{ password_form.new_password1.errors }}</div>
-                        {% endif %}
-                    </div>
-
-                    <div class="password-field mb-3">
-                        <label class="form-label fw-semibold">Nhập lại mật khẩu mới</label>
-                        <div class="password-input-wrap">
-                            {{ password_form.new_password2 }}
-                            <button type="button" class="password-toggle" data-target="id_new_password2">👁</button>
-                        </div>
-                        {% if password_form.new_password2.errors %}
-                            <div class="text-danger small mt-1">{{ password_form.new_password2.errors }}</div>
-                        {% endif %}
-                    </div>
-
-                    <div class="password-hints mt-4">
-                        <div class="fw-semibold mb-2">Lưu ý khi đặt mật khẩu mới:</div>
-                        <ul class="mb-0 small text-muted">
-                            <li>Mật khẩu không nên quá giống thông tin cá nhân.</li>
-                            <li>Mật khẩu nên có tối thiểu 8 ký tự.</li>
-                            <li>Không nên dùng mật khẩu quá phổ biến.</li>
-                            <li>Không nên chỉ dùng toàn số.</li>
-                        </ul>
-                    </div>
-
-                </div>
-
-                <div class="modal-footer border-0 pt-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                        Hủy
-                    </button>
-                    <button type="submit" class="btn btn-primary">
-                        Lưu mật khẩu
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 
 <style>
 .profile-card {
@@ -365,43 +341,6 @@
     padding: 13px 16px;
     font-weight: 600;
 }
-.password-input-wrap {
-    position: relative;
-}
-
-.password-input-wrap input {
-    width: 100%;
-    height: 46px;
-    border-radius: 999px;
-    border: 1px solid #e5e7eb;
-    background: #f8fafc;
-    padding: 0 46px 0 16px;
-    outline: none;
-}
-
-.password-input-wrap input:focus {
-    border-color: #3b82f6;
-    background: #fff;
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
-}
-
-.password-toggle {
-    position: absolute;
-    right: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    border: 0;
-    background: transparent;
-    cursor: pointer;
-    opacity: 0.65;
-}
-
-.password-hints {
-    background: #f8fafc;
-    border: 1px dashed #cbd5e1;
-    border-radius: 14px;
-    padding: 14px 16px;
-}
 /* Trạng thái XÁC MINH THÀNH CÔNG (Màu xanh lá nhạt) */
     .border-success-verify { 
         border: 1.5px solid #10b981 !important; /* Viền xanh Emerald mảnh hơn */
@@ -417,12 +356,18 @@
     }
 
     /* Khi ô bị khóa (Disabled) - Cho màu xám nhẹ để phân biệt */
-    .bot-input:disabled {
+    .bot-input:disabled,
+    .ai-input:disabled {
         background-color: #f1f5f9 !important;
         border-color: #e2e8f0 !important;
         color: #64748b !important;
         cursor: not-allowed;
         opacity: 0.8;
+    }
+    .ai-input.editing {
+        border: 1.5px solid #f87171 !important;
+        background-color: #fef2f2 !important;
+        box-shadow: 0 0 0 0.2rem rgba(248, 113, 113, 0.1) !important;
     }
     /* Cấu hình mẫu tin nhắn */
     .msg-vars-box {
@@ -463,31 +408,6 @@ document.getElementById('avatarInput').addEventListener('change', function () {
 });
 
 </script>
-<script>
-document.querySelectorAll('.password-toggle').forEach(button => {
-    button.addEventListener('click', function () {
-        const input = document.getElementById(this.dataset.target);
-
-        if (!input) return;
-
-        if (input.type === 'password') {
-            input.type = 'text';
-            this.textContent = '🙈';
-        } else {
-            input.type = 'password';
-            this.textContent = '👁';
-        }
-    });
-});
-</script>
-{% if password_form.errors %}
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const modal = new bootstrap.Modal(document.getElementById('passwordModal'));
-    modal.show();
-});
-</script>
-{% endif %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const urlInput = document.getElementById('netchat_url');
@@ -575,6 +495,38 @@ document.addEventListener('DOMContentLoaded', function() {
             btnVerify.innerText = "Xác minh Token";
             btnVerify.disabled = false;
         });
+    });
+});
+</script>
+<script>
+// === CẤU HÌNH AI GEMINI: Edit / Cancel / Save ===
+document.addEventListener('DOMContentLoaded', function() {
+    const modelSelect = document.getElementById('gemini_model');
+    const apiKeyInput = document.getElementById('gemini_api_key');
+    const btnEdit = document.getElementById('btnEditAi');
+    const btnCancel = document.getElementById('btnCancelAi');
+    const btnSave = document.getElementById('btnSaveAi');
+
+    if (!modelSelect) return; // chỉ admin mới có form này
+
+    const originalModel = modelSelect.value;
+    const originalKey = apiKeyInput.value;
+
+    function setEditing(editing) {
+        modelSelect.disabled = !editing;
+        apiKeyInput.disabled = !editing;
+        btnCancel.disabled = !editing;
+        btnSave.disabled = !editing;
+        btnEdit.disabled = editing;
+        modelSelect.classList.toggle('editing', editing);
+        apiKeyInput.classList.toggle('editing', editing);
+    }
+
+    btnEdit.addEventListener('click', () => setEditing(true));
+    btnCancel.addEventListener('click', () => {
+        modelSelect.value = originalModel;
+        apiKeyInput.value = originalKey;
+        setEditing(false);
     });
 });
 </script>

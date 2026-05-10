@@ -1,14 +1,7 @@
-import os
 import json
 import re
-import google.generativeai as genai
 
-
-# Ưu tiên lấy từ biến môi trường.
-# Nếu test local nhanh thì có thể hardcode tạm, nhưng không nên push lên Git.
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-genai.configure(api_key=GEMINI_API_KEY)
+from core.ai_config import get_genai_model
 
 
 def clean_json(text):
@@ -58,7 +51,7 @@ JSON:
 """
 
     try:
-        model = genai.GenerativeModel("gemini-2.5-flash")
+        model = get_genai_model()
         response = model.generate_content(prompt)
 
         return clean_json(response.text)

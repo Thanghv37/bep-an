@@ -35,8 +35,9 @@ Hệ thống Quản lý Bếp ăn là giải pháp toàn diện giúp tự độ
 *   **Cấu hình giá:** Linh hoạt thiết lập giá suất ăn theo biến động thị trường.
 
 ### 5. Hệ thống & Profile
-*   **Phân quyền (RBAC):** Phân chia vai trò rõ ràng giữa Admin, Nhân sự, Nhân viên bếp và Người ăn.
-*   **Cấu hình Bot:** Thiết lập URL và Token cho hệ thống thông báo NetChat ngay trong giao diện Profile Admin.
+*   **Phân quyền (RBAC):** Phân chia vai trò rõ ràng giữa Admin, Nhân viên bếp và Người ăn.
+*   **Đăng nhập OTP:** Người dùng đăng nhập bằng mã OTP nhận qua NetChat (thay cho mật khẩu).
+*   **Cấu hình runtime trong Profile Admin:** Bot NetChat (URL/Token), AI Gemini (model + API key), và mẫu tin nhắn OTP/đặt cơm.
 
 ## 🛠 Công nghệ sử dụng
 *   **Backend:** Python 3.12, Django 5.x
@@ -82,18 +83,6 @@ Hệ thống Quản lý Bếp ăn là giải pháp toàn diện giúp tự độ
    python manage.py migrate
    python manage.py runserver
    ```
-
-## 📝 Nhật ký thay đổi
-
-### 2026-05-10
-- Thêm 2 mục cấu hình **mẫu tin nhắn OTP** và **mẫu tin nhắn đặt cơm** trong trang Profile (chỉ admin/superuser nhìn thấy). Lưu vào `SystemConfig` với key `msg_template_otp` / `msg_template_meal`, fallback về template mặc định nếu chưa cấu hình. UI có pattern Sửa/Hủy/Lưu (textarea mờ khi không sửa) và hiển thị danh sách biến — click chip biến để tự động chèn `{var}` vào textarea — [core/message_templates.py](core/message_templates.py) (mới), [accounts/views.py](accounts/views.py), [registrations/views.py](registrations/views.py), [templates/accounts/user_profile.html](templates/accounts/user_profile.html).
-- Xóa view `set_initial_password` (trang "Đặt mật khẩu lần đầu") và `reset_user_password` (nút "Reset" mật khẩu user) cùng URL, link trên login, nút trên user_list, và template [templates/accounts/set_initial_password.html](templates/accounts/) — toàn bộ flow đăng nhập đã chuyển sang OTP qua NetChat. Admin nếu cần đổi password vẫn dùng được trang `/admin/` Django hoặc lệnh `manage.py changepassword` — [accounts/views.py](accounts/views.py), [accounts/urls.py](accounts/urls.py), [templates/accounts/user_list.html](templates/accounts/user_list.html), [templates/accounts/login.html](templates/accounts/login.html).
-- Form **Thêm/Cập nhật người dùng**: thêm mũi tên xổ xuống cho 3 ô Đơn vị / Phòng ban / Chức vụ (đồng nhất với ô Vai trò), và lọc bỏ giá trị `none` khỏi danh sách gợi ý — [accounts/views.py](accounts/views.py), [templates/accounts/user_form.html](templates/accounts/user_form.html).
-- Form **Thêm/Cập nhật người dùng**: Đơn vị / Phòng ban / Chức vụ chuyển sang dạng input có dropdown (`<datalist>`) gợi ý các giá trị đã có trong DB, vẫn cho phép nhập giá trị mới — [accounts/forms.py](accounts/forms.py), [accounts/views.py](accounts/views.py), [templates/accounts/user_form.html](templates/accounts/user_form.html).
-- Bỏ ô **Mật khẩu** khi tạo người dùng (đăng nhập bằng OTP qua NetChat); user mới được set unusable password — [accounts/forms.py](accounts/forms.py), [accounts/views.py](accounts/views.py).
-- Khởi tạo mục "Nhật ký thay đổi" trong [README.md](README.md) để theo dõi tiến độ dự án.
-
----
 
 ## 📧 Liên hệ
 *   **Người phát triển:** Thanghv37
