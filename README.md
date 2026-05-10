@@ -84,6 +84,17 @@ Hệ thống Quản lý Bếp ăn là giải pháp toàn diện giúp tự độ
    python manage.py runserver
    ```
 
+## 📝 Nhật ký thay đổi
+
+### 2026-05-10
+- Tách `DB_PASSWORD` ra biến môi trường (`python-dotenv` + file `.env` gitignored). Deploy giờ chỉ cần `git pull + restart`, không còn conflict do secrets khác nhau giữa dev và prod.
+- Cấu hình runtime trong Profile admin: BOT NetChat, AI Gemini (model + API key), mẫu tin nhắn OTP / đặt cơm. Đổi config có hiệu lực ngay không cần restart server.
+- Đăng nhập chuyển hoàn toàn sang OTP qua NetChat, gỡ các view password cũ. Form thêm user: dropdown gợi ý đơn vị / phòng ban / chức vụ từ DB.
+- Phân quyền: ẩn "Xuất báo cáo Excel" với người ăn (chỉ admin + nhân viên bếp).
+- Tinh chỉnh CSS responsive cho mobile (4 trang chính: Dashboard / Đánh giá / Báo cáo / Profile).
+
+---
+
 ## 📧 Liên hệ
 *   **Người phát triển:** Thanghv37
 *   **Đơn vị:** VT NET KV2
