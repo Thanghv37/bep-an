@@ -39,6 +39,7 @@ proto-plus==1.27.2
 protobuf==5.29.6
 
 psycopg2-binary==2.9.12
+python-dotenv==1.0.1
 
 pyasn1==0.6.3
 pyasn1_modules==0.4.2

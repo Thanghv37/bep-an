@@ -1,6 +1,13 @@
+import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load secrets từ file .env (chỉ tồn tại trên dev). Trên prod, env var được
+# set trực tiếp trong systemd service nên file này không cần.
+load_dotenv(BASE_DIR / '.env')
 
 SECRET_KEY = 'django-insecure-_75ez(@(w2(s_xm^3!4qv_o38%h+gf1q(p4ho8l7v%(_lpnwjb'
 
@@ -71,7 +78,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'bep_an',
         'USER': 'postgres',
-        'PASSWORD': 'Hvtvt@cr7',  # <-- đổi lại đúng mật khẩu của bạn
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
         'HOST': '127.0.0.1',
         'PORT': '5432',
     }
