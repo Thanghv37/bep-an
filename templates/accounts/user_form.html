@@ -5,6 +5,26 @@
 
 {% block content %}
 
+<style>
+    /* Mũi tên xổ xuống cho input có gắn <datalist>, đồng nhất với .form-select */
+    .form-control[list] {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 16px 12px;
+        padding-right: 2.25rem;
+        cursor: pointer;
+    }
+    .form-control[list]::-webkit-calendar-picker-indicator {
+        opacity: 0;
+        position: absolute;
+        right: 0;
+        width: 2.25rem;
+        height: 100%;
+        cursor: pointer;
+    }
+</style>
+
 <div class="dashboard-card">
     <div class="section-title mb-1">{{ page_title }}</div>
     <div class="section-subtitle mb-4">
@@ -42,6 +62,16 @@
             <a href="{% url 'user_list' %}" class="btn btn-outline-secondary">Quay lại</a>
         </div>
     </form>
+
+    <datalist id="unit_choices">
+        {% for u in unit_choices %}<option value="{{ u }}">{% endfor %}
+    </datalist>
+    <datalist id="department_choices">
+        {% for d in department_choices %}<option value="{{ d }}">{% endfor %}
+    </datalist>
+    <datalist id="position_choices">
+        {% for p in position_choices %}<option value="{{ p }}">{% endfor %}
+    </datalist>
 </div>
 
 {% endblock %}

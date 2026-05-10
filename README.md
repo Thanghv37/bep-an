@@ -1,229 +1,103 @@
-README.md — HỆ THỐNG QUẢN LÝ BẾP ĂN CÔNG TY
-1. GIỚI THIỆU HỆ THỐNG
+# 🍱 Hệ thống Quản lý Bếp ăn Thông minh (Smart Kitchen Management)
+### 📍 Dự án Quản lý Bếp ăn KV2 - VT NET
 
-Đây là hệ thống quản lý bếp ăn nội bộ công ty được xây dựng bằng:
+![Django](https://img.shields.io/badge/django-%23092E20.svg?style=for-the-badge&logo=django&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
+![Bootstrap](https://img.shields.io/badge/bootstrap-%23563D7C.svg?style=for-the-badge&logo=bootstrap&logoColor=white)
+![AI Gemini](https://img.shields.io/badge/AI-Gemini-blue?style=for-the-badge&logo=google-gemini&logoColor=white)
 
-Backend: Django
-Database: PostgreSQL
-Frontend: Django Template + Bootstrap
-Server: Ubuntu + Gunicorn + Nginx
+---
 
-Mục tiêu hệ thống:
+## 🌟 Giới thiệu
+Hệ thống Quản lý Bếp ăn là giải pháp toàn diện giúp tự động hóa quy trình vận hành bếp ăn nội bộ công ty. Dự án tích hợp trí tuệ nhân tạo (AI) để phân tích dinh dưỡng, lên thực đơn tự động và hệ thống thông báo qua Bot (Mattermost/NetChat), giúp tối ưu hóa chi phí và nâng cao trải nghiệm người ăn.
 
-Quản lý đăng ký suất ăn
-Quản lý tham gia thực tế
-Quản lý món ăn
-Quản lý nguyên vật liệu
-Quản lý kho
-Quản lý thu chi
-Dashboard thống kê realtime
-Gửi thông báo tự động qua NetChat Bot
-2. KIẾN TRÚC HỆ THỐNG
-Backend
-Django
-Django ORM
-Pandas (import Excel)
-Requests (gọi API NetChat)
-Frontend
-Bootstrap 5
-Chart.js
-Django Template
-Database
-PostgreSQL
-Deploy
-Gunicorn
-Nginx
-Ubuntu Server
-3. CÁC MODULE CHÍNH
-3.1. MODULE NHÂN VIÊN (EMPLOYEE)
+## ✨ Tính năng chính
 
-Lưu thông tin nhân viên công ty.
+### 1. Dashboard & AI Analysis
+*   **Tổng quan Real-time:** Theo dõi số lượng người đăng ký, chi phí thu-chi và chênh lệch tài chính trong ngày.
+*   **AI Dinh dưỡng:** Tự động phân tích hàm lượng Calo và đưa ra lời khuyên sức khỏe dựa trên thực đơn thực tế qua Gemini AI.
+*   **Xu hướng tài chính:** Biểu đồ so sánh thu-chi theo tuần/tháng/năm bằng Chart.js.
 
-Bảng:
+### 2. Quản lý Đăng ký & Điểm danh
+*   **Import Đăng ký:** Hỗ trợ import danh sách đăng ký ăn hàng ngày từ file Excel.
+*   **Gửi thông báo Bot:** Tự động gửi tin nhắn nhắc nhở/xác nhận qua NetChat tới từng nhân viên.
+*   **Điểm danh thực tế:** Tab "Tham gia" hiển thị danh sách người ăn thực tế được đồng bộ qua API từ hệ thống điểm danh bên ngoài.
 
-Employee
+### 3. Quản lý Thực đơn & Món ăn
+*   **Kho món ăn:** Quản lý chi tiết món ăn (loại món, hình ảnh, mô tả).
+*   **Công thức & Nguyên liệu:** Khai báo định mức nguyên liệu chi tiết cho từng món ăn để tự động tính toán khối lượng cần mua dựa trên số người đăng ký.
+*   **AI Menu Suggestion:** AI gợi ý thực đơn 5 ngày trong tuần dựa trên các tiêu chí cân bằng dinh dưỡng và sự đa dạng.
+*   **Quy trình phê duyệt:** Thực đơn và món ăn mới do bếp trưởng tạo sẽ được Admin phê duyệt trước khi hiển thị.
 
-Fields:
-Field	Ý nghĩa
-employee_code	Mã nhân viên (PK)
-full_name	Họ tên
-email	Email
-phone	SĐT
-department	Phòng ban
-user_id	User ID NetChat
-is_active	Trạng thái hoạt động
-Vai trò:
-Mapping đăng ký ăn
-Mapping NetChat user
-Quản lý nhân sự
-3.2. MODULE ĐĂNG KÝ SUẤT ĂN (REGISTRATION)
+### 4. Quản lý Kho & Tài chính
+*   **Đặt hàng (Purchase):** Tạo đơn hàng nguyên liệu chính và đơn hàng phụ (gia vị, dầu ăn...).
+*   **Quản lý Chi phí:** Ghi nhận và phân loại mọi chi phí phát sinh, hỗ trợ quy trình phê duyệt chi phí minh bạch.
+*   **Cấu hình giá:** Linh hoạt thiết lập giá suất ăn theo biến động thị trường.
 
-Nhân sự import danh sách đăng ký ăn.
+### 5. Hệ thống & Profile
+*   **Phân quyền (RBAC):** Phân chia vai trò rõ ràng giữa Admin, Nhân sự, Nhân viên bếp và Người ăn.
+*   **Cấu hình Bot:** Thiết lập URL và Token cho hệ thống thông báo NetChat ngay trong giao diện Profile Admin.
 
-Bảng:
+## 🛠 Công nghệ sử dụng
+*   **Backend:** Python 3.12, Django 5.x
+*   **Database:** PostgreSQL
+*   **Frontend:** HTML5, CSS3 (Vanilla + Bootstrap 5), JavaScript (ES6+)
+*   **AI Integration:** Google Generative AI (Gemini Pro)
+*   **Deployment:** Ubuntu Server, Nginx, Gunicorn
+*   **Communication:** NetChat API (Mattermost compatible)
 
-Registration
+## 📂 Cấu trúc thư mục
+```text
+├── accounts/          # Quản lý người dùng, profile và phân quyền
+├── core/              # Các tính năng lõi, Dashboard và AI services
+├── meals/             # Quản lý thực đơn, món ăn và định mức
+├── finance/           # Quản lý thu chi, hóa đơn và giá suất ăn
+├── registrations/     # Quản lý đăng ký và tham gia thực tế
+├── reviews/           # Hệ thống đánh giá công khai qua QR Code
+├── templates/         # Giao diện người dùng (HTML Templates)
+├── static/            # Files tĩnh (CSS, JS, Images)
+└── media/             # Lưu trữ hình ảnh món ăn, avatar
+```
 
-Fields:
-Field	Ý nghĩa
-employee	FK → Employee
-date	Ngày đăng ký
-meal_type	Loại bữa
-status	Đã đăng ký / Chưa đăng ký
-created_at	Thời gian tạo
-3.3. IMPORT EXCEL ĐĂNG KÝ ĂN
-File Excel mẫu:
-employee_code	full_name	status	meal_type
-123456	Nguyễn Văn A	Đã đăng ký	Trưa
-Quy trình:
-Upload Excel
-Pandas đọc file
-employee_code → mapping Employee
-Tạo Registration
-3.4. MODULE THAM GIA THỰC TẾ (PARTICIPATION)
+## 🚀 Cài đặt & Chạy thử
 
-Theo dõi nhân viên thực tế vào ăn.
+1. **Clone dự án:**
+   ```bash
+   git clone https://github.com/Thanghv37/bep-an.git
+   cd bep-an
+   ```
 
-Nguồn dữ liệu:
-Máy quét QR
-Máy chấm công
-Import log
-Bảng:
+2. **Cài đặt môi trường ảo & Thư viện:**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+   pip install -r requirements.txt
+   ```
 
-Participation
+3. **Cấu hình Database:**
+   Chỉnh sửa thông số DATABASE trong `config/settings.py` cho phù hợp với PostgreSQL của bạn.
 
-Fields:
-Field	Ý nghĩa
-employee	FK Employee
-scan_time	Thời gian quét
-status	Đã đăng ký / Chưa đăng ký
-type	QR / Máy chấm công
-3.5. MODULE THỰC ĐƠN (MENU)
+4. **Migrate & Chạy server:**
+   ```bash
+   python manage.py migrate
+   python manage.py runserver
+   ```
 
-Quản lý menu theo ngày.
+## 📝 Nhật ký thay đổi
 
-Bảng:
+### 2026-05-10
+- Thêm 2 mục cấu hình **mẫu tin nhắn OTP** và **mẫu tin nhắn đặt cơm** trong trang Profile (chỉ admin/superuser nhìn thấy). Lưu vào `SystemConfig` với key `msg_template_otp` / `msg_template_meal`, fallback về template mặc định nếu chưa cấu hình. UI có pattern Sửa/Hủy/Lưu (textarea mờ khi không sửa) và hiển thị danh sách biến — click chip biến để tự động chèn `{var}` vào textarea — [core/message_templates.py](core/message_templates.py) (mới), [accounts/views.py](accounts/views.py), [registrations/views.py](registrations/views.py), [templates/accounts/user_profile.html](templates/accounts/user_profile.html).
+- Xóa view `set_initial_password` (trang "Đặt mật khẩu lần đầu") và `reset_user_password` (nút "Reset" mật khẩu user) cùng URL, link trên login, nút trên user_list, và template [templates/accounts/set_initial_password.html](templates/accounts/) — toàn bộ flow đăng nhập đã chuyển sang OTP qua NetChat. Admin nếu cần đổi password vẫn dùng được trang `/admin/` Django hoặc lệnh `manage.py changepassword` — [accounts/views.py](accounts/views.py), [accounts/urls.py](accounts/urls.py), [templates/accounts/user_list.html](templates/accounts/user_list.html), [templates/accounts/login.html](templates/accounts/login.html).
+- Form **Thêm/Cập nhật người dùng**: thêm mũi tên xổ xuống cho 3 ô Đơn vị / Phòng ban / Chức vụ (đồng nhất với ô Vai trò), và lọc bỏ giá trị `none` khỏi danh sách gợi ý — [accounts/views.py](accounts/views.py), [templates/accounts/user_form.html](templates/accounts/user_form.html).
+- Form **Thêm/Cập nhật người dùng**: Đơn vị / Phòng ban / Chức vụ chuyển sang dạng input có dropdown (`<datalist>`) gợi ý các giá trị đã có trong DB, vẫn cho phép nhập giá trị mới — [accounts/forms.py](accounts/forms.py), [accounts/views.py](accounts/views.py), [templates/accounts/user_form.html](templates/accounts/user_form.html).
+- Bỏ ô **Mật khẩu** khi tạo người dùng (đăng nhập bằng OTP qua NetChat); user mới được set unusable password — [accounts/forms.py](accounts/forms.py), [accounts/views.py](accounts/views.py).
+- Khởi tạo mục "Nhật ký thay đổi" trong [README.md](README.md) để theo dõi tiến độ dự án.
 
-Menu
+---
 
-Fields:
-Field	Ý nghĩa
-date	Ngày
-meal_type	Trưa / Tối
-note	Ghi chú
-3.6. MODULE MÓN ĂN (DISH)
+## 📧 Liên hệ
+*   **Người phát triển:** Thanghv37
+*   **Đơn vị:** VT NET KV2
 
-Khai báo món ăn.
-
-Bảng:
-
-Dish
-
-Fields:
-Field	Ý nghĩa
-name	Tên món
-category	Loại món
-estimated_cost	Giá thành dự kiến
-description	Mô tả
-3.7. MODULE NGUYÊN LIỆU (INGREDIENT)
-
-Quản lý nguyên vật liệu.
-
-Bảng:
-
-Ingredient
-
-Fields:
-Field	Ý nghĩa
-name	Tên nguyên liệu
-unit	Đơn vị tính
-stock_quantity	Tồn kho
-unit_price	Giá nhập
-3.8. MODULE MUA HÀNG (PURCHASE)
-
-Quản lý nhập nguyên liệu.
-
-Bảng:
-
-Purchase
-
-Fields:
-Field	Ý nghĩa
-supplier	Nhà cung cấp
-purchase_date	Ngày mua
-type	Nguyên liệu chính / Bổ sung
-total_amount	Tổng tiền
-status	Chờ duyệt / Đã duyệt
-3.9. MODULE KHO (INVENTORY)
-
-Theo dõi tồn kho.
-
-Bảng:
-
-InventoryTransaction
-
-Fields:
-Field	Ý nghĩa
-ingredient	FK Ingredient
-transaction_type	Nhập / Xuất
-quantity	Số lượng
-created_at	Thời gian
-3.10. MODULE THU CHI (FINANCE)
-
-Quản lý tài chính bếp ăn.
-
-Bảng:
-
-Expense
-
-Fields:
-Field	Ý nghĩa
-category	Loại chi
-amount	Số tiền
-expense_date	Ngày
-note	Ghi chú
-Ví dụ:
-Mua thực phẩm
-Gas
-Điện
-Nước
-3.11. MODULE DASHBOARD
-
-Dashboard realtime.
-
-Hiển thị:
-Tổng đăng ký hôm nay
-Tổng tham gia thực tế
-Tổng chi phí hôm nay
-Tồn kho
-Biểu đồ suất ăn
-Biểu đồ:
-Theo ngày
-Theo tháng
-Theo phòng ban
-3.12. MODULE BOT NETCHAT
-
-Gửi thông báo tự động.
-
-Bảng:
-
-BotConfig
-
-Fields:
-Field	Ý nghĩa
-bot_url	URL NetChat
-bot_token	Token Bot
-default_channel	User test
-4. PHÂN QUYỀN
-Admin
-Toàn quyền
-Nhân viên bếp
-Quản lý món ăn
-Quản lý nguyên liệu
-Tạo phiếu mua
-Nhân sự
-Import đăng ký
-Gửi bot
-Nhân viên
-Đăng ký ăn
-Tóm lại: Trang dashboard sẽ hiển thị giao diện chính cho người ăn, gồm menu trong tuần, thu chi của ngày đó, chart thu chi trong tuần và 1 box AI liên kết gemini AI nhằm phân tích calo của ngày hôm đó. Trang quản lí người dùng để admin quản lí toàn bộ danh sách nhân viên trong công ty và Role của mỗi người. Trang danh sách đăng kí sẽ được import bằng tay mỗi ngày danh sách của người đăng kí ăn hôm đó, và có nút gửi tin nhắn thông qua bot NETCHAT tới các người đăng kí, và trong trang danh sách đăng kí có tab "tham gia" đây là tab hiển thị các người ăn thực tế hôm nay, được lấy từ API POST của 1 hệ thống điểm danh khác. Trang danh mục món ăn để cho nhân viên bếp khai báo các món ăn có sẵn của nhà bếp, khai báo mỗi món sẽ có các thông tin: loại món ( chính, phụ, canh, tráng miệng ), up ảnh món đó lên để hiển thị ở dashboard, và khai báo nguyên liệu khẩu phần / người chi tiết món ăn đó. Mục đích là từ danh sách người đăng kí ăn nhân lên với khẩu phần sẽ suy ra được nguyên liệu cần đặt mua. Trang lên thực đơn là để cho nhân viên khai báo thực đơn của mỗi ngày. Đặc biệt ở đây sẽ có 1 AI để gợi ý lên thực đơn cho 5 ngày của tuần sau ( trừ thứ 7, chủ nhật), hiện tại chức năng này đang demo bằng code. Sau khi nhân viên khai báo món ăn hay là chọn món đều đợi phê duyệt của admin ở trang phê duyệt. nguyên liệu chính để nấu các món ăn thì đã được hiển thị lúc tạo thực đơn rồi, còn những nguyên liệu mua bổ sung ( ví dụ gia vị mắm muối, dầu ăn ... ) thì sẽ được khai trong trang hóa đơn đặt hàng, ở mục 'tạo đơn hàng phụ'. toàn bộ chi phí của mua các nguyên liệu chính hoặc là mua đơn hàng bổ sung thì sẽ được nhân viên nhập ở trang chi phí và đợi admin phê duyệt. các chi phí chờ phê duyệt/đã phê duyệt sẽ được hiển thị lại trong list ở hóa đơn đặt hàng. Trang báo cáo để vẽ chart báo cáo thu - chi - chênh lệch của tuần / tháng / năm. và hiển thị chi tiết thu - chi của các ngày trong tháng . Và do thị trường biến đổi liên tục nên giá ăn cũng vậy, trang cấu hình giá là nơi để admin thiết lập giá ăn mà mọi người phải nộp, số tiền nộp x số người đăng kí = thu của ngày hôm đó. cuối cùng là user profile, nơi đây hiển thị profile, và đối với admin sẽ hiển thị thêm mục cấu hình bot, phục vụ cho việc gửi tin nhắn khi mọi người đăng kí ăn
+---
+*Dự án được phát triển nhằm mục đích nâng cao chất lượng bữa ăn và tối ưu hóa quản trị nội bộ.*

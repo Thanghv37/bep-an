@@ -138,15 +138,6 @@
 
                                 {% if user != request.user and not user.is_superuser %}
                                     <form method="post"
-                                          action="{% url 'reset_user_password' user.id %}"
-                                          onsubmit="return confirm('Reset mật khẩu người dùng này về mã nhân viên?');">
-                                        {% csrf_token %}
-                                        <button type="submit" class="btn btn-sm btn-outline-warning">
-                                            Reset
-                                        </button>
-                                    </form>
-
-                                    <form method="post"
                                           action="{% url 'user_delete' user.id %}"
                                           onsubmit="return confirm('Bạn có chắc muốn xóa người dùng này?');">
                                         {% csrf_token %}

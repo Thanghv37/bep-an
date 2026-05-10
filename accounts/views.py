@@ -75,7 +75,13 @@ def request_otp(request):
                 r_chan = requests.post(f"{url}/api/v4/channels/direct", headers=headers, json=[bot_id, user_mm_id])
                 channel_id = r_chan.json().get('id')
                 
-                msg = f"🔒 **Mã xác thực đăng nhập của bạn là: {otp_code}**\n\nMã có hiệu lực trong 10 phút. Vui lòng không chia sẻ mã này cho bất kỳ ai."
+                from core.message_templates import get_otp_template, render_template
+                msg = render_template(
+                    get_otp_template(),
+                    otp_code=otp_code,
+                    employee_code=employee_code,
+                    full_name=user_profile.full_name or '',
+                )
                 requests.post(f"{url}/api/v4/posts", headers=headers, json={"channel_id": channel_id, "message": msg})
                 
                 # 6. Thành công: Lưu employee_code vào session và chuyển sang trang nhập mã
@@ -186,6 +192,14 @@ def user_list(request):
     })
 
 
+def _get_profile_choices():
+    return {
+        'unit_choices': list(UserProfile.objects.exclude(unit='').exclude(unit__iexact='none').values_list('unit', flat=True).distinct().order_by('unit')),
+        'department_choices': list(UserProfile.objects.exclude(department='').exclude(department__iexact='none').values_list('department', flat=True).distinct().order_by('department')),
+        'position_choices': list(UserProfile.objects.exclude(position='').exclude(position__iexact='none').values_list('position', flat=True).distinct().order_by('position')),
+    }
+
+
 @login_required
 @user_passes_test(can_manage_user)
 def user_create(request):
@@ -202,16 +216,16 @@ def user_create(request):
             position = form.cleaned_data['position']
             department = form.cleaned_data['department']
             role = form.cleaned_data['role']
-            password = form.cleaned_data['password'] or employee_code
 
             user = User.objects.create_user(
                 username=employee_code,
-                password=password,
                 first_name=full_name,
                 email=email,
                 is_staff=(role in [UserProfile.ROLE_ADMIN, UserProfile.ROLE_KITCHEN]),
                 is_superuser=False,
             )
+            user.set_unusable_password()
+            user.save()
 
             profile = user.profile
             profile.employee_code = employee_code
@@ -234,6 +248,7 @@ def user_create(request):
         'form': form,
         'page_title': 'Thêm người dùng',
         'submit_label': 'Tạo người dùng',
+        **_get_profile_choices(),
     })
 
 
@@ -267,6 +282,7 @@ def user_update(request, pk):
         'form': form,
         'page_title': 'Cập nhật người dùng',
         'submit_label': 'Cập nhật',
+        **_get_profile_choices(),
     })
 
 
@@ -367,7 +383,9 @@ def user_profile(request):
 
         # 3. XỬ LÝ LƯU CẤU HÌNH BOT NETCHAT
         # Kiểm tra quyền ADMIN hoặc Superuser
-        if action == 'save_bot_config' and (request.user.is_superuser or getattr(profile, 'role', '').lower() == 'admin'):
+        is_admin = request.user.is_superuser or getattr(profile, 'role', '').lower() == 'admin'
+
+        if action == 'save_bot_config' and is_admin:
             url = request.POST.get('netchat_url', '').strip()
             token = request.POST.get('netchat_token', '').strip()
 
@@ -378,7 +396,19 @@ def user_profile(request):
             messages.success(request, 'Đã lưu cấu hình BOT NetChat thành công.')
             return redirect('user_profile')
 
-    # 4. TRUY VẤN DỮ LIỆU ĐỂ HIỂN THỊ (SỬA LẠI TẠI ĐÂY)
+        # 4. XỬ LÝ LƯU TEMPLATE TIN NHẮN OTP / ĐẶT CƠM
+        if action in ('save_msg_otp', 'save_msg_meal') and is_admin:
+            from core.message_templates import KEY_OTP, KEY_MEAL
+
+            template_value = request.POST.get('template_value', '').strip()
+            cfg_key = KEY_OTP if action == 'save_msg_otp' else KEY_MEAL
+            label = 'OTP' if action == 'save_msg_otp' else 'đặt cơm'
+
+            SystemConfig.objects.update_or_create(key=cfg_key, defaults={'value': template_value})
+            messages.success(request, f'Đã lưu mẫu tin nhắn {label}.')
+            return redirect('user_profile')
+
+    # 5. TRUY VẤN DỮ LIỆU ĐỂ HIỂN THỊ
     config_url = SystemConfig.objects.filter(key='netchat_url').first()
     config_token = SystemConfig.objects.filter(key='netchat_token').first()
 
@@ -387,28 +417,25 @@ def user_profile(request):
         'netchat_token': config_token.value if config_token else '',
     }
 
+    from core.message_templates import (
+        get_otp_template, get_meal_template,
+        VARS_OTP, VARS_MEAL,
+    )
+    msg_templates = {
+        'otp': get_otp_template(),
+        'meal': get_meal_template(),
+        'otp_vars': VARS_OTP,
+        'meal_vars': VARS_MEAL,
+    }
+
     return render(request, 'accounts/user_profile.html', {
         'profile': profile,
         'password_form': password_form,
         'bot_config': bot_config,
+        'msg_templates': msg_templates,
     })
 
 
-@login_required
-@user_passes_test(can_manage_user)
-def reset_user_password(request, pk):
-    user = get_object_or_404(User.objects.select_related('profile'), pk=pk)
-
-    if request.method != 'POST':
-        messages.error(request, 'Yêu cầu không hợp lệ.')
-        return redirect('user_list')
-
-    employee_code = user.profile.employee_code or user.username
-    user.set_password(employee_code)
-    user.save()
-
-    messages.success(request, f'Đã reset mật khẩu của {user.username} về mã nhân viên.')
-    return redirect('user_list')
 @require_GET
 def users_api(request):
     profiles = UserProfile.objects.exclude(
@@ -431,39 +458,6 @@ def users_api(request):
     }, json_dumps_params={
         'ensure_ascii': False
     })
-def set_initial_password(request):
-    if request.method == 'POST':
-        employee_code = request.POST.get('employee_code', '').strip()
-        password1 = request.POST.get('password1', '').strip()
-        password2 = request.POST.get('password2', '').strip()
-
-        if not employee_code or not password1 or not password2:
-            messages.error(request, 'Vui lòng nhập đầy đủ thông tin.')
-            return redirect('set_initial_password')
-
-        if password1 != password2:
-            messages.error(request, 'Mật khẩu nhập lại không khớp.')
-            return redirect('set_initial_password')
-
-        try:
-            user = User.objects.get(username=employee_code)
-        except User.DoesNotExist:
-            messages.error(request, 'Không tìm thấy mã nhân viên.')
-            return redirect('set_initial_password')
-
-        if user.has_usable_password():
-            messages.warning(request, 'Tài khoản này đã có mật khẩu. Vui lòng đăng nhập hoặc liên hệ admin.')
-            return redirect('login')
-
-        user.set_password(password1)
-        user.save()
-
-        messages.success(request, 'Đặt mật khẩu thành công. Bạn có thể đăng nhập.')
-        return redirect('login')
-
-    return render(request, 'accounts/set_initial_password.html')
-
-
 @login_required
 def verify_bot_api(request):
     if request.method == 'POST':

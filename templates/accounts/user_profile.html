@@ -117,9 +117,73 @@
                     Hủy
                 </button>
                 <button type="submit" class="btn btn-primary fw-bold" id="btnSaveBot" {% if bot_config.netchat_url %}disabled{% endif %}>
-                    Lưu cấu hình
+                    Lưu
                 </button>
             </div>
+        </div>
+    </form>
+</div>
+
+<!-- CẤU HÌNH MẪU TIN NHẮN OTP -->
+<div class="profile-card mt-4 p-4">
+    <div class="d-flex align-items-center gap-2 mb-2">
+        <h5 class="fw-bold mb-0">🔒 Cấu hình tin nhắn gửi OTP</h5>
+    </div>
+    <div class="msg-vars-box mb-3">
+        <div class="small text-muted mb-2">
+            Các biến có thể dùng (click để chèn vào nội dung):
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            {% for var_key, var_label in msg_templates.otp_vars %}
+                <button type="button" class="btn btn-sm btn-outline-primary msg-var-chip"
+                        data-target="msg_otp" data-var="{{ var_key }}"
+                        title="{{ var_label }}">
+                    <code>{% templatetag openbrace %}{{ var_key }}{% templatetag closebrace %}</code> — {{ var_label }}
+                </button>
+            {% endfor %}
+        </div>
+    </div>
+    <form method="post" class="msg-template-form" data-form="otp">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_msg_otp">
+        <textarea id="msg_otp" name="template_value" class="form-control msg-input"
+                  rows="5" disabled>{{ msg_templates.otp }}</textarea>
+        <div class="d-flex gap-2 mt-3 justify-content-end">
+            <button type="button" class="btn btn-secondary fw-bold msg-btn-edit">Sửa</button>
+            <button type="button" class="btn btn-outline-secondary fw-bold msg-btn-cancel" disabled>Hủy</button>
+            <button type="submit" class="btn btn-primary fw-bold msg-btn-save" disabled>Lưu</button>
+        </div>
+    </form>
+</div>
+
+<!-- CẤU HÌNH MẪU TIN NHẮN ĐẶT CƠM -->
+<div class="profile-card mt-4 p-4">
+    <div class="d-flex align-items-center gap-2 mb-2">
+        <h5 class="fw-bold mb-0">🍱 Cấu hình tin nhắn đặt cơm</h5>
+    </div>
+    <div class="msg-vars-box mb-3">
+        <div class="small text-muted mb-2">
+            Các biến có thể dùng (click để chèn vào nội dung):
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            {% for var_key, var_label in msg_templates.meal_vars %}
+                <button type="button" class="btn btn-sm btn-outline-primary msg-var-chip"
+                        data-target="msg_meal" data-var="{{ var_key }}"
+                        title="{{ var_label }}">
+                    <code>{% templatetag openbrace %}{{ var_key }}{% templatetag closebrace %}</code> — {{ var_label }}
+                </button>
+            {% endfor %}
+        </div>
+    </div>
+    <form method="post" class="msg-template-form" data-form="meal">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_msg_meal">
+        <textarea id="msg_meal" name="template_value" class="form-control msg-input"
+                  rows="6" disabled>{{ msg_templates.meal }}</textarea>
+        <div class="d-flex gap-2 mt-3 justify-content-end">
+            <button type="button" class="btn btn-secondary fw-bold msg-btn-edit">Sửa</button>
+            <button type="button" class="btn btn-outline-secondary fw-bold msg-btn-cancel" disabled>Hủy</button>
+            <button type="submit" class="btn btn-primary fw-bold msg-btn-save" disabled>Lưu</button>
         </div>
     </form>
 </div>
@@ -353,12 +417,41 @@
     }
 
     /* Khi ô bị khóa (Disabled) - Cho màu xám nhẹ để phân biệt */
-    .bot-input:disabled { 
-        background-color: #f1f5f9 !important; 
+    .bot-input:disabled {
+        background-color: #f1f5f9 !important;
         border-color: #e2e8f0 !important;
         color: #64748b !important;
-        cursor: not-allowed; 
-        opacity: 0.8; 
+        cursor: not-allowed;
+        opacity: 0.8;
+    }
+    /* Cấu hình mẫu tin nhắn */
+    .msg-vars-box {
+        background: #f8fafc;
+        border: 1px dashed #cbd5e1;
+        border-radius: 12px;
+        padding: 12px 14px;
+    }
+    .msg-var-chip code {
+        color: inherit;
+        background: transparent;
+        font-weight: 700;
+    }
+    .msg-input {
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 13.5px;
+        line-height: 1.55;
+        background: #fff;
+    }
+    .msg-input:disabled {
+        background-color: #f1f5f9 !important;
+        color: #475569 !important;
+        cursor: not-allowed;
+        opacity: 0.85;
+    }
+    .msg-input.editing {
+        border: 1.5px solid #f87171 !important;
+        background-color: #fef2f2 !important;
+        box-shadow: 0 0 0 0.2rem rgba(248, 113, 113, 0.1) !important;
     }
 </style>
 
@@ -481,6 +574,57 @@ document.addEventListener('DOMContentLoaded', function() {
         .finally(() => {
             btnVerify.innerText = "Xác minh Token";
             btnVerify.disabled = false;
+        });
+    });
+});
+</script>
+<script>
+// === CẤU HÌNH MẪU TIN NHẮN: Edit / Cancel / Save + click chip để chèn biến ===
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.msg-template-form').forEach(function(form) {
+        const textarea = form.querySelector('.msg-input');
+        const btnEdit = form.querySelector('.msg-btn-edit');
+        const btnCancel = form.querySelector('.msg-btn-cancel');
+        const btnSave = form.querySelector('.msg-btn-save');
+
+        const originalValue = textarea.value;
+
+        function setEditing(editing) {
+            textarea.disabled = !editing;
+            btnCancel.disabled = !editing;
+            btnSave.disabled = !editing;
+            btnEdit.disabled = editing;
+            textarea.classList.toggle('editing', editing);
+            if (editing) textarea.focus();
+        }
+
+        btnEdit.addEventListener('click', () => setEditing(true));
+
+        btnCancel.addEventListener('click', () => {
+            textarea.value = originalValue;
+            setEditing(false);
+        });
+    });
+
+    // Click chip biến -> chèn {var} vào vị trí con trỏ của textarea tương ứng
+    document.querySelectorAll('.msg-var-chip').forEach(function(chip) {
+        chip.addEventListener('click', function() {
+            const targetId = chip.dataset.target;
+            const varName = chip.dataset.var;
+            const textarea = document.getElementById(targetId);
+            if (!textarea || textarea.disabled) {
+                if (textarea && textarea.disabled) {
+                    alert('Vui lòng bấm "Sửa" để chỉnh sửa mẫu tin nhắn trước.');
+                }
+                return;
+            }
+            const insert = '{' + varName + '}';
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            textarea.value = textarea.value.slice(0, start) + insert + textarea.value.slice(end);
+            const pos = start + insert.length;
+            textarea.setSelectionRange(pos, pos);
+            textarea.focus();
         });
     });
 });

@@ -9,15 +9,11 @@ class UserCreateForm(forms.Form):
     full_name = forms.CharField(label='Họ và tên', widget=forms.TextInput(attrs={'class': 'form-control'}))
     email = forms.EmailField(label='Email', required=False, widget=forms.EmailInput(attrs={'class': 'form-control'}))
     gender = forms.ChoiceField(label='Giới tính', required=False, choices=[('', '---------')] + UserProfile.GENDER_CHOICES, widget=forms.Select(attrs={'class': 'form-select'}))
-    unit = forms.CharField(label='Đơn vị', required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
-    department = forms.CharField(label='Phòng ban', required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
-    position = forms.CharField(label='Chức vụ', required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    unit = forms.CharField(label='Đơn vị', required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'list': 'unit_choices', 'autocomplete': 'off', 'placeholder': 'Chọn hoặc nhập mới'}))
+    department = forms.CharField(label='Phòng ban', required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'list': 'department_choices', 'autocomplete': 'off', 'placeholder': 'Chọn hoặc nhập mới'}))
+    position = forms.CharField(label='Chức vụ', required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'list': 'position_choices', 'autocomplete': 'off', 'placeholder': 'Chọn hoặc nhập mới'}))
     phone = forms.CharField(label='Số điện thoại', required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
     role = forms.ChoiceField(label='Vai trò', choices=UserProfile.ROLE_CHOICES, widget=forms.Select(attrs={'class': 'form-select'}))
-    password = forms.CharField(label='Mật khẩu', required=False, widget=forms.PasswordInput(attrs={
-        'class': 'form-control',
-        'placeholder': 'Để trống sẽ dùng mã nhân viên làm mật khẩu'
-    }))
 
     def clean_employee_code(self):
         employee_code = self.cleaned_data['employee_code'].strip()
@@ -46,9 +42,9 @@ class UserUpdateForm(forms.ModelForm):
             'full_name': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
             'gender': forms.Select(attrs={'class': 'form-select'}),
-            'unit': forms.TextInput(attrs={'class': 'form-control'}),
-            'department': forms.TextInput(attrs={'class': 'form-control'}),
-            'position': forms.TextInput(attrs={'class': 'form-control'}),
+            'unit': forms.TextInput(attrs={'class': 'form-control', 'list': 'unit_choices', 'autocomplete': 'off', 'placeholder': 'Chọn hoặc nhập mới'}),
+            'department': forms.TextInput(attrs={'class': 'form-control', 'list': 'department_choices', 'autocomplete': 'off', 'placeholder': 'Chọn hoặc nhập mới'}),
+            'position': forms.TextInput(attrs={'class': 'form-control', 'list': 'position_choices', 'autocomplete': 'off', 'placeholder': 'Chọn hoặc nhập mới'}),
             'phone': forms.TextInput(attrs={'class': 'form-control'}),
             'role': forms.Select(attrs={'class': 'form-select'}),
         }

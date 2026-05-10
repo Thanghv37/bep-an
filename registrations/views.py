@@ -341,12 +341,15 @@ def _send_notifications_bg(employee_codes, target_date, config):
                 continue
             channel_id = r_channel.json().get('id')
 
-            # Bước C: Gửi tin nhắn
-            message = (
-                f"Đang thử nghiệm, vui lòng bỏ qua tin nhắn này! Many Thanksss.\n"
-                f"Xin chào **{full_name}**,\n\n"
-                f"🍽️ Hệ thống xác nhận bạn đã đăng ký **{reg.meal_name}** ngày **{target_date}** tại **{reg.kitchen_name}**.\n"
-                f"Chúc bạn ngon miệng!"
+            # Bước C: Gửi tin nhắn (template lấy từ SystemConfig)
+            from core.message_templates import get_meal_template, render_template
+            message = render_template(
+                get_meal_template(),
+                full_name=full_name,
+                employee_code=emp_code,
+                meal_name=reg.meal_name,
+                target_date=target_date,
+                kitchen_name=reg.kitchen_name,
             )
             
             r_post = requests.post(
