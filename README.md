@@ -87,9 +87,11 @@ Hệ thống Quản lý Bếp ăn là giải pháp toàn diện giúp tự độ
 ## 📝 Nhật ký thay đổi
 
 ### 2026-05-11
-- Thu thập tin nhắn góp ý DM bot NetChat: model `FeedbackMessage`, polling service + management command `poll_feedback`, hiển thị tích hợp ngay trong section "Tổng hợp đánh giá" của trang đánh giá (chia 2 cột website / NetChat). Tin của cùng người trong cùng ngày được gộp 1 dòng, cách nhau bằng " / " (dùng `StringAgg` PostgreSQL).
+- Trang Tham gia (`registration_participation`): cột "Người dùng" hiển thị tên thực (lookup `UserProfile` theo `employee_code`, fallback `log.full_name` rồi đến mã NV) kèm avatar; header cột thêm badge "Tổng: N" (đếm distinct nhân viên sau filter); filter Trạng thái đổi label/value sang `valid` / `not_registered` cho khớp dữ liệu API; ô tìm kiếm giờ match cả tên và mã NV.
+- Thu thập tin nhắn góp ý DM bot NetChat: model `FeedbackMessage`, polling service + management command `poll_feedback` (cron 30 phút qua systemd timer), hiển thị tích hợp ngay trong section "Tổng hợp đánh giá" của trang đánh giá (chia 2 cột website / NetChat). Tin cùng người cùng ngày được gộp 1 dòng cách nhau bằng " / " (dùng `StringAgg` PostgreSQL).
 - UI tinh chỉnh: trang Danh sách đăng kí gộp filter + Log gửi tin trên cùng 1 hàng (9/3); trang Đánh giá hiển thị compact `MNV - Tên: nội dung` 1 dòng, MNV màu xanh.
-- Fix: bug template `{{` đầu dòng làm hiển thị raw text trong [registration_list.html](templates/registrations/registration_list.html); xóa `});` rác cuối [menu_list.html](templates/meals/menu_list.html).
+- Fix: template `{{` đầu dòng → raw text; `});` rác cuối menu_list; crash `VariableDoesNotExist` khi `profile=None` (đăng ký có mã NV chưa có user).
+- Tạo [DEPLOY.md](DEPLOY.md) — quy trình deploy chuẩn, troubleshooting, danh sách env var trên server.
 
 ### 2026-05-10
 - Thu thập góp ý qua tin nhắn DM NetChat: thêm model `FeedbackMessage` + service [reviews/feedback_poller.py](reviews/feedback_poller.py) + management command `poll_feedback`. Trang `/reviews/feedback/` hiển thị bảng tổng hợp (filter theo ngày, search), link từ trang đánh giá. Cần setup systemd timer trên server để chạy định kỳ — xem [TODO.md](TODO.md) hoặc hướng dẫn deploy.

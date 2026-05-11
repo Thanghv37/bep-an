@@ -66,7 +66,17 @@ File cấu hình cá nhân của Claude Code không nên ở repo. Khi nào có 
 ### 10. Xóa `set_unusable_password()` thừa
 [accounts/views.py](accounts/views.py) trong `user_create`: `User.objects.create_user(username=...)` không truyền password thì Django đã tự gọi `set_unusable_password()`. Hai dòng `user.set_unusable_password()` + `user.save()` thứ 2 là dư.
 
-### 11. OTP flow: lấy username từ email bằng `split('@')`
+### 11. Audit template null-safety
+Hôm 2026-05-11 phát hiện crash `VariableDoesNotExist` ở [registration_list.html](templates/registrations/registration_list.html) do dùng `default:profile.full_name` khi `profile=None`. Cần audit các template khác có pattern tương tự — bất kỳ chỗ nào access `obj.attr` với `obj` là kết quả `dict.get()` / `Model.first()` / FK nullable đều có thể gặp lỗi tương tự khi data thực có null. Defensive pattern: `{% if obj %}{{ obj.attr }}{% endif %}` thay vì `{{ obj.attr|default:"" }}`.
+
+### 12. FOUC khi load trang — Bootstrap CSS từ CDN chậm
+Khi mở trang heavy Bootstrap (vd `/users/`), thấy ~0.5s "raw flash" trước khi CSS load xong. Nguyên nhân: [base.html](templates/base.html) load Bootstrap CSS + Icons từ `cdn.jsdelivr.net`, mạng nội bộ Viettel có firewall/throttle nên chậm.
+
+**Hướng fix khuyến nghị**: download Bootstrap (`bootstrap.min.css`) và Bootstrap Icons về `static/vendor/`, serve qua nginx local. Ưu điểm: load instant, không phụ thuộc internet outbound, hoạt động kể cả khi mất mạng. Nhược điểm: ~250KB commit vào repo, phải update Bootstrap thủ công khi cần.
+
+**Quick fix tạm**: thêm `<script>document.documentElement.style.visibility='hidden'</script>` đầu `<head>` và remove ở `window.load` event → đổi 0.5s "raw flash" thành 0.5s trang trắng (clean hơn nhưng không nhanh hơn).
+
+### 13. OTP flow: lấy username từ email bằng `split('@')`
 [accounts/views.py](accounts/views.py) `request_otp`: `username = profile.email.split('@')[0]`. Giả định email luôn dạng `username@viettel.com.vn`. Nếu user có email khác domain hoặc email trống → có thể lỗi. Đã có check `if not email` trước, nhưng vẫn nên thêm validation chặt hơn.
 
 ---
@@ -75,3 +85,5 @@ File cấu hình cá nhân của Claude Code không nên ở repo. Khi nào có 
 
 - 2026-05-10: Tạo file. Ghi lại các điểm tồn đọng sau phiên refactor lớn (OTP login, env var, AI/Bot config UI).
 - 2026-05-11: Thêm mục #6 (per-channel baseline cho poll feedback NetChat) sau khi tích hợp tính năng thu thập DM.
+- 2026-05-11: Thêm mục #11 (audit template null-safety) sau khi fix crash ở registration_list khi profile=None.
+- 2026-05-11: Thêm mục #12 (FOUC do Bootstrap CDN chậm) sau khi user thấy 0.5s raw flash khi load trang Quản lý người dùng.

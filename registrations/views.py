@@ -246,16 +246,43 @@ def registration_participation(request):
     q_status = request.GET.get('q_status', '').strip()
 
     logs = AttendanceLog.objects.filter(scan_time__date=target_date)
-    if q_name:
-        logs = logs.filter(full_name__icontains=q_name)
     if q_status:
         logs = logs.filter(status=q_status)
 
+    logs = list(logs.order_by('scan_time'))
+
+    employee_codes = {log.employee_code for log in logs}
+    profile_map = {
+        p.employee_code: p
+        for p in UserProfile.objects.filter(employee_code__in=employee_codes)
+    }
+
+    enriched_logs = []
+    for log in logs:
+        profile = profile_map.get(log.employee_code)
+        display_name = (
+            log.full_name
+            or (profile.full_name if profile else '')
+            or log.employee_code
+        )
+        if q_name:
+            needle = q_name.lower()
+            if needle not in display_name.lower() and needle not in (log.employee_code or '').lower():
+                continue
+        enriched_logs.append({
+            'log': log,
+            'profile': profile,
+            'display_name': display_name,
+        })
+
+    total_users = len({row['log'].employee_code for row in enriched_logs})
+
     context = {
-        'logs': logs.order_by('scan_time'),
+        'logs': enriched_logs,
         'target_date': target_date,
         'q_name': q_name,
         'q_status': q_status,
+        'total_users': total_users,
     }
     return render(request, 'registrations/registration_participation.html', context)
 # --- HÀM CHẠY NGẦM GỬI TIN NHẮN (BACKGROUND THREAD) ---

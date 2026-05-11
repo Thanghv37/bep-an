@@ -52,8 +52,8 @@
                     <label class="filter-label">Trạng thái</label>
                     <select name="q_status" class="form-select">
                         <option value="">Tất cả trạng thái</option>
-                        <option value="Đã đăng ký" {% if q_status == "Đã đăng ký" %}selected{% endif %}>Đã đăng ký</option>
-                        <option value="Chưa đăng ký" {% if q_status == "Chưa đăng ký" %}selected{% endif %}>Chưa đăng ký</option>
+                        <option value="valid" {% if q_status == "valid" %}selected{% endif %}>valid</option>
+                        <option value="not_registered" {% if q_status == "not_registered" %}selected{% endif %}>not_registered</option>
                     </select>
                 </div>
 
@@ -71,7 +71,10 @@
             <table class="table user-modern-table align-middle mb-0">
                 <thead>
                     <tr>
-                        <th style="width: 25%">Người dùng</th>
+                        <th style="width: 25%">
+                            Người dùng
+                            <span class="user-total-badge">Tổng: {{ total_users }}</span>
+                        </th>
                         <th>Mã nhân viên</th>
                         <th>Thời gian quét</th>
                         <th>Trạng thái</th>
@@ -79,39 +82,43 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for log in logs %}
+                    {% for row in logs %}
                         <tr>
                             <td>
                                 <div class="user-cell">
-                                    <div class="user-list-avatar">
-                                        <span>{{ log.full_name|first|upper }}</span>
-                                    </div>
+                                    {% if row.profile.avatar %}
+                                        <img src="{{ row.profile.avatar.url }}" class="user-list-avatar" alt="">
+                                    {% else %}
+                                        <div class="user-list-avatar">
+                                            <span>{{ row.display_name|first|upper }}</span>
+                                        </div>
+                                    {% endif %}
                                     <div>
-                                        <div class="user-list-name">{{ log.full_name }}</div>
+                                        <div class="user-list-name">{{ row.display_name }}</div>
                                         <div class="user-list-sub">Lịch sử tham gia ăn</div>
                                     </div>
                                 </div>
                             </td>
-                            <td><span class="employee-code">{{ log.employee_code }}</span></td>
+                            <td><span class="employee-code">{{ row.log.employee_code }}</span></td>
                             <td>
                                 <div class="scan-time">
                                     <i class="far fa-clock me-1"></i>
-                                    {{ log.scan_time|date:"H:i" }}
-                                    <small class="text-muted d-block">{{ log.scan_time|date:"d/m/Y" }}</small>
+                                    {{ row.log.scan_time|date:"H:i" }}
+                                    <small class="text-muted d-block">{{ row.log.scan_time|date:"d/m/Y" }}</small>
                                 </div>
                             </td>
                             <td>
-                                {% if log.status == "Đã đăng ký" %}
+                                {% if row.log.status == "valid" %}
                                     <span class="status-pill status-success">
-                                        <span class="status-dot dot-success"></span> {{ log.status }}
+                                        <span class="status-dot dot-success"></span> {{ row.log.status }}
                                     </span>
                                 {% else %}
                                     <span class="status-pill status-warning">
-                                        <span class="status-dot dot-warning"></span> {{ log.status }}
+                                        <span class="status-dot dot-warning"></span> {{ row.log.status }}
                                     </span>
                                 {% endif %}
                             </td>
-                            <td><span class="type-badge">{{ log.type|default:"Quét thẻ" }}</span></td>
+                            <td><span class="type-badge">{{ row.log.type|default:"Quét thẻ" }}</span></td>
                         </tr>
                     {% empty %}
                         <tr>
@@ -144,6 +151,8 @@
 .user-modern-table thead th { background: #f8fafc; color: #64748b; font-weight: 700; font-size: 13px; padding: 15px; border-bottom: 1px solid #f1f5f9; }
 .user-cell { display: flex; align-items: center; gap: 12px; }
 .user-list-avatar { width: 36px; height: 36px; border-radius: 50%; background: #f1f5f9; color: #64748b; display: flex; align-items: center; justify-content: center; font-weight: 800; border: 1px solid #e2e8f0; overflow: hidden; }
+img.user-list-avatar { object-fit: cover; }
+.user-total-badge { display: inline-block; margin-left: 8px; background: #eff6ff; color: #2563eb; border: 1px solid #dbeafe; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: none; }
 .user-list-name { font-weight: 700; color: #1e293b; font-size: 14px; }
 .user-list-sub { font-size: 11px; color: #94a3b8; }
 .employee-code { background: #f8fafc; color: #475569; padding: 3px 10px; border-radius: 12px; font-size: 13px; font-weight: 600; border: 1px solid #e2e8f0; }
