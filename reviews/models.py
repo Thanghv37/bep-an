@@ -39,7 +39,7 @@ class DishReview(models.Model):
         (LIKE, 'Thích'),
         (DISLIKE, 'Không thích'),
     ]
-    
+
     meal_review = models.ForeignKey(MealReview, on_delete=models.CASCADE, related_name='dish_reviews')
     dish = models.ForeignKey('meals.Dish', on_delete=models.CASCADE, related_name='reviews')
     evaluation = models.CharField(max_length=10, choices=CHOICES, verbose_name='Đánh giá')
@@ -51,3 +51,39 @@ class DishReview(models.Model):
 
     def __str__(self):
         return f'{self.dish.name} - {self.get_evaluation_display()}'
+
+
+class FeedbackMessage(models.Model):
+    """Tin nhắn góp ý user gửi cho bot qua DM trên NetChat.
+
+    Được populate bằng management command `poll_feedback` chạy định kỳ.
+    """
+
+    mattermost_post_id = models.CharField(
+        max_length=64,
+        unique=True,
+        verbose_name='ID post trên NetChat',
+    )
+    channel_id = models.CharField(max_length=64)
+    sender_username = models.CharField(max_length=100, verbose_name='Username NetChat')
+    sender_full_name = models.CharField(max_length=255, blank=True, verbose_name='Họ tên')
+    employee_code = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name='Mã nhân viên',
+        help_text='Tự động lookup từ email trong UserProfile (để trống nếu không match)',
+    )
+    message = models.TextField(verbose_name='Nội dung tin nhắn')
+    posted_at = models.DateTimeField(verbose_name='Thời điểm gửi (NetChat)')
+    fetched_at = models.DateTimeField(auto_now_add=True, verbose_name='Thời điểm crawl về')
+
+    class Meta:
+        ordering = ['-posted_at']
+        verbose_name = 'Góp ý qua NetChat'
+        verbose_name_plural = 'Góp ý qua NetChat'
+        indexes = [
+            models.Index(fields=['-posted_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.sender_username} - {self.posted_at:%d/%m %H:%M}'

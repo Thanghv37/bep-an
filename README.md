@@ -86,7 +86,13 @@ Hệ thống Quản lý Bếp ăn là giải pháp toàn diện giúp tự độ
 
 ## 📝 Nhật ký thay đổi
 
+### 2026-05-11
+- Thu thập tin nhắn góp ý DM bot NetChat: model `FeedbackMessage`, polling service + management command `poll_feedback`, hiển thị tích hợp ngay trong section "Tổng hợp đánh giá" của trang đánh giá (chia 2 cột website / NetChat). Tin của cùng người trong cùng ngày được gộp 1 dòng, cách nhau bằng " / " (dùng `StringAgg` PostgreSQL).
+- UI tinh chỉnh: trang Danh sách đăng kí gộp filter + Log gửi tin trên cùng 1 hàng (9/3); trang Đánh giá hiển thị compact `MNV - Tên: nội dung` 1 dòng, MNV màu xanh.
+- Fix: bug template `{{` đầu dòng làm hiển thị raw text trong [registration_list.html](templates/registrations/registration_list.html); xóa `});` rác cuối [menu_list.html](templates/meals/menu_list.html).
+
 ### 2026-05-10
+- Thu thập góp ý qua tin nhắn DM NetChat: thêm model `FeedbackMessage` + service [reviews/feedback_poller.py](reviews/feedback_poller.py) + management command `poll_feedback`. Trang `/reviews/feedback/` hiển thị bảng tổng hợp (filter theo ngày, search), link từ trang đánh giá. Cần setup systemd timer trên server để chạy định kỳ — xem [TODO.md](TODO.md) hoặc hướng dẫn deploy.
 - Tách `DB_PASSWORD` ra biến môi trường (`python-dotenv` + file `.env` gitignored). Deploy giờ chỉ cần `git pull + restart`, không còn conflict do secrets khác nhau giữa dev và prod.
 - Cấu hình runtime trong Profile admin: BOT NetChat, AI Gemini (model + API key), mẫu tin nhắn OTP / đặt cơm. Đổi config có hiệu lực ngay không cần restart server.
 - Đăng nhập chuyển hoàn toàn sang OTP qua NetChat, gỡ các view password cũ. Form thêm user: dropdown gợi ý đơn vị / phòng ban / chức vụ từ DB.

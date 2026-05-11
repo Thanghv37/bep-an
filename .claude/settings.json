@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(& \"venv\\\\Scripts\\\\python.exe\" manage.py check 2>&1)",
+      "Bash(awk '/<\\\\/script>/{print NR\": \"$0}' \"d:/Thanghv37/CDS/bếp ăn/4_5/thanghv37/templates/meals/menu_list.html\")"
+    ]
+  }
+}

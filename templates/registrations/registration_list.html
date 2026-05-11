@@ -5,117 +5,95 @@
 
 {% block content %}
 <div class="registration-page">
-    <div class="registration-header mb-4 d-flex justify-content-between align-items-start flex-wrap gap-3">
-        <div>
-            <div class="d-flex gap-2 align-items-center mb-2">
-                <a href="{% url 'registration_list' %}" class="btn btn-primary tab-btn active">
-                    Danh sách đăng ký
-                </a>
-                <a href="{% url 'registration_participation' %}?date={{ selected_date|date:'Y-m-d' }}"
-                    class="btn btn-secondary tab-btn">
-                    Tham gia
-                </a>
-            </div>
-            <div class="section-subtitle">
-                Theo dõi danh sách người đăng kí suất ăn theo ngày.
-            </div>
+    <div class="registration-header mb-4">
+        <div class="d-flex gap-2 align-items-center mb-2">
+            <a href="{% url 'registration_list' %}" class="btn btn-primary tab-btn active">
+                Danh sách đăng ký
+            </a>
+            <a href="{% url 'registration_participation' %}?date={{ selected_date|date:'Y-m-d' }}"
+                class="btn btn-secondary tab-btn">
+                Tham gia
+            </a>
         </div>
-
-        <!-- Log Box -->
-        <div class="dashboard-card p-3 shadow-sm border m-0 d-flex gap-4 align-items-center"
-            style="background: #fff; width: max-content;">
-
-            <!-- Cột trái: Tiêu đề & Chọn ngày -->
-            <div class="d-flex flex-column border-end pe-4">
-                <div class="fw-bold mb-2" style="color: #475569; font-size: 14px;">
-                    <span class="me-1" style="font-size: 16px;">📩</span> Log gửi tin
-                </div>
-                <input type="date" id="log-date" class="form-control form-control-sm bg-light text-secondary fw-medium"
-                    style="border: 1px solid #cbd5e1; width: 145px; border-radius: 6px;"
-                    value="{{ selected_date|date:'Y-m-d' }}">
-            </div>
-
-            <!-- Cột phải: Thống kê & Nút -->
-            <div class="d-flex flex-column justify-content-center" style="min-width: 180px;">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <div class="small fw-semibold text-secondary">Thành công:</div>
-                    <div class="badge bg-success-subtle text-success border border-success rounded-pill px-3"
-                        id="log-success-count" style="font-size: 12px; line-height: 1.2;">0</div>
-                </div>
-
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <div class="small fw-semibold text-secondary">Thất bại:</div>
-                    <div class="badge bg-danger-subtle text-danger border border-danger rounded-pill px-3"
-                        id="log-failed-count" style="font-size: 12px; line-height: 1.2;">0</div>
-                </div>
-
-                <button class="btn btn-sm btn-outline-primary w-100 fw-bold"
-                    style="border-radius: 6px; padding-top: 4px; padding-bottom: 4px;" id="btn-view-log-details"
-                    data-bs-toggle="modal" data-bs-target="#logModal">
-                    Xem danh sách
-                </button>
-            </div>
-
+        <div class="section-subtitle">
+            Theo dõi danh sách người đăng kí suất ăn theo ngày.
         </div>
     </div>
 
-    <div class="dashboard-card mb-4 filter-card">
-        <form method="get" id="registration-filter-form">
-            <div class="filter-grid">
-                <div class="filter-item">
-                    <label class="filter-label">Ngày</label>
-                    <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="form-control">
+    <!-- Hàng filter + log gửi tin -->
+    <div class="row g-3 mb-4">
+        <div class="col-lg-9">
+            <div class="dashboard-card filter-card h-100 mb-0 p-3 d-flex align-items-center">
+                <form method="get" id="registration-filter-form" class="w-100">
+                    <div class="filter-grid">
+                        <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}"
+                            class="form-control" title="Ngày" aria-label="Ngày">
+
+                        <input type="text" name="q" value="{{ keyword }}" class="form-control filter-search"
+                            placeholder="Tên hoặc mã NV..." autocomplete="off" aria-label="Tìm kiếm">
+
+                        <select name="meal" class="form-select" title="Bữa ăn" aria-label="Bữa ăn">
+                            <option value="">Tất cả bữa ăn</option>
+                            {% for meal in meal_choices %}
+                            <option value="{{ meal }}" {% if meal == meal_filter %}selected{% endif %}>{{ meal }}</option>
+                            {% endfor %}
+                        </select>
+
+                        <select name="kitchen" class="form-select" title="Bếp ăn" aria-label="Bếp ăn">
+                            <option value="">Tất cả bếp ăn</option>
+                            {% for kitchen in kitchen_choices %}
+                            <option value="{{ kitchen }}" {% if kitchen == kitchen_filter %}selected{% endif %}>{{ kitchen }}</option>
+                            {% endfor %}
+                        </select>
+
+                        <select name="status" class="form-select" title="Trạng thái" aria-label="Trạng thái">
+                            <option value="">Tất cả trạng thái</option>
+                            {% for status in status_choices %}
+                            <option value="{{ status }}" {% if status == status_filter %}selected{% endif %}>{{ status }}</option>
+                            {% endfor %}
+                        </select>
+
+                        <a href="{% url 'registration_list' %}" class="btn w-100 btn-reset-soft">Reset</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-lg-3">
+            <div class="dashboard-card mb-0 p-3 log-side-box" style="background:#f8fafc;">
+                <!-- Hàng 1: tiêu đề + nút danh sách -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="d-flex align-items-center gap-1">
+                        <span style="font-size:16px;">📩</span>
+                        <strong style="font-size:14px;color:#475569;">Log gửi tin</strong>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary fw-bold py-0 px-2" id="btn-view-log-details"
+                        data-bs-toggle="modal" data-bs-target="#logModal"
+                        style="border-radius: 6px; font-size: 12px;">
+                        Danh sách
+                    </button>
                 </div>
 
-                <div class="filter-item filter-search">
-                    <label class="filter-label">Tìm kiếm</label>
-                    <input type="text" name="q" value="{{ keyword }}" class="form-control"
-                        placeholder="Tên hoặc mã nhân viên..." autocomplete="off">
-                </div>
-
-                <div class="filter-item">
-                    <label class="filter-label">Bữa ăn</label>
-                    <select name="meal" class="form-select">
-                        <option value="">Tất cả bữa ăn</option>
-                        {% for meal in meal_choices %}
-                        <option value="{{ meal }}" {% if meal == meal_filter %}selected{% endif %}>
-                            {{ meal }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="filter-item">
-                    <label class="filter-label">Bếp ăn</label>
-                    <select name="kitchen" class="form-select">
-                        <option value="">Tất cả bếp ăn</option>
-                        {% for kitchen in kitchen_choices %}
-                        <option value="{{ kitchen }}" {% if kitchen == kitchen_filter %}selected{% endif %}>
-                            {{ kitchen }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="filter-item">
-                    <label class="filter-label">Trạng thái</label>
-                    <select name="status" class="form-select">
-                        <option value="">Tất cả trạng thái</option>
-                        {% for status in status_choices %}
-                        <option value="{{ status }}" {% if status == status_filter %}selected{% endif %}>
-                            {{ status }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="filter-item filter-reset">
-                    <a href="{% url 'registration_list' %}" class="btn btn-outline-secondary w-100">
-                        Reset
-                    </a>
+                <!-- Hàng 2: ngày (trái) + stats (phải) -->
+                <div class="d-flex gap-2 align-items-center">
+                    <input type="date" id="log-date" class="form-control form-control-sm"
+                        value="{{ selected_date|date:'Y-m-d' }}"
+                        style="border: 1px solid #cbd5e1; border-radius: 6px; width: 135px; flex-shrink: 0;">
+                    <div class="flex-grow-1 d-flex flex-column gap-1" style="min-width: 0;">
+                        <div class="d-flex justify-content-between align-items-center small">
+                            <span class="text-secondary fw-semibold">Thành công:</span>
+                            <span class="badge bg-success-subtle text-success border border-success rounded-pill px-2"
+                                id="log-success-count" style="font-size: 11px;">0</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center small">
+                            <span class="text-secondary fw-semibold">Thất bại:</span>
+                            <span class="badge bg-danger-subtle text-danger border border-danger rounded-pill px-2"
+                                id="log-failed-count" style="font-size: 11px;">0</span>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </form>
+        </div>
     </div>
 
     <div class="dashboard-card user-list-card">
@@ -192,8 +170,7 @@
                                 </div>
                                 {% endif %}
                                 <div>
-                                    <div class="fw-bold text-dark">{{
-                                        item.full_name|default:profile.full_name|default:"Chưa rõ tên" }}</div>
+                                    <div class="fw-bold text-dark">{{ item.full_name|default:profile.full_name|default:"Chưa rõ tên" }}</div>
                                     <div class="text-muted small">{{ profile.email|default:"" }}</div>
                                 </div>
                             </div>
@@ -337,24 +314,36 @@
 
     .filter-grid {
         display: grid;
-        grid-template-columns: 150px minmax(250px, 1.5fr) 150px 200px 180px 100px;
-        gap: 12px;
-        align-items: end;
-    }
-
-    .filter-label {
-        font-size: 13px;
-        font-weight: 700;
-        color: #64748b;
-        margin-bottom: 6px;
+        grid-template-columns: 130px minmax(160px, 1.5fr) 110px 130px 130px 80px;
+        gap: 10px;
+        align-items: center;
     }
 
     .filter-card .form-control,
     .filter-card .form-select {
-        height: 40px;
-        border-radius: 10px;
+        height: 36px;
+        border-radius: 8px;
         background-color: #ffffff;
         border: 1px solid #e2e8f0;
+        font-size: 14px;
+    }
+
+    /* Nút Reset viền đỏ nhạt */
+    .btn-reset-soft {
+        height: 36px;
+        border-radius: 8px;
+        border: 1px solid #fca5a5;
+        color: #ef4444;
+        background: #fff;
+        font-size: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .btn-reset-soft:hover {
+        background: #fef2f2;
+        color: #dc2626;
+        border-color: #f87171;
     }
 
     /* Badge Tổng suất (Kiểu mới giống ảnh) */

@@ -2,7 +2,7 @@ from django.urls import path
 
 from .views import (
     review_dashboard, review_delete, ajax_review_dish,
-    public_review_view, ajax_public_review_dish, qr_code_page
+    public_review_view, ajax_public_review_dish, qr_code_page,
 )
 
 urlpatterns = [
