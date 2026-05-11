@@ -262,11 +262,19 @@ def registration_participation(request):
     for log in logs:
         emp_code = (log.employee_code or '').strip()
         profile = profile_map.get(emp_code)
-        display_name = (
-            (log.full_name or '').strip()
-            or (profile.full_name.strip() if profile and profile.full_name else '')
-            or 'Chưa rõ tên'
-        )
+        profile_name = (profile.full_name.strip() if profile and profile.full_name else '')
+        log_name = (log.full_name or '').strip()
+
+        # Ưu tiên tên từ UserProfile (nguồn chính xác).
+        # log.full_name chỉ dùng khi profile không có VÀ giá trị khác mã NV
+        # (vì API scan hiện set full_name = employee_code khi không có tên thật).
+        if profile_name:
+            display_name = profile_name
+        elif log_name and log_name != emp_code:
+            display_name = log_name
+        else:
+            display_name = 'Chưa rõ tên'
+
         if q_name:
             needle = q_name.lower()
             if needle not in display_name.lower() and needle not in emp_code.lower():
