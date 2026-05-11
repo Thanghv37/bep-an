@@ -251,23 +251,25 @@ def registration_participation(request):
 
     logs = list(logs.order_by('scan_time'))
 
-    employee_codes = {log.employee_code for log in logs}
+    # Chuẩn hóa: strip whitespace phòng trường hợp API scan trả về " 483094 "
+    employee_codes = {(log.employee_code or '').strip() for log in logs}
     profile_map = {
-        p.employee_code: p
+        (p.employee_code or '').strip(): p
         for p in UserProfile.objects.filter(employee_code__in=employee_codes)
     }
 
     enriched_logs = []
     for log in logs:
-        profile = profile_map.get(log.employee_code)
+        emp_code = (log.employee_code or '').strip()
+        profile = profile_map.get(emp_code)
         display_name = (
-            log.full_name
-            or (profile.full_name if profile else '')
-            or log.employee_code
+            (log.full_name or '').strip()
+            or (profile.full_name.strip() if profile and profile.full_name else '')
+            or 'Chưa rõ tên'
         )
         if q_name:
             needle = q_name.lower()
-            if needle not in display_name.lower() and needle not in (log.employee_code or '').lower():
+            if needle not in display_name.lower() and needle not in emp_code.lower():
                 continue
         enriched_logs.append({
             'log': log,
