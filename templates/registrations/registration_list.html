@@ -170,8 +170,8 @@
                                 </div>
                                 {% endif %}
                                 <div>
-                                    <div class="fw-bold text-dark">{{ item.full_name|default:profile.full_name|default:"Chưa rõ tên" }}</div>
-                                    <div class="text-muted small">{{ profile.email|default:"" }}</div>
+                                    <div class="fw-bold text-dark">{% if item.full_name %}{{ item.full_name }}{% elif profile and profile.full_name %}{{ profile.full_name }}{% else %}Chưa rõ tên{% endif %}</div>
+                                    <div class="text-muted small">{% if profile %}{{ profile.email|default:"" }}{% endif %}</div>
                                 </div>
                             </div>
                         </td>
