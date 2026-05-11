@@ -497,14 +497,27 @@ def attendance_log_api(request):
         data = [data]  # convert single record to list
 
     created = 0
+    skipped = 0
     for rec in data:
         try:
             scan_time = parse_datetime(rec.get("scan_time"))
             if not scan_time:
                 continue
 
+            emp_code = (rec.get("employee_code") or "").strip()
+            if not emp_code:
+                continue
+
+            # Bỏ qua nếu nhân viên này đã có log trong cùng ngày — chỉ giữ lần quét đầu
+            if AttendanceLog.objects.filter(
+                employee_code=emp_code,
+                scan_time__date=scan_time.date(),
+            ).exists():
+                skipped += 1
+                continue
+
             AttendanceLog.objects.create(
-                employee_code=rec.get("employee_code"),
+                employee_code=emp_code,
                 full_name=rec.get("full_name", ""),
                 scan_time=scan_time,
                 type=rec.get("type", "bếp ăn"),
@@ -515,4 +528,4 @@ def attendance_log_api(request):
             print(f"AttendanceLog error: {e}")
             continue
 
-    return JsonResponse({"success": True, "created": created})
+    return JsonResponse({"success": True, "created": created, "skipped": skipped})
