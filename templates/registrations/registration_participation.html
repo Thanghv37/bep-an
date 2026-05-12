@@ -52,8 +52,9 @@
                     <label class="filter-label">Trạng thái</label>
                     <select name="q_status" class="form-select">
                         <option value="">Tất cả trạng thái</option>
-                        <option value="valid" {% if q_status == "valid" %}selected{% endif %}>valid</option>
-                        <option value="not_registered" {% if q_status == "not_registered" %}selected{% endif %}>not_registered</option>
+                        <option value="valid" {% if q_status == "valid" %}selected{% endif %}>Đã điểm danh</option>
+                        <option value="not_registered" {% if q_status == "not_registered" %}selected{% endif %}>Chưa đăng ký</option>
+                        <option value="not_attended" {% if q_status == "not_attended" %}selected{% endif %}>Chưa điểm danh</option>
                     </select>
                 </div>
 
@@ -82,7 +83,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for row in logs %}
+                    {% for row in rows %}
                         <tr>
                             <td>
                                 <div class="user-cell">
@@ -99,26 +100,24 @@
                                     </div>
                                 </div>
                             </td>
-                            <td><span class="employee-code">{{ row.log.employee_code }}</span></td>
+                            <td><span class="employee-code">{{ row.employee_code }}</span></td>
                             <td>
-                                <div class="scan-time">
-                                    <i class="far fa-clock me-1"></i>
-                                    {{ row.log.scan_time|date:"H:i" }}
-                                    <small class="text-muted d-block">{{ row.log.scan_time|date:"d/m/Y" }}</small>
-                                </div>
-                            </td>
-                            <td>
-                                {% if row.log.status == "valid" %}
-                                    <span class="status-pill status-success">
-                                        <span class="status-dot dot-success"></span> {{ row.log.status }}
-                                    </span>
+                                {% if row.scan_time %}
+                                    <div class="scan-time">
+                                        <i class="far fa-clock me-1"></i>
+                                        {{ row.scan_time|date:"H:i" }}
+                                        <small class="text-muted d-block">{{ row.scan_time|date:"d/m/Y" }}</small>
+                                    </div>
                                 {% else %}
-                                    <span class="status-pill status-warning">
-                                        <span class="status-dot dot-warning"></span> {{ row.log.status }}
-                                    </span>
+                                    <span class="text-muted">—</span>
                                 {% endif %}
                             </td>
-                            <td><span class="type-badge">{{ row.log.type|default:"Quét thẻ" }}</span></td>
+                            <td>
+                                <span class="status-pill status-{{ row.status_class }}">
+                                    <span class="status-dot dot-{{ row.status_class }}"></span> {{ row.status_label }}
+                                </span>
+                            </td>
+                            <td><span class="type-badge">{{ row.type }}</span></td>
                         </tr>
                     {% empty %}
                         <tr>
@@ -159,9 +158,11 @@ img.user-list-avatar { object-fit: cover; }
 .status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
 .status-success { background: #ecfdf5; color: #059669; border: 1px solid #d1fae5; }
 .status-warning { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+.status-danger  { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
 .status-dot { width: 6px; height: 6px; border-radius: 50%; }
 .dot-success { background: #10b981; }
 .dot-warning { background: #f59e0b; }
+.dot-danger  { background: #ef4444; }
 .type-badge { color: #64748b; font-size: 13px; font-weight: 500; }
 .scan-time { font-weight: 600; color: #1e293b; line-height: 1.2; }
 </style>

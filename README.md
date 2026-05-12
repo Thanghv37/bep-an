@@ -87,6 +87,8 @@ Hệ thống Quản lý Bếp ăn là giải pháp toàn diện giúp tự độ
 ## 📝 Nhật ký thay đổi
 
 ### 2026-05-12
+- Trang Tham gia: dịch nhãn trạng thái sang tiếng Việt (`valid → Đã điểm danh`, `not_registered → Chưa đăng ký`) và **bổ sung nhóm "Chưa điểm danh"** (đỏ) — những người có trong `MealRegistration` ngày đó nhưng chưa có lần quét nào trong `AttendanceLog`. Filter trạng thái thêm option mới `not_attended`. View refactor sang dùng `rows` (struct thống nhất từ 2 nguồn) thay vì `logs` (chỉ AttendanceLog).
+- UI dọn topbar: xóa badge "Nội bộ" góc phải (không có ý nghĩa thông tin), giảm `content-wrap` padding-top từ 28px → 12px để nội dung sát topbar hơn, đỡ khoảng trống thừa ở đầu mỗi trang.
 - Fix ảnh static không hiển thị trên server (login background, default avatar): thêm URL pattern serve `/static/` qua `django.views.static.serve` trong [config/urls.py](config/urls.py) (mirror cách media đang serve). Lý do: gunicorn không tự serve static như `runserver` ở dev, kể cả khi `DEBUG=True`. Thêm file `static/images/default-avatar.png` (trước đây lạc trong `media/user_avatars/`).
 - Fix `attendance_log_api`: nếu cùng ngày & cùng `employee_code` đã có record nhưng **trạng thái khác** (vd quét lần 1 `not_registered`, đăng ký bù xong quét lần 2 `valid`) → cập nhật record cũ (status + scan_time + full_name) thay vì bỏ qua. Cùng trạng thái vẫn skip để giữ dedup. Trả thêm field `updated` trong response.
 - Tăng gunicorn `--workers 3 → 5`, thêm `--timeout 120` (mặc định 30s không đủ cho Gemini AI call). Fix bug: worker đang gọi AI menu suggestion bị master kill SIGKILL sau 30s → connection của request khác đứng cùng worker bị reset → người dùng thấy "Internal Server Error", F5 lại OK.

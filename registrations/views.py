@@ -241,54 +241,89 @@ def registration_participation(request):
     else:
         target_date = date.today()
 
-    # Lọc theo tên/mã nhân viên và trạng thái
     q_name = request.GET.get('q_name', '').strip()
     q_status = request.GET.get('q_status', '').strip()
 
-    logs = AttendanceLog.objects.filter(scan_time__date=target_date)
-    if q_status:
-        logs = logs.filter(status=q_status)
-
-    logs = list(logs.order_by('scan_time'))
-
-    # Chuẩn hóa: strip whitespace phòng trường hợp API scan trả về " 483094 "
-    employee_codes = {(log.employee_code or '').strip() for log in logs}
-    profile_map = {
-        (p.employee_code or '').strip(): p
-        for p in UserProfile.objects.filter(employee_code__in=employee_codes)
+    # Map status code -> (label tiếng Việt, css class màu)
+    STATUS_LABELS = {
+        'valid': ('Đã điểm danh', 'success'),
+        'not_registered': ('Chưa đăng ký', 'warning'),
+        'not_attended': ('Chưa điểm danh', 'danger'),
     }
 
-    enriched_logs = []
+    logs = list(AttendanceLog.objects.filter(scan_time__date=target_date).order_by('scan_time'))
+    scanned_codes = {(log.employee_code or '').strip() for log in logs}
+
+    # Người đã đăng ký bữa ăn ngày này — để biết ai đăng ký mà chưa điểm danh
+    registrations = MealRegistration.objects.filter(date=target_date)
+    registered_name_map = {}
+    for r in registrations:
+        code = (r.employee_code or '').strip()
+        if code and code not in registered_name_map:
+            registered_name_map[code] = (r.full_name or '').strip()
+
+    # Lookup profile 1 lần cho cả 2 nguồn
+    all_codes = scanned_codes | set(registered_name_map.keys())
+    profile_map = {
+        (p.employee_code or '').strip(): p
+        for p in UserProfile.objects.filter(employee_code__in=all_codes)
+    }
+
+    def _resolve_name(emp_code, profile, fallback_name):
+        profile_name = (profile.full_name.strip() if profile and profile.full_name else '')
+        if profile_name:
+            return profile_name
+        if fallback_name and fallback_name != emp_code:
+            return fallback_name
+        return 'Chưa rõ tên'
+
+    rows = []
+    # 1. Các lần quét trong ngày (đã có log)
     for log in logs:
         emp_code = (log.employee_code or '').strip()
         profile = profile_map.get(emp_code)
-        profile_name = (profile.full_name.strip() if profile and profile.full_name else '')
-        log_name = (log.full_name or '').strip()
-
-        # Ưu tiên tên từ UserProfile (nguồn chính xác).
-        # log.full_name chỉ dùng khi profile không có VÀ giá trị khác mã NV
-        # (vì API scan hiện set full_name = employee_code khi không có tên thật).
-        if profile_name:
-            display_name = profile_name
-        elif log_name and log_name != emp_code:
-            display_name = log_name
-        else:
-            display_name = 'Chưa rõ tên'
-
-        if q_name:
-            needle = q_name.lower()
-            if needle not in display_name.lower() and needle not in emp_code.lower():
-                continue
-        enriched_logs.append({
-            'log': log,
-            'profile': profile,
+        display_name = _resolve_name(emp_code, profile, (log.full_name or '').strip())
+        status_code = log.status
+        label, css = STATUS_LABELS.get(status_code, (status_code, 'warning'))
+        rows.append({
+            'employee_code': emp_code,
             'display_name': display_name,
+            'profile': profile,
+            'scan_time': log.scan_time,
+            'status': status_code,
+            'status_label': label,
+            'status_class': css,
+            'type': log.type or 'Quét thẻ',
         })
 
-    total_users = len({row['log'].employee_code for row in enriched_logs})
+    # 2. Người đã đăng ký nhưng chưa quét → "Chưa điểm danh"
+    not_attended_codes = set(registered_name_map.keys()) - scanned_codes
+    for emp_code in sorted(not_attended_codes):
+        profile = profile_map.get(emp_code)
+        display_name = _resolve_name(emp_code, profile, registered_name_map.get(emp_code, ''))
+        label, css = STATUS_LABELS['not_attended']
+        rows.append({
+            'employee_code': emp_code,
+            'display_name': display_name,
+            'profile': profile,
+            'scan_time': None,
+            'status': 'not_attended',
+            'status_label': label,
+            'status_class': css,
+            'type': '—',
+        })
+
+    # Filter
+    if q_status:
+        rows = [r for r in rows if r['status'] == q_status]
+    if q_name:
+        needle = q_name.lower()
+        rows = [r for r in rows if needle in r['display_name'].lower() or needle in r['employee_code'].lower()]
+
+    total_users = len({r['employee_code'] for r in rows})
 
     context = {
-        'logs': enriched_logs,
+        'rows': rows,
         'target_date': target_date,
         'q_name': q_name,
         'q_status': q_status,
