@@ -56,8 +56,9 @@
             </div>
         </div>
 
-        <button type="button" class="btn btn-primary" id="suggestWeekBtn">
-            Gợi ý thực đơn
+        <button type="button" class="btn-ai-suggest" id="suggestWeekBtn">
+            <i class="bi bi-stars ai-suggest-icon"></i>
+            <span>AI gợi ý</span>
         </button>
     </div>
 
@@ -66,6 +67,7 @@
     <button type="button" class="btn btn-success mt-3 d-none" id="applySuggestionBtn">
         Áp dụng gợi ý
     </button>
+    {{ existing_suggestions|json_script:"existing-suggestions-data" }}
 </div>
 <div class="dashboard-card mb-4">
     <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
@@ -565,6 +567,42 @@
     background: #dbeafe !important;
     border-color: #60a5fa !important;
 }
+
+/* Nút "AI gợi ý" — viền gradient cyan→green, nền trắng, icon sao */
+.btn-ai-suggest {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 20px;
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background:
+        linear-gradient(#ffffff, #ffffff) padding-box,
+        linear-gradient(135deg, #06b6d4 0%, #10b981 50%, #facc15 100%) border-box;
+    color: #0f172a;
+    font-weight: 700;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+.btn-ai-suggest:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(6, 182, 212, 0.22);
+    filter: brightness(1.02);
+}
+.btn-ai-suggest:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+.btn-ai-suggest .ai-suggest-icon {
+    font-size: 16px;
+    background: linear-gradient(135deg, #06b6d4, #10b981);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -597,6 +635,54 @@ function getCSRFToken() {
     return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
 }
 
+function renderSuggestions(suggestions) {
+    currentSuggestions = suggestions || [];
+    const preview = document.getElementById('suggestionPreview');
+    const applyBtn = document.getElementById('applySuggestionBtn');
+    if (!preview || !applyBtn) return;
+
+    if (!currentSuggestions.length) {
+        preview.innerHTML = '';
+        preview.classList.add('d-none');
+        applyBtn.classList.add('d-none');
+        return;
+    }
+
+    preview.innerHTML = currentSuggestions.map(item => `
+        <div class="col-lg">
+            <div class="p-3 border rounded-4 bg-white h-100 shadow-sm" style="border-top: 4px solid #2563eb !important;">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="fw-bold text-primary">${item.day_name}</div>
+                    <div class="badge bg-light text-dark border">${item.date_display}</div>
+                </div>
+                <div class="small fw-semibold mb-2 border-bottom pb-1 text-muted">Chi tiết thực đơn:</div>
+                <ul class="list-unstyled small mb-0">
+                    ${item.dishes.map(d => `
+                        <li class="mb-2 d-flex gap-2">
+                            <span class="text-muted" style="min-width: 60px;">[${d.type_display}]</span>
+                            <span class="fw-medium">${d.name}</span>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        </div>
+    `).join('');
+    preview.classList.remove('d-none');
+    applyBtn.classList.remove('d-none');
+}
+
+// Seed từ data server — hiển thị lại gợi ý đã tạo trong ngày (tiết kiệm quota AI)
+(function () {
+    const dataEl = document.getElementById('existing-suggestions-data');
+    if (!dataEl) return;
+    try {
+        const parsed = JSON.parse(dataEl.textContent);
+        if (Array.isArray(parsed) && parsed.length) {
+            renderSuggestions(parsed);
+        }
+    } catch (e) { /* ignore */ }
+})();
+
 document.getElementById('suggestWeekBtn')?.addEventListener('click', function () {
     const btn = this;
     const originalText = btn.innerHTML;
@@ -619,37 +705,7 @@ document.getElementById('suggestWeekBtn')?.addEventListener('click', function ()
             return;
         }
 
-        currentSuggestions = data.suggestions || [];
-
-        const preview = document.getElementById('suggestionPreview');
-        const applyBtn = document.getElementById('applySuggestionBtn');
-
-        preview.innerHTML = '';
-        preview.classList.remove('d-none');
-        applyBtn.classList.remove('d-none');
-
-        currentSuggestions.forEach(item => {
-            preview.innerHTML += `
-                <div class="col-lg">
-                    <div class="p-3 border rounded-4 bg-white h-100 shadow-sm" style="border-top: 4px solid #2563eb !important;">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div class="fw-bold text-primary">${item.day_name}</div>
-                            <div class="badge bg-light text-dark border">${item.date_display}</div>
-                        </div>
-
-                        <div class="small fw-semibold mb-2 border-bottom pb-1 text-muted">Chi tiết thực đơn:</div>
-                        <ul class="list-unstyled small mb-0">
-                            ${item.dishes.map(d => `
-                                <li class="mb-2 d-flex gap-2">
-                                    <span class="text-muted" style="min-width: 60px;">[${d.type_display}]</span>
-                                    <span class="fw-medium">${d.name}</span>
-                                </li>
-                            `).join('')}
-                        </ul>
-                    </div>
-                </div>
-            `;
-        });
+        renderSuggestions(data.suggestions || []);
     })
     .catch(err => {
         btn.disabled = false;

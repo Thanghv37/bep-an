@@ -473,6 +473,42 @@ def menu_list(request):
     )
 
     draft_map = {draft.date: draft for draft in draft_queryset}
+
+    # Gợi ý AI tuần sau — load draft đã tạo trong NGÀY HÔM NAY để khi user quay
+    # lại trang vẫn thấy list cũ (tiết kiệm quota AI). Sau nửa đêm filter
+    # `created_at__date=today` không match nữa → tự động ẩn.
+    next_week_days = get_next_week_days()
+    existing_suggestions = []
+    next_week_drafts = list(
+        WeeklyMenuDraft.objects
+        .filter(date__in=next_week_days, created_at__date=today)
+        .order_by('date')
+    )
+    if next_week_drafts:
+        all_dish_ids = set()
+        for d in next_week_drafts:
+            all_dish_ids.update(d.dish_ids)
+        dish_map_existing = {
+            d.id: d for d in Dish.objects.filter(id__in=all_dish_ids)
+        }
+        day_names = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6']
+        for draft in next_week_drafts:
+            dishes_info = []
+            for did in draft.dish_ids:
+                dish = dish_map_existing.get(did)
+                if dish:
+                    dishes_info.append({
+                        'name': dish.name,
+                        'type_display': dish.get_dish_type_display(),
+                    })
+            wd = draft.date.weekday()
+            if 0 <= wd <= 4:
+                existing_suggestions.append({
+                    'date': draft.date.strftime('%Y-%m-%d'),
+                    'date_display': draft.date.strftime('%d/%m'),
+                    'day_name': day_names[wd],
+                    'dishes': dishes_info,
+                })
     calendar_weeks = []
     for week in month_days:
         week_data = []
@@ -565,6 +601,7 @@ def menu_list(request):
         'selected_year': year,
         'month_choices': range(1, 13),
         'year_choices': range(today.year - 2, today.year + 3),
+        'existing_suggestions': existing_suggestions,
     }
     return render(request, 'meals/menu_list.html', context)
 

@@ -87,6 +87,8 @@ Hệ thống Quản lý Bếp ăn là giải pháp toàn diện giúp tự độ
 ## 📝 Nhật ký thay đổi
 
 ### 2026-05-12
+- UI nút "Gợi ý thực đơn" đổi thành "AI gợi ý" với pill viền gradient cyan→green→amber + icon `bi-stars`, nền trắng — phù hợp với phong cách "AI button" hiện đại.
+- Trang "Lên thực đơn": gợi ý AI tuần sau giờ persist qua reload trang. Khi `WeeklyMenuDraft` được tạo trong ngày hôm nay vẫn nằm DB, view load lại + đẩy xuống template, JS render preview giống lúc bấm "Gợi ý". Bấm "Gợi ý thực đơn" sẽ overwrite (xóa draft cũ + tạo mới — logic này đã có sẵn). Sau nửa đêm filter `created_at__date=today` không match → tự động không hiển thị. Tiết kiệm quota AI Gemini.
 - Cập nhật `AVAILABLE_MODELS` trong [core/ai_config.py](core/ai_config.py): bỏ các model đã deprecated (1.5-pro, 1.5-flash, 2.0-flash, 2.0-flash-exp), thêm model hiện hành theo AI Studio (3.1-pro, 3.1-flash-lite, 3-flash, 2.5-pro, 2.5-flash, 2.5-flash-lite). Lưu ý: `*-pro` cần tài khoản trả phí — free tier quota = 0.
 - Trang Tham gia: dịch nhãn trạng thái sang tiếng Việt (`valid → Đã điểm danh`, `not_registered → Chưa đăng ký`) và **bổ sung nhóm "Chưa điểm danh"** (đỏ) — những người có trong `MealRegistration` ngày đó nhưng chưa có lần quét nào trong `AttendanceLog`. Filter trạng thái thêm option mới `not_attended`. View refactor sang dùng `rows` (struct thống nhất từ 2 nguồn) thay vì `logs` (chỉ AttendanceLog).
 - UI dọn topbar: xóa badge "Nội bộ" góc phải (không có ý nghĩa thông tin), giảm `content-wrap` padding-top từ 28px → 12px để nội dung sát topbar hơn, đỡ khoảng trống thừa ở đầu mỗi trang.
