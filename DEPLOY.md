@@ -176,6 +176,19 @@ Sửa env var → cần `sudo systemctl daemon-reload` + `sudo systemctl restart
 
 ---
 
+## ⚙️ Gunicorn config (trong `bep-an.service`)
+
+Dòng `ExecStart` hiện tại:
+```
+ExecStart=/home/ipcdkv2/thanghv37/venv/bin/gunicorn config.wsgi:application --workers 5 --timeout 120 --bind 0.0.0.0:6011
+```
+
+- `--workers 5`: đủ cho ~50 user nội bộ, 1 worker bận gọi AI vẫn còn 4 worker phục vụ request khác. Đừng nâng quá cao vì mỗi worker copy hết app vào RAM.
+- `--timeout 120`: Gemini AI có thể mất 30-60s/call (gợi ý menu, phân tích dinh dưỡng). Default gunicorn là 30s → worker bị SIGKILL giữa chừng → request đứng cùng nhà bị connection reset (browser show "Internal Server Error", F5 lại OK).
+- Sau khi sửa unit: `sudo systemctl daemon-reload && sudo systemctl restart bep-an`.
+
+---
+
 ## 🚨 Rollback khẩn cấp
 
 Nếu deploy gây lỗi production:

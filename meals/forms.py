@@ -1,6 +1,5 @@
 from django import forms
-from accounts.permissions import is_admin
-from .models import Dish, DailyMenu, Ingredient, DishIngredient
+from .models import Dish, DailyMenu
 
 
 class DishForm(forms.ModelForm):
@@ -99,15 +98,14 @@ class DailyMenuForm(forms.ModelForm):
             status=getattr(Dish, 'STATUS_APPROVED', 'approved')
         ).order_by('dish_type', 'name')
 
-        if self.user and not is_admin(self.user):
-            self.fields['status'].choices = [
-                (DailyMenu.STATUS_PENDING, 'Chờ phê duyệt')
-            ]
-
-            self.initial['status'] = DailyMenu.STATUS_PENDING
-            self.fields['status'].initial = DailyMenu.STATUS_PENDING
-
-            if self.instance:
-                self.instance.status = DailyMenu.STATUS_PENDING
-
-            self.fields['status'].disabled = True
+        # Bất kể role: form tạo/sửa menu luôn nộp với status=PENDING. Việc duyệt
+        # tách thành action riêng ngoài form để admin cũng phải double-check
+        # trước khi đưa menu vào sử dụng.
+        self.fields['status'].choices = [
+            (DailyMenu.STATUS_PENDING, 'Chờ phê duyệt')
+        ]
+        self.initial['status'] = DailyMenu.STATUS_PENDING
+        self.fields['status'].initial = DailyMenu.STATUS_PENDING
+        if self.instance:
+            self.instance.status = DailyMenu.STATUS_PENDING
+        self.fields['status'].disabled = True

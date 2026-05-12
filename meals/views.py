@@ -180,22 +180,19 @@ def dish_create(request):
                 dish.portion_per_person = 0
                 dish.portion_unit = 'g'
 
-                if is_admin(request.user):
-                    dish.status = Dish.STATUS_APPROVED
-                    dish.approved_by = request.user
-                    dish.approved_at = timezone.localtime()
-                else:
-                    dish.status = Dish.STATUS_PENDING
-                    dish.approved_by = None
-                    dish.approved_at = None
-                    dish.reject_reason = ''
-                    dish.rejected_by = None
-                    dish.rejected_at = None
+                # Mọi role tạo món đều phải qua duyệt — admin cũng cần bấm
+                # "Phê duyệt" ở trang phê duyệt để double-check.
+                dish.status = Dish.STATUS_PENDING
+                dish.approved_by = None
+                dish.approved_at = None
+                dish.reject_reason = ''
+                dish.rejected_by = None
+                dish.rejected_at = None
 
                 dish.save()
                 save_dish_ingredients_from_post(dish, request.POST)
 
-                messages.success(request, 'Đã thêm món ăn mới.')
+                messages.success(request, 'Đã thêm món ăn mới. Cần phê duyệt trước khi sử dụng.')
                 return redirect('dish_list')
             except ValueError as e:
                 form.add_error(None, str(e))
@@ -225,22 +222,19 @@ def dish_update(request, pk):
                 dish.portion_per_person = 0
                 dish.portion_unit = 'g'
 
-                if is_admin(request.user):
-                    dish.status = Dish.STATUS_APPROVED
-                    dish.approved_by = request.user
-                    dish.approved_at = timezone.localtime()
-                else:
-                    dish.status = Dish.STATUS_PENDING
-                    dish.approved_by = None
-                    dish.approved_at = None
-                    dish.reject_reason = ''
-                    dish.rejected_by = None
-                    dish.rejected_at = None
+                # Mọi role cập nhật món đều coi như resubmit → reset về PENDING,
+                # admin cũng phải bấm "Phê duyệt" lại để xác nhận thay đổi.
+                dish.status = Dish.STATUS_PENDING
+                dish.approved_by = None
+                dish.approved_at = None
+                dish.reject_reason = ''
+                dish.rejected_by = None
+                dish.rejected_at = None
 
                 dish.save()
                 save_dish_ingredients_from_post(dish, request.POST)
 
-                messages.success(request, f'Đã cập nhật món "{dish.name}".')
+                messages.success(request, f'Đã cập nhật món "{dish.name}". Cần phê duyệt lại.')
                 return redirect('dish_list')
             except ValueError as e:
                 form.add_error(None, str(e))
@@ -658,17 +652,14 @@ def menu_create(request):
                     menu = DailyMenu()
 
                 menu.date = menu_date
-                if is_admin(request.user):
-                    menu.status = form.cleaned_data['status']
-                else:
-                    menu.status = DailyMenu.STATUS_PENDING
-
-                # Khi gửi lại sau từ chối thì reset trạng thái từ chối hiện tại,
-                # còn lịch sử cũ nằm trong MenuRejectLog.
-                if menu.status == DailyMenu.STATUS_PENDING:
-                    menu.reject_reason = ''
-                    menu.rejected_by = None
-                    menu.rejected_at = None
+                # Mọi role tạo/sửa menu đều nộp với status=PENDING. Admin muốn
+                # duyệt phải dùng action "Phê duyệt" tách riêng để double-check.
+                menu.status = DailyMenu.STATUS_PENDING
+                # Reset trạng thái từ chối nếu trước đó là REJECTED, lịch sử cũ
+                # vẫn nằm trong MenuRejectLog.
+                menu.reject_reason = ''
+                menu.rejected_by = None
+                menu.rejected_at = None
 
                 menu.note = form.cleaned_data['note']
                 menu.created_by = request.user
@@ -743,12 +734,9 @@ def menu_update(request, pk):
     initial_dishes = list(menu.items.values_list('dish_id', flat=True))
 
     if request.method == 'POST':
-        post_data = request.POST.copy()
-
-        if not is_admin(request.user):
-            post_data['status'] = DailyMenu.STATUS_PENDING
-
-        form = DailyMenuForm(post_data, instance=menu, user=request.user)
+        # Field `status` đã disabled trong DailyMenuForm với mọi role → POST data
+        # status (nếu có) sẽ bị ignore, form.cleaned_data luôn = PENDING.
+        form = DailyMenuForm(request.POST, instance=menu, user=request.user)
         if form.is_valid():
             selected_dishes = form.cleaned_data['dishes']
             edit_reason = form.cleaned_data.get('edit_reason', '').strip()
@@ -760,17 +748,14 @@ def menu_update(request, pk):
                 form.add_error('edit_reason', 'Bạn phải nhập lý do chỉnh sửa cho trường hợp này.')
             else:
                 menu.date = menu_date
-                if is_admin(request.user):
-                    menu.status = form.cleaned_data['status']
-                else:
-                    menu.status = DailyMenu.STATUS_PENDING
-
-                # Khi gửi lại sau từ chối thì reset trạng thái từ chối hiện tại,
-                # còn lịch sử cũ nằm trong MenuRejectLog.
-                if menu.status == DailyMenu.STATUS_PENDING:
-                    menu.reject_reason = ''
-                    menu.rejected_by = None
-                    menu.rejected_at = None
+                # Mọi role cập nhật menu đều coi như resubmit → PENDING. Admin
+                # muốn duyệt phải dùng action "Phê duyệt" tách riêng.
+                menu.status = DailyMenu.STATUS_PENDING
+                # Reset trạng thái từ chối (nếu trước đó là REJECTED), lịch sử
+                # cũ vẫn nằm trong MenuRejectLog.
+                menu.reject_reason = ''
+                menu.rejected_by = None
+                menu.rejected_at = None
 
                 menu.note = form.cleaned_data['note']
                 menu.edit_reason = edit_reason if requires_reason else ''
