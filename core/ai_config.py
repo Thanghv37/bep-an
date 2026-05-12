@@ -18,14 +18,17 @@ KEY_GEMINI_MODEL = 'gemini_model'
 
 DEFAULT_MODEL = 'gemini-2.5-flash'
 
-# Danh sách model phổ biến — hiển thị trong dropdown UI.
+# Danh sách model khả dụng — hiển thị trong dropdown UI. Cập nhật theo
+# AI Studio (https://aistudio.google.com/app/usage) khi Google thêm/loại model.
+# Sắp xếp từ mới → cũ. Các model `*-pro` yêu cầu tài khoản trả phí (free tier
+# quota = 0); `*-flash` / `*-flash-lite` dùng OK trên free tier.
 AVAILABLE_MODELS = [
+    'gemini-3.1-pro',
+    'gemini-3.1-flash-lite',
+    'gemini-3-flash',
     'gemini-2.5-pro',
     'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-2.0-flash-exp',
-    'gemini-1.5-pro',
-    'gemini-1.5-flash',
+    'gemini-2.5-flash-lite',
 ]
 
 

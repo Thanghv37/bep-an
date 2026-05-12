@@ -87,6 +87,7 @@ Hệ thống Quản lý Bếp ăn là giải pháp toàn diện giúp tự độ
 ## 📝 Nhật ký thay đổi
 
 ### 2026-05-12
+- Cập nhật `AVAILABLE_MODELS` trong [core/ai_config.py](core/ai_config.py): bỏ các model đã deprecated (1.5-pro, 1.5-flash, 2.0-flash, 2.0-flash-exp), thêm model hiện hành theo AI Studio (3.1-pro, 3.1-flash-lite, 3-flash, 2.5-pro, 2.5-flash, 2.5-flash-lite). Lưu ý: `*-pro` cần tài khoản trả phí — free tier quota = 0.
 - Trang Tham gia: dịch nhãn trạng thái sang tiếng Việt (`valid → Đã điểm danh`, `not_registered → Chưa đăng ký`) và **bổ sung nhóm "Chưa điểm danh"** (đỏ) — những người có trong `MealRegistration` ngày đó nhưng chưa có lần quét nào trong `AttendanceLog`. Filter trạng thái thêm option mới `not_attended`. View refactor sang dùng `rows` (struct thống nhất từ 2 nguồn) thay vì `logs` (chỉ AttendanceLog).
 - UI dọn topbar: xóa badge "Nội bộ" góc phải (không có ý nghĩa thông tin), giảm `content-wrap` padding-top từ 28px → 12px để nội dung sát topbar hơn, đỡ khoảng trống thừa ở đầu mỗi trang.
 - Fix ảnh static không hiển thị trên server (login background, default avatar): thêm URL pattern serve `/static/` qua `django.views.static.serve` trong [config/urls.py](config/urls.py) (mirror cách media đang serve). Lý do: gunicorn không tự serve static như `runserver` ở dev, kể cả khi `DEBUG=True`. Thêm file `static/images/default-avatar.png` (trước đây lạc trong `media/user_avatars/`).
