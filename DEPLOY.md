@@ -46,11 +46,13 @@ pip install -r requirements.txt
 
 Nếu in toàn `Requirement already satisfied` → không có gì mới, OK.
 
-### 3. Apply migration (nếu có model mới)
+### 3. Apply migration (**LUÔN CHẠY** — không skip)
 
 ```bash
 DB_PASSWORD=thanghv37 python manage.py migrate
 ```
+
+⚠️ **Quy tắc vàng**: lần nào pull code xong cũng chạy migrate, **kể cả khi nghĩ "không đổi schema"**. Lý do: có thể commit trước đó có migration mà server chưa apply — sẽ gây lỗi `ProgrammingError: column ... does not exist` khi restart (đã xảy ra 2026-05-12, mất 5 phút để fix). `No migrations to apply` không tốn gì, sai một lần là production xuống.
 
 ⚠️ **Bắt buộc prefix `DB_PASSWORD=...`** vì shell không có env var.
 
