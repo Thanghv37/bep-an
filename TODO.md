@@ -37,12 +37,10 @@ Hiện trên prod: `DEBUG=True`, `ALLOWED_HOSTS=['*']` — lộ stack trace khi 
 
 **Hướng fix khuyến nghị**: khi user login, check session đó có public review (`user=None, session_key=X`) hôm nay → gắn record đó vào user (`review.user = request.user`). Sau đó luồng login review sẽ thấy "đã đánh giá" và không cho vote lại.
 
-### 6. Poll feedback NetChat: per-channel baseline để tránh mất tin
-[reviews/feedback_poller.py](reviews/feedback_poller.py) hiện dùng 1 timestamp baseline chung (`feedback_last_poll_ts`). Edge case: nếu 1 channel succeed (ts mới hơn) + 1 channel khác fail 429 (ts cũ hơn) → cuối loop baseline advance qua post của channel fail → lần poll sau channel đó không vào diện active → tin bị bỏ qua.
+### 6. ~~Poll feedback NetChat~~ — ĐÃ GỠ BỎ
+~~Per-channel baseline để tránh mất tin & gọi thừa.~~
 
-**Hướng fix**: lưu `last_post_id` riêng cho từng channel trong bảng (vd `FeedbackChannelCursor`) thay vì 1 timestamp global.
-
-**Long-term**: chuyển từ polling sang **outgoing webhook** Mattermost — gần real-time, không lo rate limit, không lo mất tin. Cần endpoint HTTPS public + cấu hình webhook trên Mattermost admin.
+**Đã đóng (2026-05-12)**: gỡ hẳn tính năng thu thập góp ý qua DM bot. Lý do: bot bị NetChat soft-suspend vì poll_feedback gọi 44+ API call/phút sau khi bot broadcast đặt cơm. User quyết tắt hẳn, bắt buộc góp ý qua web. Code đã xóa, model `FeedbackMessage` đã drop (migration 0005). Nếu sau này muốn làm lại, ưu tiên outgoing webhook Mattermost thay vì polling.
 
 ---
 
@@ -87,3 +85,5 @@ Khi mở trang heavy Bootstrap (vd `/users/`), thấy ~0.5s "raw flash" trước
 - 2026-05-11: Thêm mục #6 (per-channel baseline cho poll feedback NetChat) sau khi tích hợp tính năng thu thập DM.
 - 2026-05-11: Thêm mục #11 (audit template null-safety) sau khi fix crash ở registration_list khi profile=None.
 - 2026-05-11: Thêm mục #12 (FOUC do Bootstrap CDN chậm) sau khi user thấy 0.5s raw flash khi load trang Quản lý người dùng.
+- 2026-05-12: Cập nhật mục #6 — bổ sung điểm "gọi API thừa sau broadcast" sau sự cố bot bị soft-suspend lúc 9:30 do poll_feedback gọi 44 channels với throttle 0.2s (~220 req/min). Đã quick-mitigate bằng throttle 1.2s; root-cause fix vẫn cần per-channel cursor.
+- 2026-05-12: Đóng mục #6 — user quyết định gỡ hẳn tính năng thu thập góp ý qua DM NetChat (bắt buộc góp ý qua web). Code + model + migration đã xóa.

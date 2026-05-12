@@ -86,7 +86,12 @@ Hệ thống Quản lý Bếp ăn là giải pháp toàn diện giúp tự độ
 
 ## 📝 Nhật ký thay đổi
 
+### 2026-05-12
+- **Gỡ bỏ tính năng thu thập góp ý qua DM NetChat** (`FeedbackMessage` / `poll_feedback`). Lý do: bot bị NetChat soft-suspend lúc 9:30 do `poll_feedback` gọi 44+ API call/phút sau khi bot tự broadcast tin đặt cơm. Phương án sửa root-cause (per-channel cursor / webhook) phức tạp; user quyết định tắt hẳn, bắt buộc góp ý qua web. Xóa: `reviews/feedback_poller.py`, `reviews/management/commands/poll_feedback.py`, model `FeedbackMessage` (migration `0005_delete_feedbackmessage`), cột "Đánh giá từ NetChat" trong trang đánh giá. Trên server: dừng + disable + xóa `poll-feedback.timer/.service` (xem [DEPLOY.md](DEPLOY.md)).
+- (Sửa trước khi quyết tắt) Throttle `poll_feedback` lên 1.2s/call và abort khi 429 — code này đã được xóa cùng feature.
+
 ### 2026-05-11
+- Dashboard: ẩn badge "Đã đăng kí / Chưa đăng kí" ở các thẻ ngày trong tuần khi đăng nhập bằng tài khoản superuser (admin Django) — dùng cho màn hình TV ở bếp ăn (tài khoản này không bao giờ đăng ký ăn).
 - Trang Tham gia (`registration_participation`): cột "Người dùng" hiển thị tên thực (lookup `UserProfile` theo `employee_code`, fallback `log.full_name` rồi đến mã NV) kèm avatar; header cột thêm badge "Tổng: N" (đếm distinct nhân viên sau filter); filter Trạng thái đổi label/value sang `valid` / `not_registered` cho khớp dữ liệu API; ô tìm kiếm giờ match cả tên và mã NV.
 - Thu thập tin nhắn góp ý DM bot NetChat: model `FeedbackMessage`, polling service + management command `poll_feedback` (cron 30 phút qua systemd timer), hiển thị tích hợp ngay trong section "Tổng hợp đánh giá" của trang đánh giá (chia 2 cột website / NetChat). Tin cùng người cùng ngày được gộp 1 dòng cách nhau bằng " / " (dùng `StringAgg` PostgreSQL).
 - UI tinh chỉnh: trang Danh sách đăng kí gộp filter + Log gửi tin trên cùng 1 hàng (9/3); trang Đánh giá hiển thị compact `MNV - Tên: nội dung` 1 dòng, MNV màu xanh.

@@ -152,15 +152,17 @@
                                     <div class="small text-muted">{{ day.date|date:"d/m/Y" }}</div>
                                 </div>
 
-                                <!-- 🔥 Badge đăng kí -->
-                                {% if day.is_registered %}
-                                    <span class="badge-register success">
-                                        Đã đăng kí
-                                    </span>
-                                {% else %}
-                                    <span class="badge-register">
-                                        Chưa đăng kí
-                                    </span>
+                                <!-- 🔥 Badge đăng kí (ẩn với tài khoản admin Django dùng cho màn hình TV bếp) -->
+                                {% if not request.user.is_superuser %}
+                                    {% if day.is_registered %}
+                                        <span class="badge-register success">
+                                            Đã đăng kí
+                                        </span>
+                                    {% else %}
+                                        <span class="badge-register">
+                                            Chưa đăng kí
+                                        </span>
+                                    {% endif %}
                                 {% endif %}
                             </div>
 

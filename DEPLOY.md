@@ -153,26 +153,21 @@ ls reviews/management/commands/  # file phải tồn tại
 
 ## 📅 Cron / systemd timer trên server
 
-| Timer | Service | Tần suất | Mô tả |
-|---|---|---|---|
-| `poll-feedback.timer` | `poll-feedback.service` | 30 phút | Quét DM NetChat → lưu vào `FeedbackMessage` |
+Hiện không có timer nào. (Trước đây có `poll-feedback.timer` để quét DM NetChat — đã gỡ bỏ 2026-05-12 vì gây vi phạm rate limit của NetChat. Tham khảo phần "Tắt poll-feedback" dưới đây nếu service vẫn còn trên server.)
 
-Xem trạng thái:
+### Tắt `poll-feedback` (chạy 1 lần trên server)
 ```bash
-sudo systemctl list-timers
-sudo journalctl -u poll-feedback.service -n 30
-```
-
-Force chạy ngay (không đợi timer):
-```bash
-sudo systemctl start poll-feedback.service
+sudo systemctl stop poll-feedback.timer poll-feedback.service
+sudo systemctl disable poll-feedback.timer poll-feedback.service
+sudo rm /etc/systemd/system/poll-feedback.timer /etc/systemd/system/poll-feedback.service
+sudo systemctl daemon-reload
 ```
 
 ---
 
 ## 🔑 Env vars trên server (trong systemd)
 
-Hiện đang set trong `/etc/systemd/system/bep-an.service` và `/etc/systemd/system/poll-feedback.service`:
+Hiện đang set trong `/etc/systemd/system/bep-an.service`:
 
 - `DB_PASSWORD` — mật khẩu PostgreSQL
 - `GEMINI_API_KEY` — Google Gemini API key

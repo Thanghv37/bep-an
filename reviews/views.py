@@ -3,9 +3,7 @@ from datetime import date, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.contrib.postgres.aggregates import StringAgg
-from django.db.models import Count, Max, Q
-from django.db.models.functions import TruncDate
+from django.db.models import Count, Q
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
@@ -15,7 +13,7 @@ from meals.models import DailyMenu
 from django.core.paginator import Paginator
 
 from .forms import MealReviewForm
-from .models import MealReview, DishReview, FeedbackMessage
+from .models import MealReview, DishReview
 
 
 def can_review_date(target_date):
@@ -161,7 +159,7 @@ def review_dashboard(request):
     stats['total_likes'] = dish_stats['total_likes'] or 0
     stats['total_dislikes'] = dish_stats['total_dislikes'] or 0
 
-    # Website reviews (cột trái): filter + paginate
+    # Đánh giá từ website: filter + paginate
     web_q = request.GET.get('web_q', '').strip()
     website_reviews_qs = stat_reviews.exclude(comment='').order_by('-updated_at')
     if web_q:
@@ -171,31 +169,6 @@ def review_dashboard(request):
             Q(user__profile__full_name__icontains=web_q)
         )
     website_page = Paginator(website_reviews_qs, 20).get_page(request.GET.get('web_page'))
-
-    # NetChat feedback (cột phải): cùng khoảng ngày, filter + paginate riêng
-    # Gộp các tin nhắn của cùng (user, ngày) thành 1 dòng, các tin cách nhau bằng " / ".
-    nc_q = request.GET.get('nc_q', '').strip()
-    netchat_qs = FeedbackMessage.objects.filter(
-        posted_at__date__range=(stats_start_date, stats_end_date)
-    )
-    if nc_q:
-        netchat_qs = netchat_qs.filter(
-            Q(message__icontains=nc_q) |
-            Q(sender_username__icontains=nc_q) |
-            Q(sender_full_name__icontains=nc_q) |
-            Q(employee_code__icontains=nc_q)
-        )
-    netchat_grouped = (
-        netchat_qs
-        .annotate(post_date=TruncDate('posted_at'))
-        .values('post_date', 'sender_username', 'sender_full_name', 'employee_code')
-        .annotate(
-            combined_message=StringAgg('message', delimiter=' / ', ordering='posted_at'),
-            latest_posted=Max('posted_at'),
-        )
-        .order_by('-latest_posted')
-    )
-    netchat_page = Paginator(netchat_grouped, 20).get_page(request.GET.get('nc_page'))
 
     # Lịch mini trong tháng
     try:
@@ -258,9 +231,7 @@ def review_dashboard(request):
         'existing_dish_reviews': existing_dish_reviews,
         'stats': stats,
         'website_page': website_page,
-        'netchat_page': netchat_page,
         'web_q': web_q,
-        'nc_q': nc_q,
         'day_cards': day_cards,
         'selected_month': selected_month,
         'selected_year': selected_year,
