@@ -27,4 +27,12 @@ urlpatterns += [
         serve,
         {'document_root': settings.MEDIA_ROOT}
     ),
+    # Serve /static/... khi chạy production WSGI (gunicorn không tự serve như runserver).
+    # Lấy từ STATICFILES_DIRS[0] để không cần collectstatic. Hợp lý cho tool nội bộ;
+    # tải lớn nên cho nginx serve thay thế.
+    re_path(
+        r'^static/(?P<path>.*)$',
+        serve,
+        {'document_root': settings.STATICFILES_DIRS[0]}
+    ),
 ]
