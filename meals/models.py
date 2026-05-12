@@ -296,10 +296,23 @@ class MenuRejectLog(models.Model):
     def __str__(self):
         return f"Từ chối menu {self.date}"
 class WeeklyMenuDraft(models.Model):
+    # `suggested`: AI vừa gợi ý — chỉ hiện ở preview cards; lịch tháng vẫn trắng.
+    # `applied`: user đã "Áp dụng" → lịch tháng đổi xanh dương, day detail pre-tick
+    # các món; chuyển thành DailyMenu khi user bấm "Lưu thực đơn" trong day detail.
+    STATUS_SUGGESTED = 'suggested'
+    STATUS_APPLIED = 'applied'
+    STATUS_CHOICES = [
+        (STATUS_SUGGESTED, 'AI đã gợi ý'),
+        (STATUS_APPLIED, 'Đã chọn món (chờ lưu)'),
+    ]
+
     date = models.DateField()
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     dish_ids = models.JSONField(default=list)
     reason = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_SUGGESTED
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
