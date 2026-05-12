@@ -1,5 +1,6 @@
 #meals/views
 import calendar
+import json
 from datetime import datetime, date, time
 from registrations.models import get_registered_count
 from django.conf import settings
@@ -38,7 +39,6 @@ import io
 from datetime import timedelta
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from django.db import transaction
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from django.conf import settings
@@ -381,35 +381,17 @@ def suggest_next_week_menu(request):
 @require_POST
 def apply_week_menu_draft(request):
     """
-    Chấp nhận các gợi ý từ AI và tạo DailyMenu chính thức
+    "Áp dụng gợi ý": chuyển các draft từ `suggested` → `applied`. KHÔNG tạo
+    `DailyMenu` ngay — nhân viên còn vào day detail tinh chỉnh, sau đó bấm
+    "Lưu thực đơn" thì mới tạo DailyMenu PENDING. Lịch tháng đổi sang xanh
+    dương để báo "đã chọn món, chờ lưu chính thức".
     """
     try:
         data = json.loads(request.body)
         selected_dates = data.get('dates', [])
-        
-        with transaction.atomic():
-            drafts = WeeklyMenuDraft.objects.filter(date__in=selected_dates)
-            for draft in drafts:
-                # Tạo hoặc cập nhật DailyMenu
-                menu, created = DailyMenu.objects.update_or_create(
-                    date=draft.date,
-                    defaults={'created_by': request.user, 'status': DailyMenu.STATUS_PENDING}
-                )
-                
-                # Xóa item cũ
-                menu.items.all().delete()
-                
-                # Thêm item mới
-                for idx, dish_id in enumerate(draft.dish_ids):
-                    DailyMenuItem.objects.create(
-                        daily_menu=menu,
-                        dish_id=dish_id,
-                        sort_order=idx
-                    )
-            
-            # Xóa các bản nháp đã áp dụng
-            drafts.delete()
-            
+        WeeklyMenuDraft.objects.filter(date__in=selected_dates).update(
+            status=WeeklyMenuDraft.STATUS_APPLIED
+        )
         return JsonResponse({'success': True})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
@@ -467,21 +449,30 @@ def menu_list(request):
         date__month=month
     )
     month_menu_map = {menu.date: menu for menu in month_menu_queryset}
+    # Calendar chỉ bật visual xanh dương (`has_draft`) khi draft ở trạng thái
+    # `applied` (user đã bấm Áp dụng). Trạng thái `suggested` chỉ hiện ở preview
+    # cards phía trên, KHÔNG ảnh hưởng lịch tháng.
     draft_queryset = WeeklyMenuDraft.objects.filter(
         date__year=year,
         date__month=month,
+        status=WeeklyMenuDraft.STATUS_APPLIED,
     )
 
     draft_map = {draft.date: draft for draft in draft_queryset}
 
-    # Gợi ý AI tuần sau — load draft đã tạo trong NGÀY HÔM NAY để khi user quay
-    # lại trang vẫn thấy list cũ (tiết kiệm quota AI). Sau nửa đêm filter
-    # `created_at__date=today` không match nữa → tự động ẩn.
+    # Preview cards "Gợi ý thực đơn tuần sau" — chỉ load draft `suggested` tạo
+    # trong NGÀY HÔM NAY. Sau khi user Áp dụng, draft chuyển sang `applied` →
+    # không còn match filter này → preview tự ẩn (workflow chuyển sang day detail).
+    # Sau nửa đêm filter `created_at__date=today` không match → cũng ẩn.
     next_week_days = get_next_week_days()
     existing_suggestions = []
     next_week_drafts = list(
         WeeklyMenuDraft.objects
-        .filter(date__in=next_week_days, created_at__date=today)
+        .filter(
+            date__in=next_week_days,
+            created_at__date=today,
+            status=WeeklyMenuDraft.STATUS_SUGGESTED,
+        )
         .order_by('date')
     )
     if next_week_drafts:
@@ -699,6 +690,11 @@ def menu_create(request):
                         sort_order=index
                     )
 
+                # Đã chính thức tạo DailyMenu cho ngày này → draft hoàn thành nhiệm vụ.
+                # Xóa để lịch tháng chuyển từ xanh dương (applied) sang xanh lá
+                # (chờ phê duyệt) theo trạng thái DailyMenu.
+                WeeklyMenuDraft.objects.filter(date=menu.date).delete()
+
                 messages.success(request, f'Đã tạo thực đơn ngày {menu.date.strftime("%d/%m/%Y")}.')
                 return redirect('menu_list')
     else:
@@ -707,8 +703,12 @@ def menu_create(request):
         if preselected_date:
             try:
                 draft_date = datetime.strptime(preselected_date, '%Y-%m-%d').date()
+                # Chỉ pre-tick món khi draft đã ở trạng thái APPLIED — user đã
+                # chính thức "Áp dụng gợi ý". Trạng thái `suggested` chỉ là preview,
+                # chưa quyết định dùng → không pre-tick.
                 draft = WeeklyMenuDraft.objects.filter(
                     date=draft_date,
+                    status=WeeklyMenuDraft.STATUS_APPLIED,
                 ).first()
 
                 if draft:

@@ -87,6 +87,7 @@ Hệ thống Quản lý Bếp ăn là giải pháp toàn diện giúp tự độ
 ## 📝 Nhật ký thay đổi
 
 ### 2026-05-12
+- Refactor workflow "Gợi ý AI tuần sau": tách 2 trạng thái rõ ràng cho `WeeklyMenuDraft` (migration 0014). (1) **`suggested`** — sau khi bấm "AI gợi ý", chỉ hiện preview cards, lịch tháng vẫn trắng. (2) **`applied`** — sau khi bấm "Áp dụng gợi ý", lịch tháng đổi xanh dương, day detail pre-tick các món, KHÔNG tạo `DailyMenu` ngay. (3) User vào day detail tinh chỉnh + bấm "Lưu thực đơn" → mới tạo `DailyMenu` PENDING (xanh lá, chờ phê duyệt), draft tự xóa. (4) Admin duyệt → APPROVED. Fix kèm bug `name 'json' is not defined` trong `apply_week_menu_draft` do thiếu `import json`.
 - UI nút "Gợi ý thực đơn" đổi thành "AI gợi ý" với pill viền gradient cyan→green→amber + icon `bi-stars`, nền trắng — phù hợp với phong cách "AI button" hiện đại.
 - Trang "Lên thực đơn": gợi ý AI tuần sau giờ persist qua reload trang. Khi `WeeklyMenuDraft` được tạo trong ngày hôm nay vẫn nằm DB, view load lại + đẩy xuống template, JS render preview giống lúc bấm "Gợi ý". Bấm "Gợi ý thực đơn" sẽ overwrite (xóa draft cũ + tạo mới — logic này đã có sẵn). Sau nửa đêm filter `created_at__date=today` không match → tự động không hiển thị. Tiết kiệm quota AI Gemini.
 - Cập nhật `AVAILABLE_MODELS` trong [core/ai_config.py](core/ai_config.py): bỏ các model đã deprecated (1.5-pro, 1.5-flash, 2.0-flash, 2.0-flash-exp), thêm model hiện hành theo AI Studio (3.1-pro, 3.1-flash-lite, 3-flash, 2.5-pro, 2.5-flash, 2.5-flash-lite). Lưu ý: `*-pro` cần tài khoản trả phí — free tier quota = 0.

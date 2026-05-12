@@ -715,7 +715,7 @@ document.getElementById('suggestWeekBtn')?.addEventListener('click', function ()
 });
 
 document.getElementById('applySuggestionBtn')?.addEventListener('click', function () {
-    if (!confirm("Bạn có chắc muốn áp dụng thực đơn gợi ý này? Các thực đơn cũ của tuần tới (nếu có) sẽ bị ghi đè.")) return;
+    if (!confirm("Áp dụng gợi ý này? Các món sẽ được tick sẵn ở từng ngày tuần sau; bạn vẫn có thể vào tinh chỉnh trước khi lưu thực đơn chính thức.")) return;
 
     const btn = this;
     btn.disabled = true;
@@ -736,7 +736,9 @@ document.getElementById('applySuggestionBtn')?.addEventListener('click', functio
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-            window.location.href = "{% url 'menu_list' %}?dates=" + dates.join(',');
+            // Reload để lịch tháng đổi sang xanh dương (status=applied)
+            // và preview cards tự ẩn (chỉ hiện draft `suggested`).
+            window.location.href = "{% url 'menu_list' %}";
         } else {
             alert(data.error);
             btn.disabled = false;
