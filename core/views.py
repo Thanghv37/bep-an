@@ -497,6 +497,7 @@ def attendance_log_api(request):
         data = [data]  # convert single record to list
 
     created = 0
+    updated = 0
     skipped = 0
     for rec in data:
         try:
@@ -508,12 +509,25 @@ def attendance_log_api(request):
             if not emp_code:
                 continue
 
-            # Bỏ qua nếu nhân viên này đã có log trong cùng ngày — chỉ giữ lần quét đầu
-            if AttendanceLog.objects.filter(
+            new_status = rec.get("status", "Chưa đăng ký")
+
+            existing = AttendanceLog.objects.filter(
                 employee_code=emp_code,
                 scan_time__date=scan_time.date(),
-            ).exists():
-                skipped += 1
+            ).first()
+
+            if existing:
+                # Trùng cùng ngày: nếu trạng thái khác (vd not_registered -> valid sau khi
+                # nhân viên đăng ký bù) thì cập nhật. Trùng và cùng trạng thái → bỏ qua.
+                if existing.status != new_status:
+                    existing.status = new_status
+                    existing.scan_time = scan_time
+                    if rec.get("full_name"):
+                        existing.full_name = rec["full_name"]
+                    existing.save(update_fields=["status", "scan_time", "full_name"])
+                    updated += 1
+                else:
+                    skipped += 1
                 continue
 
             AttendanceLog.objects.create(
@@ -521,11 +535,16 @@ def attendance_log_api(request):
                 full_name=rec.get("full_name", ""),
                 scan_time=scan_time,
                 type=rec.get("type", "bếp ăn"),
-                status=rec.get("status", "Chưa đăng ký")
+                status=new_status,
             )
             created += 1
         except Exception as e:
             print(f"AttendanceLog error: {e}")
             continue
 
-    return JsonResponse({"success": True, "created": created, "skipped": skipped})
+    return JsonResponse({
+        "success": True,
+        "created": created,
+        "updated": updated,
+        "skipped": skipped,
+    })

@@ -87,6 +87,8 @@ Hệ thống Quản lý Bếp ăn là giải pháp toàn diện giúp tự độ
 ## 📝 Nhật ký thay đổi
 
 ### 2026-05-12
+- Fix `attendance_log_api`: nếu cùng ngày & cùng `employee_code` đã có record nhưng **trạng thái khác** (vd quét lần 1 `not_registered`, đăng ký bù xong quét lần 2 `valid`) → cập nhật record cũ (status + scan_time + full_name) thay vì bỏ qua. Cùng trạng thái vẫn skip để giữ dedup. Trả thêm field `updated` trong response.
+- Tăng gunicorn `--workers 3 → 5`, thêm `--timeout 120` (mặc định 30s không đủ cho Gemini AI call). Fix bug: worker đang gọi AI menu suggestion bị master kill SIGKILL sau 30s → connection của request khác đứng cùng worker bị reset → người dùng thấy "Internal Server Error", F5 lại OK.
 - **Gỡ bỏ tính năng thu thập góp ý qua DM NetChat** (`FeedbackMessage` / `poll_feedback`). Lý do: bot bị NetChat soft-suspend lúc 9:30 do `poll_feedback` gọi 44+ API call/phút sau khi bot tự broadcast tin đặt cơm. Phương án sửa root-cause (per-channel cursor / webhook) phức tạp; user quyết định tắt hẳn, bắt buộc góp ý qua web. Xóa: `reviews/feedback_poller.py`, `reviews/management/commands/poll_feedback.py`, model `FeedbackMessage` (migration `0005_delete_feedbackmessage`), cột "Đánh giá từ NetChat" trong trang đánh giá. Trên server: dừng + disable + xóa `poll-feedback.timer/.service` (xem [DEPLOY.md](DEPLOY.md)).
 - (Sửa trước khi quyết tắt) Throttle `poll_feedback` lên 1.2s/call và abort khi 429 — code này đã được xóa cùng feature.
 
