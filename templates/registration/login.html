@@ -168,6 +168,11 @@
             margin-bottom: 18px;
         }
 
+        /* Brand banner trên cùng — chỉ hiện trên mobile (desktop đã có panel trái). */
+        .mobile-brand {
+            display: none;
+        }
+
         @media (max-width: 900px) {
             .login-wrapper {
                 width: 94%;
@@ -179,7 +184,50 @@
             }
 
             .login-right {
-                padding: 42px 28px;
+                padding: 32px 24px;
+            }
+
+            .mobile-brand {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 14px 16px;
+                margin-bottom: 28px;
+                border-radius: 18px;
+                background: linear-gradient(135deg, rgba(6,182,212,0.12), rgba(16,185,129,0.08));
+                border: 1px solid rgba(15,23,42,0.05);
+            }
+
+            .mobile-brand-emoji {
+                font-size: 30px;
+                line-height: 1;
+                flex-shrink: 0;
+            }
+
+            .mobile-brand-text { min-width: 0; }
+
+            .mobile-brand-title {
+                font-size: 18px;
+                font-weight: 800;
+                line-height: 1.1;
+                background: linear-gradient(135deg, #0891b2 0%, #059669 100%);
+                -webkit-background-clip: text;
+                background-clip: text;
+                color: transparent;
+            }
+
+            .mobile-brand-subtitle {
+                font-size: 11px;
+                color: #64748b;
+                margin-top: 3px;
+            }
+
+            .login-title {
+                font-size: 24px;
+            }
+
+            .login-subtitle {
+                margin-bottom: 22px;
             }
         }
     </style>
@@ -189,16 +237,25 @@
 
 <div class="login-wrapper">
     <div class="login-left">
-        <h1>Bếp ăn khu vực 2</h1>
+        <h1>Net2Kitchen</h1>
         <p>QUẢN LÝ THỰC ĐƠN • SUẤT ĂN • CHI PHÍ</p>
 
         <div class="login-brand-bottom">
-            <strong>@CĐS TTKT KV2 - VT NET</strong><br>
-            Hệ thống quản lí bếp ăn
+            <strong>© Ban CĐS – TTKTKV2</strong><br>
+            Hệ thống quản lý bếp ăn
         </div>
     </div>
 
     <div class="login-right">
+        <!-- Brand banner: chỉ hiện trên mobile (desktop đã có panel trái với ảnh nền) -->
+        <div class="mobile-brand">
+            <div class="mobile-brand-emoji">🍱</div>
+            <div class="mobile-brand-text">
+                <div class="mobile-brand-title">Net2Kitchen</div>
+                <div class="mobile-brand-subtitle">Hệ thống quản lý bếp ăn • Ban CĐS – TTKTKV2</div>
+            </div>
+        </div>
+
         <div class="login-title">Đăng nhập</div>
         <div class="login-subtitle">Vui lòng nhập tài khoản để tiếp tục.</div>
 
