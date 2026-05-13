@@ -93,6 +93,7 @@ Hệ thống Quản lý Bếp ăn là giải pháp toàn diện giúp tự độ
 - **Đã deploy + verify trên prod**: service `bep-an` chạy OK sau khi set `SECRET_KEY` + `DJANGO_DEBUG=False` + `DJANGO_ALLOWED_HOSTS` trong systemd. Verify: (1) URL sai → trang 404 ngắn gọn không lộ stack trace; (2) request qua IP (sai host) → 400 Bad Request. Session user cũ bị invalidate do `SECRET_KEY` đổi (expected).
 - [DEPLOY.md](DEPLOY.md): cập nhật danh sách env var trên server (thêm 3 biến mới) + ví dụ block `[Service]` đầy đủ.
 - [TODO.md](TODO.md): đóng mục #3 và #4 bảo mật. Nhóm bảo mật còn lại 2 mục: #1 (đổi DB password), #2 (revoke Gemini API key — đặc biệt cần vì key vừa lộ thêm 1 lần trong session deploy hôm nay).
+- **Bảo mật cookies**: thêm `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE` (auto theo DEBUG), `*_HTTPONLY=True`, `*_SAMESITE='Lax'` và `SECURE_PROXY_SSL_HEADER` vào [config/settings.py](config/settings.py). Chặn XSS steal cookie + đảm bảo cookie chỉ gửi qua HTTPS trên prod. Đã verify Nginx Proxy Manager (container Docker terminate HTTPS) có gửi header `X-Forwarded-Proto` → Django nhận biết HTTPS đúng cách. Fix BLOCKER #2 trong audit prod-readiness 2026-05-13.
 
 ### 2026-05-12
 - Trang Login mobile: thêm "mobile-brand" banner trên cùng (🍱 + "Net2Kitchen" + subtitle) chỉ hiện ở màn hình ≤900px — fix vấn đề user mở trang trên điện thoại không biết đang đăng nhập phần mềm gì (panel trái với ảnh nền bị ẩn trên mobile). Đồng bộ branding panel trái sang "Net2Kitchen" / "© Ban CĐS – TTKTKV2".

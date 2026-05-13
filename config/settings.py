@@ -144,3 +144,23 @@ CSRF_TRUSTED_ORIGINS = [
     'https://net2kitchen.viettel.pro.vn',
     'http://net2kitchen.viettel.pro.vn',
 ]
+
+# =========================
+# SECURITY HEADERS / COOKIES
+# =========================
+# Django đang chạy sau Nginx Proxy Manager (Docker) terminate HTTPS.
+# NPM gửi X-Forwarded-Proto qua proxy.conf chuẩn → Django nhận biết HTTPS.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Cookie chỉ gửi qua HTTPS khi prod (DEBUG=False). Dev (DEBUG=True) vẫn HTTP.
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+
+# Cookie không đọc được từ JavaScript → chặn XSS steal session.
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
+
+# SameSite=Lax: cho phép GET request từ link ngoài (vd email link),
+# chặn POST cross-site (chống CSRF khi user click link malicious).
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
