@@ -137,3 +137,10 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Domain được phép submit form POST qua HTTPS (Django CSRF check).
+# Phải có scheme (https:// / http://). Nếu thêm domain mới, sửa cả ALLOWED_HOSTS.
+CSRF_TRUSTED_ORIGINS = [
+    'https://net2kitchen.viettel.pro.vn',
+    'http://net2kitchen.viettel.pro.vn',
+]
