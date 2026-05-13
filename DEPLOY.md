@@ -173,8 +173,25 @@ Hiện đang set trong `/etc/systemd/system/bep-an.service`:
 
 - `DB_PASSWORD` — mật khẩu PostgreSQL
 - `GEMINI_API_KEY` — Google Gemini API key
+- `SECRET_KEY` — Django secret key (bắt buộc, đừng dùng fallback trong code)
+- `DJANGO_DEBUG` — phải để `False` trên prod (default trong code đã là False, nhưng nên set rõ)
+- `DJANGO_ALLOWED_HOSTS` — `net2kitchen.viettel.pro.vn,127.0.0.1`. Nếu bỏ trống và `DJANGO_DEBUG=False`, Django sẽ từ chối mọi request → 400 Bad Request.
 
 Sửa env var → cần `sudo systemctl daemon-reload` + `sudo systemctl restart <service>`.
+
+Generate `SECRET_KEY` mới:
+```bash
+DB_PASSWORD=<pw> python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+```
+
+Ví dụ block `[Service]` đầy đủ trong `/etc/systemd/system/bep-an.service`:
+```ini
+Environment="DB_PASSWORD=<password>"
+Environment="GEMINI_API_KEY=<api_key>"
+Environment="SECRET_KEY=<generated_key>"
+Environment="DJANGO_DEBUG=False"
+Environment="DJANGO_ALLOWED_HOSTS=net2kitchen.viettel.pro.vn,127.0.0.1"
+```
 
 ---
 

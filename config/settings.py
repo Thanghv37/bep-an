@@ -9,10 +9,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # set trực tiếp trong systemd service nên file này không cần.
 load_dotenv(BASE_DIR / '.env')
 
-SECRET_KEY = 'django-insecure-_75ez(@(w2(s_xm^3!4qv_o38%h+gf1q(p4ho8l7v%(_lpnwjb'
+# SECRET_KEY: trên prod set qua systemd env var. Fallback chỉ dùng cho dev
+# local — KHÔNG được dùng giá trị này trên prod (Django sẽ vẫn chạy nhưng
+# session/CSRF không an toàn).
+SECRET_KEY = os.getenv(
+    'SECRET_KEY',
+    'django-insecure-dev-only-Y*EJCSO8aV@oeAXHBFrcdS9y)V0yspgH7xgqJ5iUAg=zgF4ZPu',
+)
 
-DEBUG = True
-ALLOWED_HOSTS = ['*']
+# Mặc định an toàn (False). Dev set DJANGO_DEBUG=True trong .env để bật trace.
+DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
+
+# Comma-separated. Trên prod: 'net2kitchen.viettel.pro.vn,127.0.0.1'.
+# Khi DEBUG=True và chưa set env, cho phép localhost để dev khỏi 400.
+_allowed_hosts_env = os.getenv('DJANGO_ALLOWED_HOSTS', '')
+if _allowed_hosts_env:
+    ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts_env.split(',') if h.strip()]
+elif DEBUG:
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+else:
+    ALLOWED_HOSTS = []
 
 # =========================
 # APPS

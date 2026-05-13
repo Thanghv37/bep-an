@@ -15,18 +15,15 @@ Password `thanghv37` đã từng nằm trong git history (trước khi tách ra 
 ### 2. Revoke `GEMINI_API_KEY` cũ
 Key cũ đã lộ trong log chat hôm 2026-05-10. Vào https://aistudio.google.com/app/apikey → xóa key cũ → tạo key mới → update vào systemd service.
 
-### 3. Tách `SECRET_KEY` khỏi git
-[config/settings.py](config/settings.py) vẫn có `SECRET_KEY = 'django-insecure-...'` hardcoded. Django warning rõ là `insecure`. Cần làm tương tự cách đã làm với `DB_PASSWORD`:
-```python
-SECRET_KEY = os.getenv('SECRET_KEY', '<fallback>')
-```
-Generate key mới: `python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`
+### 3. ~~Tách `SECRET_KEY` khỏi git~~ — ĐÃ XỬ LÝ (2026-05-13)
+~~[config/settings.py](config/settings.py) vẫn có `SECRET_KEY = 'django-insecure-...'` hardcoded.~~
 
-### 4. Tắt `DEBUG` và siết `ALLOWED_HOSTS` trên prod
-Hiện trên prod: `DEBUG=True`, `ALLOWED_HOSTS=['*']` — lộ stack trace khi lỗi, nhận request từ mọi host. Cần:
-- `DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'`
-- `ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',')`
-- Trên server set: `DJANGO_DEBUG=False`, `DJANGO_ALLOWED_HOSTS=domain.com,127.0.0.1`
+**Đã đóng**: code đọc qua `os.getenv('SECRET_KEY', '<dev fallback>')`. Trên prod **bắt buộc** set `SECRET_KEY` trong systemd (xem [DEPLOY.md](DEPLOY.md) phần Env vars). Fallback trong code có prefix `django-insecure-dev-only-` nên Django check vẫn cảnh báo nếu lỡ chạy prod chưa set env.
+
+### 4. ~~Tắt `DEBUG` và siết `ALLOWED_HOSTS` trên prod~~ — ĐÃ XỬ LÝ (2026-05-13)
+~~Hiện trên prod: `DEBUG=True`, `ALLOWED_HOSTS=['*']`.~~
+
+**Đã đóng**: `DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'` (default an toàn). `ALLOWED_HOSTS` đọc từ `DJANGO_ALLOWED_HOSTS` (CSV), khi DEBUG=True và env rỗng thì fallback `localhost,127.0.0.1` cho dev. Trên prod cần set 2 env này trong systemd — xem [DEPLOY.md](DEPLOY.md).
 
 ---
 
@@ -87,3 +84,4 @@ Khi mở trang heavy Bootstrap (vd `/users/`), thấy ~0.5s "raw flash" trước
 - 2026-05-11: Thêm mục #12 (FOUC do Bootstrap CDN chậm) sau khi user thấy 0.5s raw flash khi load trang Quản lý người dùng.
 - 2026-05-12: Cập nhật mục #6 — bổ sung điểm "gọi API thừa sau broadcast" sau sự cố bot bị soft-suspend lúc 9:30 do poll_feedback gọi 44 channels với throttle 0.2s (~220 req/min). Đã quick-mitigate bằng throttle 1.2s; root-cause fix vẫn cần per-channel cursor.
 - 2026-05-12: Đóng mục #6 — user quyết định gỡ hẳn tính năng thu thập góp ý qua DM NetChat (bắt buộc góp ý qua web). Code + model + migration đã xóa.
+- 2026-05-13: Đóng mục #3 + #4 — tách `SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS` ra env var. Code default an toàn cho prod (DEBUG=False, ALLOWED_HOSTS=[]); dev fallback localhost. [DEPLOY.md](DEPLOY.md) đã cập nhật ví dụ systemd.

@@ -61,23 +61,40 @@
         }
 
         .brand-box {
-            padding: 14px 14px 16px;
+            padding: 16px 14px;
             border-radius: 20px;
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.08);
+            background: linear-gradient(135deg, rgba(6,182,212,0.10), rgba(16,185,129,0.06));
+            border: 1px solid rgba(255,255,255,0.10);
             margin-bottom: 22px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
+
+        .brand-emoji {
+            font-size: 28px;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        .brand-text { min-width: 0; }
 
         .brand-title {
             font-size: 20px;
             font-weight: 800;
-            margin-bottom: 8px;
-            line-height: 1.35;
+            line-height: 1.1;
+            letter-spacing: 0.2px;
+            background: linear-gradient(135deg, #67e8f9 0%, #6ee7b7 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
         }
 
         .brand-subtitle {
-            font-size: 13px;
-            color: #cbd5e1;
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 4px;
+            letter-spacing: 0.3px;
         }
 
         .menu-section-title {
@@ -568,25 +585,24 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                gap: 0 !important;
             }
 
-            .brand-box::before {
-                content: "🍱";
-                font-size: 24px;
+            .brand-text {
+                display: none;
             }
 
             .sidebar:hover .brand-box {
                 height: auto;
-                padding: 14px 14px 16px !important;
+                padding: 16px 14px !important;
+                justify-content: flex-start;
+                gap: 12px !important;
+            }
+
+            .sidebar:hover .brand-text {
                 display: block;
             }
 
-            .sidebar:hover .brand-box::before {
-                content: "";
-            }
-
-            .brand-title,
-            .brand-subtitle,
             .menu-section-title,
             .sidebar .nav-link span,
             .sidebar-user .user-name,
@@ -595,8 +611,6 @@
                 display: none !important;
             }
 
-            .sidebar:hover .brand-title,
-            .sidebar:hover .brand-subtitle,
             .sidebar:hover .menu-section-title,
             .sidebar:hover .nav-link span,
             .sidebar:hover .sidebar-user .user-name,
@@ -678,8 +692,11 @@
     
         <div>
             <div class="brand-box">
-                <div class="brand-title">🍱 Hệ thống quản lí bếp ăn</div>
-                <div class="brand-subtitle">@ CĐS Team - KV2</div>
+                <div class="brand-emoji">🍱</div>
+                <div class="brand-text">
+                    <div class="brand-title">Net2Kitchen</div>
+                    <div class="brand-subtitle">© Ban CĐS – TTKTKV2</div>
+                </div>
             </div>
 
             <div class="menu-section-title">Điều hướng</div>
