@@ -32,7 +32,7 @@ Key cũ đã lộ trong log chat hôm 2026-05-10. Vào https://aistudio.google.c
 
 ### Audit prod-readiness — còn chưa làm
 
-- **Backup PostgreSQL chưa có** (BLOCKER #3 audit): cần soạn systemd timer `pg_dump` hàng ngày, giữ 7 bản gần nhất.
+- **~~Backup PostgreSQL chưa có~~** (BLOCKER #3 audit) — ĐÃ XỬ LÝ (2026-05-13): systemd timer `db-backup.timer` chạy 19:00 UTC (02:00 VN), giữ 7 bản tại `/home/ipcdkv2/db_backups/`. Unit + script trong [scripts/](scripts/). Setup + recovery instructions trong [DEPLOY.md](DEPLOY.md).
 - **Registrations import Excel không có `transaction.atomic`** (HIGH): [registrations/import_utils.py](registrations/import_utils.py) cần wrap để tránh half-imported state.
 - **Custom 404/500.html template** (HIGH): hiện đang dùng default Django, UX kém khi gặp lỗi.
 - **AI call sync 30-60s** (HIGH UX): cần thêm spinner JS "AI đang nghĩ..." để UX rõ ràng hơn.
@@ -101,3 +101,4 @@ Khi mở trang heavy Bootstrap (vd `/users/`), thấy ~0.5s "raw flash" trước
 - 2026-05-12: Đóng mục #6 — user quyết định gỡ hẳn tính năng thu thập góp ý qua DM NetChat (bắt buộc góp ý qua web). Code + model + migration đã xóa.
 - 2026-05-13: Đóng mục #3 + #4 — tách `SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS` ra env var. Code default an toàn cho prod (DEBUG=False, ALLOWED_HOSTS=[]); dev fallback localhost. [DEPLOY.md](DEPLOY.md) đã cập nhật ví dụ systemd.
 - 2026-05-13: Audit prod-readiness cho 200 user. Đóng thêm 2 mục: cookie security flags (Secure/HttpOnly/SameSite/SECURE_PROXY_SSL_HEADER) và OTP brute-force protection (lock 15 phút sau 10 lần sai, rate limit 60s, UI "Gửi lại mã"). Còn lại: backup PostgreSQL, atomic import registrations, custom 404/500, AI spinner, image MIME, DB index, OTP logging.
+- 2026-05-13: Đóng audit BLOCKER #3 — backup PostgreSQL daily. Systemd timer ở `scripts/`. Cũng đóng 3 UX nhỏ trong phiên: disable nút "Gửi tin nhắn" khi đang gửi, format ngày DD-MM-YYYY, biến `{meal_count}` cho tin báo cơm.

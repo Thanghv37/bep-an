@@ -155,9 +155,66 @@ ls reviews/management/commands/  # file phải tồn tại
 
 ## 📅 Cron / systemd timer trên server
 
-Hiện không có timer nào. (Trước đây có `poll-feedback.timer` để quét DM NetChat — đã gỡ bỏ 2026-05-12 vì gây vi phạm rate limit của NetChat. Tham khảo phần "Tắt poll-feedback" dưới đây nếu service vẫn còn trên server.)
+### `db-backup.timer` — backup PostgreSQL hàng ngày
 
-### Tắt `poll-feedback` (chạy 1 lần trên server)
+Backup bep_an DB ra `/home/ipcdkv2/db_backups/` mỗi ngày lúc 02:00 VN (19:00 UTC server time). Giữ 7 bản gần nhất, tự xoá bản cũ. Unit file commit trong [scripts/](scripts/) của repo.
+
+**Setup lần đầu (chạy 1 lần trên server, sau khi pull về có folder scripts/):**
+
+```bash
+# 1. Cấp quyền execute cho script
+chmod +x ~/thanghv37/scripts/db_backup.sh
+
+# 2. Symlink unit files vào systemd
+sudo ln -sf /home/ipcdkv2/thanghv37/scripts/db-backup.service /etc/systemd/system/db-backup.service
+sudo ln -sf /home/ipcdkv2/thanghv37/scripts/db-backup.timer /etc/systemd/system/db-backup.timer
+
+# 3. Reload systemd để nhận unit mới
+sudo systemctl daemon-reload
+
+# 4. Test backup ngay lần đầu (thủ công) — verify script chạy OK
+sudo systemctl start db-backup.service
+sudo systemctl status db-backup.service
+ls -lh ~/db_backups/
+
+# 5. Bật timer chạy daily
+sudo systemctl enable --now db-backup.timer
+
+# 6. Verify timer đã schedule
+sudo systemctl list-timers | grep db-backup
+```
+
+**Recovery — phục hồi DB từ backup (khi có sự cố):**
+
+```bash
+# Liệt kê bản backup có sẵn
+ls -lht ~/db_backups/
+
+# CẢNH BÁO: lệnh dưới sẽ XOÁ TOÀN BỘ DB hiện tại và thay bằng bản backup.
+# Stop bep-an trước để tránh ghi đè trong khi restore:
+sudo systemctl stop bep-an.service
+
+# Drop + recreate DB:
+sudo -u postgres psql -c "DROP DATABASE bep_an;"
+sudo -u postgres psql -c "CREATE DATABASE bep_an OWNER postgres;"
+
+# Restore từ file backup cụ thể:
+gunzip < ~/db_backups/bep_an_2026-05-13_190000.sql.gz | sudo -u postgres psql bep_an
+
+# Bật lại app
+sudo systemctl start bep-an.service
+sudo systemctl status bep-an.service
+```
+
+**Debug khi backup fail:**
+```bash
+sudo journalctl -u db-backup.service -n 50 --no-pager
+sudo systemctl status db-backup.timer    # xem lần chạy gần nhất + lần chạy tiếp theo
+```
+
+### `poll-feedback` (đã gỡ bỏ 2026-05-12)
+
+Nếu service vẫn còn trên server, xoá:
 ```bash
 sudo systemctl stop poll-feedback.timer poll-feedback.service
 sudo systemctl disable poll-feedback.timer poll-feedback.service

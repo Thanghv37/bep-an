@@ -1,0 +1,13 @@
+[Unit]
+Description=Daily PostgreSQL backup at 19:00 server time (= 02:00 Vietnam)
+Requires=db-backup.service
+
+[Timer]
+# Server đang chạy giờ UTC. 19:00 UTC = 02:00 sáng VN ngày kế tiếp.
+# Persistent=true: nếu server tắt qua giờ schedule, sẽ chạy bù khi bật lên.
+OnCalendar=*-*-* 19:00:00
+Persistent=true
+Unit=db-backup.service
+
+[Install]
+WantedBy=timers.target

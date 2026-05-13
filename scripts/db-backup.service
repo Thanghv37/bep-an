@@ -1,0 +1,11 @@
+[Unit]
+Description=Backup PostgreSQL bep_an database
+Wants=postgresql.service
+After=postgresql.service
+
+[Service]
+Type=oneshot
+ExecStart=/home/ipcdkv2/thanghv37/scripts/db_backup.sh
+User=root
+StandardOutput=journal
+StandardError=journal
