@@ -13,6 +13,11 @@
         .otp-input { letter-spacing: 15px; font-size: 32px; font-weight: 800; text-align: center; border-radius: 16px; height: 70px; border: 2px solid #e2e8f0; }
         .otp-input:focus { border-color: #2563eb; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1); }
         .timer { font-weight: 700; color: #dc2626; background: #fef2f2; padding: 5px 15px; border-radius: 20px; display: inline-block; }
+        .lock-banner { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 14px; border-radius: 12px; font-size: 14px; margin-bottom: 16px; }
+        .lock-banner strong { font-size: 18px; display: block; margin-top: 4px; color: #dc2626; }
+        .btn-resend { background: transparent; border: none; color: #2563eb; font-weight: 600; font-size: 14px; padding: 0; cursor: pointer; }
+        .btn-resend:disabled { color: #94a3b8; cursor: not-allowed; }
+        .resend-row { margin-top: 14px; font-size: 14px; color: #64748b; }
     </style>
 </head>
 <body>
@@ -26,45 +31,110 @@
 
     {% if messages %}
         {% for message in messages %}
-            <div class="alert alert-danger py-2 small">{{ message }}</div>
+            <div class="alert alert-{% if message.tags == 'success' %}success{% else %}danger{% endif %} py-2 small">{{ message }}</div>
         {% endfor %}
     {% endif %}
 
-    <form method="post">
+    {% if lock_seconds_remaining > 0 %}
+        <div class="lock-banner">
+            <i class="bi bi-shield-lock"></i> Tài khoản tạm khoá do nhập sai quá nhiều.
+            <strong>Mở khoá sau: <span id="lockCountdown">--:--</span></strong>
+        </div>
+    {% endif %}
+
+    <form method="post" action="{% url 'verify_otp' %}">
         {% csrf_token %}
         <div class="mb-4">
-            <input type="text" name="otp_code" class="form-control otp-input" maxlength="6" placeholder="000000" autofocus required>
+            <input type="text" name="otp_code" class="form-control otp-input" maxlength="6"
+                   placeholder="000000" autofocus required
+                   {% if lock_seconds_remaining > 0 %}disabled{% endif %}>
             <div class="mt-3 small text-muted">Mã hết hạn sau: <span id="countdown" class="timer">10:00</span></div>
         </div>
 
-        <button type="submit" class="btn btn-primary w-100 fw-bold py-3 mb-3" style="border-radius: 14px;">
+        <button type="submit" id="verifyBtn"
+                class="btn btn-primary w-100 fw-bold py-3 mb-2" style="border-radius: 14px;"
+                {% if lock_seconds_remaining > 0 %}disabled{% endif %}>
             XÁC NHẬN ĐĂNG NHẬP
         </button>
+    </form>
 
+    <div class="resend-row">
+        Không nhận được mã?
+        <form method="post" action="{% url 'resend_otp' %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" id="resendBtn" class="btn-resend"
+                    {% if resend_seconds_remaining > 0 %}disabled{% endif %}>
+                Gửi lại mã<span id="resendCooldown"></span>
+            </button>
+        </form>
+    </div>
+
+    <div class="mt-3">
         <a href="{% url 'login' %}" class="text-decoration-none small fw-bold text-secondary">
             <i class="bi bi-arrow-left"></i> Quay lại nhập mã nhân viên
         </a>
-    </form>
+    </div>
 </div>
 
 <script>
-    // Logic đếm ngược 10 phút
-    let time = 600; // 10 phút = 600 giây
-    const display = document.getElementById('countdown');
+    // 1. Đếm ngược hạn OTP 10 phút
+    (function () {
+        let time = 600;
+        const display = document.getElementById('countdown');
+        const timer = setInterval(function () {
+            const minutes = Math.floor(time / 60);
+            let seconds = time % 60;
+            seconds = seconds < 10 ? '0' + seconds : seconds;
+            display.innerHTML = minutes + ":" + seconds;
+            if (--time < 0) {
+                clearInterval(timer);
+                display.innerHTML = "HẾT HẠN";
+            }
+        }, 1000);
+    })();
 
-    const timer = setInterval(function () {
-        let minutes = Math.floor(time / 60);
-        let seconds = time % 60;
-        seconds = seconds < 10 ? '0' + seconds : seconds;
-        display.innerHTML = minutes + ":" + seconds;
-        
-        if (--time < 0) {
-            clearInterval(timer);
-            display.innerHTML = "HẾT HẠN";
-            alert("Mã OTP đã hết hạn, vui lòng yêu cầu mã mới.");
-            window.location.href = "{% url 'login' %}";
+    // 2. Cooldown nút "Gửi lại mã"
+    (function () {
+        let cooldown = parseInt("{{ resend_seconds_remaining|default:0 }}", 10) || 60;
+        const btn = document.getElementById('resendBtn');
+        const label = document.getElementById('resendCooldown');
+        if (!btn) return;
+        function tick() {
+            if (cooldown <= 0) {
+                btn.disabled = false;
+                label.textContent = '';
+                return;
+            }
+            btn.disabled = true;
+            label.textContent = ' (' + cooldown + 's)';
+            cooldown -= 1;
+            setTimeout(tick, 1000);
         }
-    }, 1000);
+        tick();
+    })();
+
+    // 3. Lock banner countdown — khi hết khoá thì reload trang để mở form
+    (function () {
+        const lockSec = parseInt("{{ lock_seconds_remaining|default:0 }}", 10);
+        if (!lockSec || lockSec <= 0) return;
+        let remain = lockSec;
+        const el = document.getElementById('lockCountdown');
+        function fmt(s) {
+            const m = Math.floor(s / 60);
+            const ss = s % 60;
+            return m + ':' + (ss < 10 ? '0' + ss : ss);
+        }
+        el.textContent = fmt(remain);
+        const t = setInterval(function () {
+            remain -= 1;
+            if (remain <= 0) {
+                clearInterval(t);
+                window.location.reload();
+                return;
+            }
+            el.textContent = fmt(remain);
+        }, 1000);
+    })();
 </script>
 
 </body>

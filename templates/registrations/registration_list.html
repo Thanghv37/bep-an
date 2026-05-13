@@ -629,51 +629,90 @@
         logDateInput.addEventListener('change', fetchNotificationLogs);
 
         // Xử lý khi nhấn "Gửi tin nhắn"
+        const originalBtnHtml = btnSend.innerHTML;
+        let sendingTimer = null;
+
+        function fmtMinSec(totalSec) {
+            const m = Math.floor(totalSec / 60);
+            const s = totalSec % 60;
+            return m + ":" + (s < 10 ? '0' + s : s);
+        }
+
+        function startSendingCountdown(totalSeconds, totalPeople) {
+            // Backend gửi 15 tin/phút (15 tin liên tiếp rồi sleep 60s). Ước
+            // tính: ~75s mỗi batch 15 người. Giữ nút disable đến hết tiến trình
+            // để user không spam-click trong khi job chạy nền.
+            let remain = totalSeconds;
+            btnSend.disabled = true;
+            btnSend.classList.add('opacity-50');
+            const update = () => {
+                btnSend.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Đang gửi (${totalPeople} người) - còn ${fmtMinSec(remain)}`;
+                if (remain <= 0) {
+                    clearInterval(sendingTimer);
+                    sendingTimer = null;
+                    btnSend.disabled = false;
+                    btnSend.classList.remove('opacity-50');
+                    btnSend.innerHTML = originalBtnHtml;
+                    updateCount();
+                    return;
+                }
+                remain -= 1;
+            };
+            update();
+            sendingTimer = setInterval(update, 1000);
+        }
+
         btnSend.addEventListener('click', function () {
+            // Nếu job đang chạy → bỏ qua (nút đã disabled, đây chỉ là double-guard).
+            if (btnSend.disabled || sendingTimer) return;
+
             const selectedIds = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
             if (selectedIds.length === 0) return;
 
             if (!confirm(`Bạn sẽ gửi tin nhắn báo cơm cho ${selectedIds.length} người. Hệ thống sẽ gửi từ từ 15 người/phút trong nền. Tiếp tục?`)) return;
 
-            // Đổi màu và text nút để biết đang xử lý
-            const originalHtml = btnSend.innerHTML;
-            btnSend.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Đang đẩy...';
-            btnSend.disabled = true;
+            const N = selectedIds.length;
+            // Ước tính thời gian: mỗi batch 15 người mất ~75s (1.5s/tin * 15 + 60s sleep).
+            // Người cuối không cần sleep sau đó. Cộng 15s buffer cho an toàn.
+            const estimatedSec = Math.max(15, Math.ceil(N / 15) * 75 + 15);
 
-            // Gọi API gửi tin
+            // Đổi nút sang trạng thái "đang gửi" trước khi fetch để user thấy ngay.
+            btnSend.disabled = true;
+            btnSend.classList.add('opacity-50');
+            btnSend.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang đẩy lệnh...';
+
             fetch("{% url 'send_meal_notifications' %}", {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}' // Bắt buộc có CSRF Token
+                    'X-CSRFToken': '{{ csrf_token }}'
                 },
                 body: JSON.stringify({
                     employee_codes: selectedIds,
-                    date: document.querySelector('input[name="date"]').value // Lấy ngày hiện tại đang xem
+                    date: document.querySelector('input[name="date"]').value
                 })
             })
                 .then(res => res.json())
                 .then(data => {
-                    btnSend.innerHTML = originalHtml;
-                    btnSend.disabled = false;
-
                     if (data.success) {
-                        alert("Đã đẩy tiến trình vào chạy nền! Bạn có thể làm việc khác. Ấn nút 'Xem danh sách' ở góc trên bên phải để kiểm tra tiến độ.");
-                        // Bỏ tick hết sau khi gửi lệnh thành công
+                        // Bỏ tick + bắt đầu countdown disable đến hết job.
                         if (checkAll) checkAll.checked = false;
                         rowCheckboxes.forEach(cb => cb.checked = false);
-                        updateCount();
-
-                        // Tự động tải lại log sau khi push lệnh
                         setTimeout(fetchNotificationLogs, 1000);
+                        startSendingCountdown(estimatedSec, N);
                     } else {
+                        // Lỗi → mở lại nút.
+                        btnSend.disabled = false;
+                        btnSend.classList.remove('opacity-50');
+                        btnSend.innerHTML = originalBtnHtml;
                         alert("Lỗi: " + data.message);
                     }
                 })
                 .catch(err => {
                     console.error(err);
-                    btnSend.innerHTML = originalHtml;
                     btnSend.disabled = false;
+                    btnSend.classList.remove('opacity-50');
+                    btnSend.innerHTML = originalBtnHtml;
                     alert("Đã xảy ra lỗi kết nối.");
                 });
         });

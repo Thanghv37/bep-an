@@ -25,6 +25,21 @@ Key cũ đã lộ trong log chat hôm 2026-05-10. Vào https://aistudio.google.c
 
 **Đã đóng**: `DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'` (default an toàn). `ALLOWED_HOSTS` đọc từ `DJANGO_ALLOWED_HOSTS` (CSV), khi DEBUG=True và env rỗng thì fallback `localhost,127.0.0.1` cho dev. Trên prod cần set 2 env này trong systemd — xem [DEPLOY.md](DEPLOY.md).
 
+### Audit prod-readiness 2026-05-13 — các mục đã đóng
+
+- **~~Cookie session/CSRF thiếu Secure/HttpOnly/SameSite~~** (2026-05-13): đã thêm `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`, `*_HTTPONLY`, `*_SAMESITE='Lax'`, `SECURE_PROXY_SSL_HEADER` vào [config/settings.py](config/settings.py). Verify cookie trên browser đã có đủ flag.
+- **~~OTP không có rate limit / brute-force protection~~** (2026-05-13): đã thêm 3 field vào `UserProfile` + lock 15 phút sau 10 lần sai + rate limit 60s/request + UI "Gửi lại mã" có countdown. Code ở [accounts/views.py](accounts/views.py) + [accounts/models.py](accounts/models.py) + template [otp_verify.html](templates/registration/otp_verify.html). Migration `0008_userprofile_otp_failed_attempts_and_more`.
+
+### Audit prod-readiness — còn chưa làm
+
+- **Backup PostgreSQL chưa có** (BLOCKER #3 audit): cần soạn systemd timer `pg_dump` hàng ngày, giữ 7 bản gần nhất.
+- **Registrations import Excel không có `transaction.atomic`** (HIGH): [registrations/import_utils.py](registrations/import_utils.py) cần wrap để tránh half-imported state.
+- **Custom 404/500.html template** (HIGH): hiện đang dùng default Django, UX kém khi gặp lỗi.
+- **AI call sync 30-60s** (HIGH UX): cần thêm spinner JS "AI đang nghĩ..." để UX rõ ràng hơn.
+- **Image upload không validate MIME type** (MEDIUM): cần thêm clean method ở form.
+- **DB index thiếu** (MEDIUM): `MealRegistration.date`, `employee_code`, `AttendanceLog.scan_time`.
+- **OTP request không log** (MEDIUM): khó debug khi user kêu "không nhận tin nhắn".
+
 ---
 
 ## 🟡 Tính năng
@@ -85,3 +100,4 @@ Khi mở trang heavy Bootstrap (vd `/users/`), thấy ~0.5s "raw flash" trước
 - 2026-05-12: Cập nhật mục #6 — bổ sung điểm "gọi API thừa sau broadcast" sau sự cố bot bị soft-suspend lúc 9:30 do poll_feedback gọi 44 channels với throttle 0.2s (~220 req/min). Đã quick-mitigate bằng throttle 1.2s; root-cause fix vẫn cần per-channel cursor.
 - 2026-05-12: Đóng mục #6 — user quyết định gỡ hẳn tính năng thu thập góp ý qua DM NetChat (bắt buộc góp ý qua web). Code + model + migration đã xóa.
 - 2026-05-13: Đóng mục #3 + #4 — tách `SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS` ra env var. Code default an toàn cho prod (DEBUG=False, ALLOWED_HOSTS=[]); dev fallback localhost. [DEPLOY.md](DEPLOY.md) đã cập nhật ví dụ systemd.
+- 2026-05-13: Audit prod-readiness cho 200 user. Đóng thêm 2 mục: cookie security flags (Secure/HttpOnly/SameSite/SECURE_PROXY_SSL_HEADER) và OTP brute-force protection (lock 15 phút sau 10 lần sai, rate limit 60s, UI "Gửi lại mã"). Còn lại: backup PostgreSQL, atomic import registrations, custom 404/500, AI spinner, image MIME, DB index, OTP logging.

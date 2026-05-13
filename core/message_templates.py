@@ -26,7 +26,7 @@ DEFAULT_OTP = (
 
 DEFAULT_MEAL = (
     "Xin chào **{full_name}**,\n\n"
-    "🍽️ Hệ thống xác nhận bạn đã đăng ký **{meal_name}** "
+    "🍽️ Xác nhận: Bạn đã đăng ký **{meal_count} suất ăn {meal_name}** "
     "ngày **{target_date}** tại **{kitchen_name}**.\n"
     "Chúc bạn ngon miệng!"
 )
@@ -43,7 +43,8 @@ VARS_MEAL = [
     ('full_name', 'Họ và tên người nhận'),
     ('employee_code', 'Mã nhân viên'),
     ('meal_name', 'Tên bữa ăn (sáng/trưa/tối)'),
-    ('target_date', 'Ngày ăn'),
+    ('meal_count', 'Số lượng suất ăn (zero-pad: 01, 02, …)'),
+    ('target_date', 'Ngày ăn (định dạng DD-MM-YYYY)'),
     ('kitchen_name', 'Tên bếp'),
 ]
 

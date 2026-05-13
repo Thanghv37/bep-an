@@ -35,74 +35,122 @@ from .forms import ImportUserForm, UserCreateForm, UserUpdateForm
 from .import_utils import import_users_from_excel
 from .models import OTPToken, UserProfile
 
-# --- HÀM 1: GỬI MÃ OTP QUA NETCHAT ---
+# --- HELPER: GỬI OTP QUA NETCHAT ---
+def _send_otp_netchat(user_profile):
+    """Tạo OTP mới + invalidate mã cũ + gửi NetChat. Trả về (ok, error_msg)."""
+    employee_code = user_profile.employee_code
+    email = user_profile.email
+    if not email:
+        return False, "Tài khoản chưa cập nhật Email, không thể gửi OTP."
+
+    config_url = SystemConfig.objects.filter(key='netchat_url').first()
+    config_token = SystemConfig.objects.filter(key='netchat_token').first()
+    if not config_url or not config_token:
+        return False, "Hệ thống chưa cấu hình BOT. Vui lòng liên hệ Admin."
+
+    # Vô hiệu hoá toàn bộ OTP cũ chưa dùng → tránh user nhập nhầm mã cũ.
+    OTPToken.objects.filter(employee_code=employee_code, is_used=False).update(is_used=True)
+
+    otp_code = str(secrets.randbelow(900000) + 100000)
+    OTPToken.objects.create(employee_code=employee_code, otp_code=otp_code)
+
+    url = config_url.value.strip().rstrip('/')
+    token = config_token.value.strip()
+    username = email.split('@')[0].strip().lower()
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "User-Agent": "curl/8.7.1",
+    }
+
+    try:
+        r_me = requests.get(f"{url}/api/v4/users/me", headers=headers, timeout=5)
+        r_user = requests.get(f"{url}/api/v4/users/username/{username}", headers=headers, timeout=5)
+        if r_me.status_code != 200 or r_user.status_code != 200:
+            return False, "Không thể gửi tin nhắn qua NetChat. Hãy chắc chắn bạn đã đăng nhập NetChat."
+
+        bot_id = r_me.json().get('id')
+        user_mm_id = r_user.json().get('id')
+        r_chan = requests.post(f"{url}/api/v4/channels/direct", headers=headers, json=[bot_id, user_mm_id], timeout=5)
+        channel_id = r_chan.json().get('id')
+
+        msg = render_template(
+            get_otp_template(),
+            otp_code=otp_code,
+            employee_code=employee_code,
+            full_name=user_profile.full_name or '',
+        )
+        requests.post(f"{url}/api/v4/posts", headers=headers, json={"channel_id": channel_id, "message": msg}, timeout=5)
+    except requests.RequestException:
+        return False, "Lỗi kết nối tới NetChat. Vui lòng thử lại."
+
+    user_profile.mark_otp_sent()
+    return True, ""
+
+
+# --- HÀM 1: GỬI MÃ OTP QUA NETCHAT (từ trang login) ---
 def request_otp(request):
-    if request.method == 'POST':
-        employee_code = request.POST.get('employee_code', '').strip()
-        
-        try:
-            # 1. Kiểm tra nhân viên có tồn tại không
-            user_profile = UserProfile.objects.get(employee_code=employee_code)
-            email = user_profile.email
-            if not email:
-                messages.error(request, "Tài khoản chưa cập nhật Email, không thể gửi OTP.")
-                return redirect('login')
-            
-            # 2. Tạo mã OTP 6 số (Dùng secrets cho bảo mật giống Net2ID)
-            otp_code = str(secrets.randbelow(900000) + 100000)
-            
-            # 3. Lưu OTP vào Database
-            OTPToken.objects.create(employee_code=employee_code, otp_code=otp_code)
-            
-            # 4. Lấy cấu hình Bot để gửi tin
-            config_url = SystemConfig.objects.filter(key='netchat_url').first()
-            config_token = SystemConfig.objects.filter(key='netchat_token').first()
-            
-            if not config_url or not config_token:
-                messages.error(request, "Hệ thống chưa cấu hình BOT. Vui lòng liên hệ Admin.")
-                return redirect('login')
+    if request.method != 'POST':
+        return redirect('login')
 
-            # 5. Tiến hành gửi qua NetChat
-            url = config_url.value.strip().rstrip('/')
-            token = config_token.value.strip()
-            username = email.split('@')[0].strip().lower()
-            
-            headers = {
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
-                "User-Agent": "curl/8.7.1" # Vượt tường lửa
-            }
+    employee_code = request.POST.get('employee_code', '').strip()
+    try:
+        user_profile = UserProfile.objects.get(employee_code=employee_code)
+    except UserProfile.DoesNotExist:
+        messages.error(request, "Mã nhân viên không tồn tại trong hệ thống.")
+        return redirect('login')
 
-            # A. Lấy ID của Bot và User
-            r_me = requests.get(f"{url}/api/v4/users/me", headers=headers, timeout=5)
-            r_user = requests.get(f"{url}/api/v4/users/username/{username}", headers=headers, timeout=5)
-            
-            if r_me.status_code == 200 and r_user.status_code == 200:
-                bot_id = r_me.json().get('id')
-                user_mm_id = r_user.json().get('id')
-                
-                # B. Mở kênh DM và gửi tin
-                r_chan = requests.post(f"{url}/api/v4/channels/direct", headers=headers, json=[bot_id, user_mm_id])
-                channel_id = r_chan.json().get('id')
-                
-                msg = render_template(
-                    get_otp_template(),
-                    otp_code=otp_code,
-                    employee_code=employee_code,
-                    full_name=user_profile.full_name or '',
-                )
-                requests.post(f"{url}/api/v4/posts", headers=headers, json={"channel_id": channel_id, "message": msg})
-                
-                # 6. Thành công: Lưu employee_code vào session và chuyển sang trang nhập mã
-                request.session['pending_employee_code'] = employee_code
-                return redirect('verify_otp')
-            else:
-                messages.error(request, "Không thể gửi tin nhắn qua NetChat. Hãy chắc chắn bạn đã đăng nhập NetChat.")
-                
-        except UserProfile.DoesNotExist:
-            messages.error(request, "Mã nhân viên không tồn tại trong hệ thống.")
-            
-    return redirect('login')
+    # Tài khoản đang khoá → không gửi OTP, đưa user về verify_otp để thấy
+    # countdown mở khoá thay vì spam NetChat thêm mã vô ích.
+    if user_profile.is_otp_locked():
+        request.session['pending_employee_code'] = employee_code
+        return redirect('verify_otp')
+
+    # Rate limit 60s/lần per employee_code (chống spam request).
+    cooldown = user_profile.otp_resend_seconds_remaining()
+    if cooldown > 0:
+        messages.error(request, f"Vui lòng đợi {cooldown} giây trước khi yêu cầu mã mới.")
+        return redirect('login')
+
+    ok, err = _send_otp_netchat(user_profile)
+    if not ok:
+        messages.error(request, err)
+        return redirect('login')
+
+    request.session['pending_employee_code'] = employee_code
+    return redirect('verify_otp')
+
+
+# --- HÀM 1B: GỬI LẠI MÃ OTP (từ trang verify) ---
+def resend_otp(request):
+    if request.method != 'POST':
+        return redirect('verify_otp')
+
+    employee_code = request.session.get('pending_employee_code')
+    if not employee_code:
+        return redirect('login')
+
+    try:
+        user_profile = UserProfile.objects.get(employee_code=employee_code)
+    except UserProfile.DoesNotExist:
+        return redirect('login')
+
+    if user_profile.is_otp_locked():
+        messages.error(request, "Tài khoản đang khoá, không thể gửi mã mới cho đến khi hết khoá.")
+        return redirect('verify_otp')
+
+    cooldown = user_profile.otp_resend_seconds_remaining()
+    if cooldown > 0:
+        messages.error(request, f"Vui lòng đợi {cooldown} giây trước khi gửi lại.")
+        return redirect('verify_otp')
+
+    ok, err = _send_otp_netchat(user_profile)
+    if not ok:
+        messages.error(request, err)
+    else:
+        messages.success(request, "Đã gửi lại mã OTP. Kiểm tra NetChat của bạn.")
+    return redirect('verify_otp')
+
 
 # --- HÀM 2: XÁC THỰC OTP VÀ ĐĂNG NHẬP ---
 def verify_otp(request):
@@ -110,48 +158,53 @@ def verify_otp(request):
     if not employee_code:
         return redirect('login')
 
+    try:
+        user_profile = UserProfile.objects.get(employee_code=employee_code)
+    except UserProfile.DoesNotExist:
+        return redirect('login')
+
     if request.method == 'POST':
-        otp_input = request.POST.get('otp_code', '').strip()
-        
-        # Lấy mã OTP mới nhất
-        otp_record = OTPToken.objects.filter(
-            employee_code=employee_code, 
-            otp_code=otp_input,
-            is_used=False
-        ).order_by('-created_at').first()
-
-        if otp_record and otp_record.is_valid():
-            otp_record.is_used = True
-            otp_record.save()
-            
-            try:
-                user = User.objects.get(username=employee_code)
-                
-                # BẮT BUỘC: Gán backend xác thực để Django duy trì phiên đăng nhập
-                if not hasattr(user, 'backend'):
-                    user.backend = 'django.contrib.auth.backends.ModelBackend'
-                
-                # Đăng nhập vào hệ thống
-                auth_login(request, user)
-                
-                # Tối ưu: Lưu session ngay lập tức để tránh lỗi race condition
-                request.session.modified = True 
-                
-                # Xóa mã tạm trong session
-                if 'pending_employee_code' in request.session:
-                    del request.session['pending_employee_code']
-                
-                messages.success(request, f"Đăng nhập thành công! Chào {user.first_name or user.username}.")
-                
-                # YÊU CẦU: 100% chuyển hướng về Dashboard chính
-                return redirect('/') 
-                
-            except User.DoesNotExist:
-                messages.error(request, "Lỗi: Tài khoản không tồn tại.")
+        # Chặn verify nếu đang bị khoá (request thì vẫn cho phép).
+        if user_profile.is_otp_locked():
+            messages.error(request, "Tài khoản tạm khoá do nhập sai nhiều lần. Vui lòng đợi.")
         else:
-            messages.error(request, "Mã OTP không chính xác hoặc đã hết hạn.")
+            otp_input = request.POST.get('otp_code', '').strip()
+            otp_record = OTPToken.objects.filter(
+                employee_code=employee_code,
+                otp_code=otp_input,
+                is_used=False,
+            ).order_by('-created_at').first()
 
-    return render(request, 'registration/otp_verify.html', {'employee_code': employee_code})
+            if otp_record and otp_record.is_valid():
+                otp_record.is_used = True
+                otp_record.save()
+                user_profile.reset_otp_attempts()
+                try:
+                    user = User.objects.get(username=employee_code)
+                    if not hasattr(user, 'backend'):
+                        user.backend = 'django.contrib.auth.backends.ModelBackend'
+                    auth_login(request, user)
+                    request.session.modified = True
+                    if 'pending_employee_code' in request.session:
+                        del request.session['pending_employee_code']
+                    messages.success(request, f"Đăng nhập thành công! Chào {user.first_name or user.username}.")
+                    return redirect('/')
+                except User.DoesNotExist:
+                    messages.error(request, "Lỗi: Tài khoản không tồn tại.")
+            else:
+                user_profile.register_otp_failure()
+                user_profile.refresh_from_db()
+                if user_profile.is_otp_locked():
+                    messages.error(request, f"Bạn đã nhập sai quá {UserProfile.OTP_MAX_FAILED} lần. Tài khoản bị tạm khoá {UserProfile.OTP_LOCK_MINUTES} phút.")
+                else:
+                    remain = UserProfile.OTP_MAX_FAILED - user_profile.otp_failed_attempts
+                    messages.error(request, f"Mã OTP không chính xác hoặc đã hết hạn. Còn {remain} lần thử.")
+
+    return render(request, 'registration/otp_verify.html', {
+        'employee_code': employee_code,
+        'lock_seconds_remaining': user_profile.otp_lock_seconds_remaining(),
+        'resend_seconds_remaining': user_profile.otp_resend_seconds_remaining(),
+    })
 
 @login_required
 @user_passes_test(can_manage_user)

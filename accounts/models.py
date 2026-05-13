@@ -111,6 +111,16 @@ class UserProfile(models.Model):
         verbose_name='Ảnh đại diện'
     )
 
+    # OTP brute-force protection (TODO #2 audit). Khoá theo employee_code,
+    # không theo IP vì là app nội bộ. Chỉ chặn verify, không chặn request.
+    otp_failed_attempts = models.PositiveSmallIntegerField(default=0)
+    otp_locked_until = models.DateTimeField(null=True, blank=True)
+    otp_last_sent_at = models.DateTimeField(null=True, blank=True)
+
+    OTP_MAX_FAILED = 10
+    OTP_LOCK_MINUTES = 15
+    OTP_RESEND_COOLDOWN_SECONDS = 60
+
     class Meta:
         verbose_name = 'Thông tin người dùng'
         verbose_name_plural = 'Thông tin người dùng'
@@ -118,6 +128,36 @@ class UserProfile(models.Model):
     def __str__(self):
         display_name = self.full_name or self.user.username
         return f'{display_name} - {self.get_role_display()}'
+
+    def is_otp_locked(self):
+        return bool(self.otp_locked_until and self.otp_locked_until > timezone.now())
+
+    def otp_lock_seconds_remaining(self):
+        if not self.is_otp_locked():
+            return 0
+        return int((self.otp_locked_until - timezone.now()).total_seconds())
+
+    def otp_resend_seconds_remaining(self):
+        if not self.otp_last_sent_at:
+            return 0
+        elapsed = (timezone.now() - self.otp_last_sent_at).total_seconds()
+        remaining = self.OTP_RESEND_COOLDOWN_SECONDS - elapsed
+        return max(0, int(remaining))
+
+    def register_otp_failure(self):
+        self.otp_failed_attempts = (self.otp_failed_attempts or 0) + 1
+        if self.otp_failed_attempts >= self.OTP_MAX_FAILED:
+            self.otp_locked_until = timezone.now() + timedelta(minutes=self.OTP_LOCK_MINUTES)
+        self.save(update_fields=['otp_failed_attempts', 'otp_locked_until'])
+
+    def reset_otp_attempts(self):
+        self.otp_failed_attempts = 0
+        self.otp_locked_until = None
+        self.save(update_fields=['otp_failed_attempts', 'otp_locked_until'])
+
+    def mark_otp_sent(self):
+        self.otp_last_sent_at = timezone.now()
+        self.save(update_fields=['otp_last_sent_at'])
 
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -363,7 +363,14 @@ def _send_notifications_bg(employee_codes, target_date, config):
     reg_dict = {r.employee_code: r for r in registrations}
 
     success_count = 0
-    
+
+    # Format ngày sang DD-MM-YYYY cho user-friendly trong tin nhắn (target_date
+    # đến từ frontend dạng ISO 'YYYY-MM-DD' của <input type="date">).
+    try:
+        formatted_date = datetime.strptime(str(target_date), '%Y-%m-%d').strftime('%d-%m-%Y')
+    except (ValueError, TypeError):
+        formatted_date = str(target_date)
+
     # 2. Vòng lặp gửi tin nhắn
     for i, emp_code in enumerate(employee_codes):
         # Logic chống Spam: Đủ 15 người thì ngủ 60s
@@ -420,7 +427,8 @@ def _send_notifications_bg(employee_codes, target_date, config):
                 full_name=full_name,
                 employee_code=emp_code,
                 meal_name=reg.meal_name,
-                target_date=target_date,
+                meal_count=f"{reg.quantity:02d}",
+                target_date=formatted_date,
                 kitchen_name=reg.kitchen_name,
             )
             
