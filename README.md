@@ -90,6 +90,9 @@ Hệ thống Quản lý Bếp ăn là giải pháp toàn diện giúp tự độ
 - **Bảo mật**: tách `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS` ra env var (TODO #3 + #4). [config/settings.py](config/settings.py) giờ đọc từ `SECRET_KEY` / `DJANGO_DEBUG` / `DJANGO_ALLOWED_HOSTS`. Default an toàn cho prod: `DEBUG=False`, `ALLOWED_HOSTS=[]` (Django sẽ chặn nếu chưa set env). Dev không set env thì DEBUG=False mặc định; muốn xem trace phải `DJANGO_DEBUG=True` trong `.env`. Khi DEBUG=True và `DJANGO_ALLOWED_HOSTS` rỗng, fallback `localhost,127.0.0.1` để dev khỏi 400. Trên prod cần set 3 env mới trong systemd service.
 - [.env.example](.env.example): thêm 3 biến mới `SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS` với hướng dẫn generate key + ví dụ giá trị prod.
 - [config/settings.py](config/settings.py): commit `CSRF_TRUSTED_ORIGINS` vào repo (trước đây là chỉnh tay trực tiếp trên server, gây conflict khi pull). Giá trị giống y bản server đang chạy: `https://net2kitchen.viettel.pro.vn` + `http://...`.
+- **Đã deploy + verify trên prod**: service `bep-an` chạy OK sau khi set `SECRET_KEY` + `DJANGO_DEBUG=False` + `DJANGO_ALLOWED_HOSTS` trong systemd. Verify: (1) URL sai → trang 404 ngắn gọn không lộ stack trace; (2) request qua IP (sai host) → 400 Bad Request. Session user cũ bị invalidate do `SECRET_KEY` đổi (expected).
+- [DEPLOY.md](DEPLOY.md): cập nhật danh sách env var trên server (thêm 3 biến mới) + ví dụ block `[Service]` đầy đủ.
+- [TODO.md](TODO.md): đóng mục #3 và #4 bảo mật. Nhóm bảo mật còn lại 2 mục: #1 (đổi DB password), #2 (revoke Gemini API key — đặc biệt cần vì key vừa lộ thêm 1 lần trong session deploy hôm nay).
 
 ### 2026-05-12
 - Trang Login mobile: thêm "mobile-brand" banner trên cùng (🍱 + "Net2Kitchen" + subtitle) chỉ hiện ở màn hình ≤900px — fix vấn đề user mở trang trên điện thoại không biết đang đăng nhập phần mềm gì (panel trái với ảnh nền bị ẩn trên mobile). Đồng bộ branding panel trái sang "Net2Kitchen" / "© Ban CĐS – TTKTKV2".
