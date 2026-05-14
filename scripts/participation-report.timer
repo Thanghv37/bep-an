@@ -1,0 +1,13 @@
+[Unit]
+Description=Check & auto-send participation report every minute
+Requires=participation-report.service
+
+[Timer]
+# Fire mỗi 1 phút. Command tự check HH:MM = send_time và idempotent (last_sent_date)
+# nên đa số lần fire sẽ no-op (~1s).
+OnCalendar=*-*-* *:*:00
+Persistent=true
+Unit=participation-report.service
+
+[Install]
+WantedBy=timers.target

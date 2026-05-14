@@ -1,0 +1,14 @@
+[Unit]
+Description=Auto-send participation report via NetChat
+Wants=postgresql.service
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=ipcdkv2
+WorkingDirectory=/home/ipcdkv2/thanghv37
+# DB_PASSWORD bắt buộc — shell user không có sẵn (xem DEPLOY.md).
+Environment="DB_PASSWORD=thanghv37"
+ExecStart=/home/ipcdkv2/thanghv37/venv/bin/python manage.py send_participation_report
+StandardOutput=journal
+StandardError=journal

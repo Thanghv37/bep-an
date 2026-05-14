@@ -212,6 +212,53 @@ sudo journalctl -u db-backup.service -n 50 --no-pager
 sudo systemctl status db-backup.timer    # xem lần chạy gần nhất + lần chạy tiếp theo
 ```
 
+### `participation-report.timer` — auto-gửi báo cáo Tham gia qua NetChat DM
+
+Mỗi phút check: nếu giờ:phút VN khớp `send_time` cấu hình trong UI + hôm nay chưa gửi → gửi Excel báo cáo cho danh sách MNV trong UI cài đặt. Recipient + send_time đổi qua trang `/registrations/participation/` → icon ⚙ (modal cài đặt). Không cần edit lại unit file khi đổi giờ.
+
+**Setup lần đầu (chạy 1 lần trên server, sau khi pull về có folder scripts/):**
+
+```bash
+# 1. Symlink unit files vào systemd
+sudo ln -sf /home/ipcdkv2/thanghv37/scripts/participation-report.service /etc/systemd/system/participation-report.service
+sudo ln -sf /home/ipcdkv2/thanghv37/scripts/participation-report.timer /etc/systemd/system/participation-report.timer
+
+# 2. Reload systemd
+sudo systemctl daemon-reload
+
+# 3. Test thủ công ngay — dùng --force để bỏ qua check thời gian
+sudo systemctl edit --full --no-validate participation-report.service  # không cần, chỉ verify
+# Thay vì sửa unit, test bằng cách chạy command trực tiếp:
+cd ~/thanghv37
+DB_PASSWORD=thanghv37 venv/bin/python manage.py send_participation_report --force
+
+# 4. Bật timer chạy mỗi phút
+sudo systemctl enable --now participation-report.timer
+
+# 5. Verify timer
+sudo systemctl list-timers | grep participation-report
+```
+
+**Debug:**
+```bash
+sudo journalctl -u participation-report.service -n 50 --no-pager
+sudo systemctl status participation-report.timer
+```
+
+**Tắt tạm:**
+```bash
+sudo systemctl stop participation-report.timer
+sudo systemctl disable participation-report.timer
+```
+
+**Gỡ hoàn toàn:**
+```bash
+sudo systemctl stop participation-report.timer
+sudo systemctl disable participation-report.timer
+sudo rm /etc/systemd/system/participation-report.timer /etc/systemd/system/participation-report.service
+sudo systemctl daemon-reload
+```
+
 ### `poll-feedback` (đã gỡ bỏ 2026-05-12)
 
 Nếu service vẫn còn trên server, xoá:
