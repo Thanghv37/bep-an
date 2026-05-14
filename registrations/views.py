@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -10,6 +10,12 @@ from accounts.permissions import can_manage_menu
 from .forms import MealRegistrationForm
 from .import_utils import import_registrations_from_excel
 from .models import MealRegistration
+from .options import (
+    get_meal_options,
+    get_kitchen_options,
+    set_meal_options,
+    set_kitchen_options,
+)
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 from django.shortcuts import render, redirect, get_object_or_404
@@ -93,6 +99,22 @@ def registration_list(request):
         'kitchen_name', flat=True
     ).distinct().order_by('kitchen_name')
 
+    # Job gửi tin báo cơm đang chạy ngầm? → truyền remaining + total để JS restore countdown.
+    notif_remaining = 0
+    notif_total = 0
+    cfg_until = SystemConfig.objects.filter(key='notification_job_active_until').first()
+    if cfg_until and cfg_until.value:
+        try:
+            active_until = datetime.fromisoformat(cfg_until.value)
+            delta = (active_until - now()).total_seconds()
+            if delta > 0:
+                notif_remaining = int(delta)
+                cfg_total = SystemConfig.objects.filter(key='notification_job_total').first()
+                if cfg_total and cfg_total.value.isdigit():
+                    notif_total = int(cfg_total.value)
+        except (ValueError, TypeError):
+            pass
+
     return render(request, 'registrations/registration_list.html', {
         'rows': rows,
         'selected_date': selected_date,
@@ -101,6 +123,8 @@ def registration_list(request):
         'meal_filter': meal_filter,
         'kitchen_filter': kitchen_filter,
         'status_choices': status_choices,
+        'notification_remaining_seconds': notif_remaining,
+        'notification_total_count': notif_total,
         'meal_choices': meal_choices,
         'kitchen_choices': kitchen_choices,
         'total_quantity': total_quantity,
@@ -143,6 +167,10 @@ def registration_create(request):
         if form.is_valid():
             obj = form.save(commit=False)
             obj.source = 'manual'
+            # Force full_name từ UserProfile (đã verify exist trong form.clean_employee_code).
+            profile = UserProfile.objects.filter(employee_code=obj.employee_code).first()
+            if profile and profile.full_name:
+                obj.full_name = profile.full_name
             obj.save()
 
             messages.success(request, 'Đã thêm đăng kí suất ăn.')
@@ -153,10 +181,38 @@ def registration_create(request):
             'quantity': 1,
         })
 
+    # Dict {employee_code: full_name} cho JS auto-fill khi nhập MNV.
+    # Pass dict thẳng cho |json_script trong template (filter tự dumps).
+    user_map = {
+        p.employee_code: p.full_name
+        for p in UserProfile.objects.exclude(employee_code='')
+        if p.employee_code
+    }
+
     return render(request, 'registrations/registration_form.html', {
         'form': form,
         'page_title': 'Thêm người đăng kí',
         'submit_label': 'Lưu đăng kí',
+        'user_map': user_map,
+    })
+
+
+@login_required
+@user_passes_test(can_manage_menu)
+def registration_options(request):
+    """Trang cấu hình các option cho dropdown 'Bữa ăn' và 'Tên bếp ăn'."""
+    if request.method == 'POST':
+        # Frontend submit nhiều input hidden cùng name (1 cho mỗi chip).
+        meal_items = request.POST.getlist('meal_options')
+        kitchen_items = request.POST.getlist('kitchen_options')
+        set_meal_options(meal_items)
+        set_kitchen_options(kitchen_items)
+        messages.success(request, 'Đã lưu danh sách lựa chọn.')
+        return redirect('registration_create')
+
+    return render(request, 'registrations/registration_options.html', {
+        'meal_options': get_meal_options(),
+        'kitchen_options': get_kitchen_options(),
     })
 @login_required
 @user_passes_test(is_admin)
@@ -228,6 +284,78 @@ def delete_all_registrations(request):
         )
 
     return redirect('registration_list')
+
+
+_PARTICIPATION_STATUS_LABELS = {
+    'valid': ('Đã điểm danh', 'success'),
+    'not_registered': ('Chưa đăng ký', 'warning'),
+    'not_attended': ('Chưa điểm danh', 'danger'),
+}
+
+
+def _build_participation_rows(target_date):
+    """Tạo list rows cho trang Tham gia + export Excel. Dùng chung 2 view."""
+    logs = list(AttendanceLog.objects.filter(scan_time__date=target_date).order_by('scan_time'))
+    scanned_codes = {(log.employee_code or '').strip() for log in logs}
+
+    registrations = MealRegistration.objects.filter(date=target_date)
+    registered_name_map = {}
+    for r in registrations:
+        code = (r.employee_code or '').strip()
+        if code and code not in registered_name_map:
+            registered_name_map[code] = (r.full_name or '').strip()
+
+    all_codes = scanned_codes | set(registered_name_map.keys())
+    profile_map = {
+        (p.employee_code or '').strip(): p
+        for p in UserProfile.objects.filter(employee_code__in=all_codes)
+    }
+
+    def _resolve_name(emp_code, profile, fallback_name):
+        profile_name = (profile.full_name.strip() if profile and profile.full_name else '')
+        if profile_name:
+            return profile_name
+        if fallback_name and fallback_name != emp_code:
+            return fallback_name
+        return 'Chưa rõ tên'
+
+    rows = []
+    for log in logs:
+        emp_code = (log.employee_code or '').strip()
+        profile = profile_map.get(emp_code)
+        display_name = _resolve_name(emp_code, profile, (log.full_name or '').strip())
+        status_code = log.status
+        label, css = _PARTICIPATION_STATUS_LABELS.get(status_code, (status_code, 'warning'))
+        rows.append({
+            'employee_code': emp_code,
+            'display_name': display_name,
+            'profile': profile,
+            'scan_time': log.scan_time,
+            'status': status_code,
+            'status_label': label,
+            'status_class': css,
+            'type': log.type or 'Quét thẻ',
+        })
+
+    not_attended_codes = set(registered_name_map.keys()) - scanned_codes
+    for emp_code in sorted(not_attended_codes):
+        profile = profile_map.get(emp_code)
+        display_name = _resolve_name(emp_code, profile, registered_name_map.get(emp_code, ''))
+        label, css = _PARTICIPATION_STATUS_LABELS['not_attended']
+        rows.append({
+            'employee_code': emp_code,
+            'display_name': display_name,
+            'profile': profile,
+            'scan_time': None,
+            'status': 'not_attended',
+            'status_label': label,
+            'status_class': css,
+            'type': '—',
+        })
+
+    return rows
+
+
 @login_required
 @user_passes_test(is_admin)
 def registration_participation(request):
@@ -244,76 +372,9 @@ def registration_participation(request):
     q_name = request.GET.get('q_name', '').strip()
     q_status = request.GET.get('q_status', '').strip()
 
-    # Map status code -> (label tiếng Việt, css class màu)
-    STATUS_LABELS = {
-        'valid': ('Đã điểm danh', 'success'),
-        'not_registered': ('Chưa đăng ký', 'warning'),
-        'not_attended': ('Chưa điểm danh', 'danger'),
-    }
+    rows = _build_participation_rows(target_date)
 
-    logs = list(AttendanceLog.objects.filter(scan_time__date=target_date).order_by('scan_time'))
-    scanned_codes = {(log.employee_code or '').strip() for log in logs}
-
-    # Người đã đăng ký bữa ăn ngày này — để biết ai đăng ký mà chưa điểm danh
-    registrations = MealRegistration.objects.filter(date=target_date)
-    registered_name_map = {}
-    for r in registrations:
-        code = (r.employee_code or '').strip()
-        if code and code not in registered_name_map:
-            registered_name_map[code] = (r.full_name or '').strip()
-
-    # Lookup profile 1 lần cho cả 2 nguồn
-    all_codes = scanned_codes | set(registered_name_map.keys())
-    profile_map = {
-        (p.employee_code or '').strip(): p
-        for p in UserProfile.objects.filter(employee_code__in=all_codes)
-    }
-
-    def _resolve_name(emp_code, profile, fallback_name):
-        profile_name = (profile.full_name.strip() if profile and profile.full_name else '')
-        if profile_name:
-            return profile_name
-        if fallback_name and fallback_name != emp_code:
-            return fallback_name
-        return 'Chưa rõ tên'
-
-    rows = []
-    # 1. Các lần quét trong ngày (đã có log)
-    for log in logs:
-        emp_code = (log.employee_code or '').strip()
-        profile = profile_map.get(emp_code)
-        display_name = _resolve_name(emp_code, profile, (log.full_name or '').strip())
-        status_code = log.status
-        label, css = STATUS_LABELS.get(status_code, (status_code, 'warning'))
-        rows.append({
-            'employee_code': emp_code,
-            'display_name': display_name,
-            'profile': profile,
-            'scan_time': log.scan_time,
-            'status': status_code,
-            'status_label': label,
-            'status_class': css,
-            'type': log.type or 'Quét thẻ',
-        })
-
-    # 2. Người đã đăng ký nhưng chưa quét → "Chưa điểm danh"
-    not_attended_codes = set(registered_name_map.keys()) - scanned_codes
-    for emp_code in sorted(not_attended_codes):
-        profile = profile_map.get(emp_code)
-        display_name = _resolve_name(emp_code, profile, registered_name_map.get(emp_code, ''))
-        label, css = STATUS_LABELS['not_attended']
-        rows.append({
-            'employee_code': emp_code,
-            'display_name': display_name,
-            'profile': profile,
-            'scan_time': None,
-            'status': 'not_attended',
-            'status_label': label,
-            'status_class': css,
-            'type': '—',
-        })
-
-    # Filter
+    # Filter UI
     if q_status:
         rows = [r for r in rows if r['status'] == q_status]
     if q_name:
@@ -322,14 +383,121 @@ def registration_participation(request):
 
     total_users = len({r['employee_code'] for r in rows})
 
+    # user_map cho modal cấu hình NetChat — JS auto-fill họ tên khi nhập MNV.
+    user_map = {
+        p.employee_code: p.full_name
+        for p in UserProfile.objects.exclude(employee_code='')
+        if p.employee_code
+    }
+
     context = {
         'rows': rows,
         'target_date': target_date,
         'q_name': q_name,
         'q_status': q_status,
         'total_users': total_users,
+        'user_map': user_map,
     }
     return render(request, 'registrations/registration_participation.html', context)
+
+
+def _parse_date_param(request):
+    date_str = request.GET.get('date') or request.POST.get('date')
+    if date_str:
+        try:
+            return date.fromisoformat(date_str)
+        except ValueError:
+            pass
+    return date.today()
+
+
+@login_required
+@user_passes_test(is_admin)
+def export_participation_excel(request):
+    """Tải Excel danh sách tham gia 1 ngày (3 trạng thái)."""
+    from django.http import HttpResponse
+    from .participation_export import build_excel_bytes
+
+    target_date = _parse_date_param(request)
+    rows = _build_participation_rows(target_date)
+    file_bytes = build_excel_bytes(target_date, rows)
+
+    filename = f'tham_gia_{target_date.strftime("%Y-%m-%d")}.xlsx'
+    response = HttpResponse(
+        file_bytes,
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+def participation_send_netchat(request):
+    """Gửi Excel báo cáo qua DM NetChat cho danh sách MNV đã cấu hình."""
+    from .participation_export import (
+        build_excel_bytes,
+        get_recipients,
+        send_excel_to_recipients,
+    )
+
+    target_date = _parse_date_param(request)
+    recipients = get_recipients()
+    if not recipients:
+        return JsonResponse({
+            'success': False,
+            'message': 'Chưa cấu hình người nhận. Vào Cài đặt để thêm mã NV nhận báo cáo.',
+        }, status=400)
+
+    rows = _build_participation_rows(target_date)
+    file_bytes = build_excel_bytes(target_date, rows)
+    result = send_excel_to_recipients(target_date, file_bytes, recipients)
+
+    return JsonResponse({
+        'success': True,
+        'sent_count': len(result['success']),
+        'failed': [{'code': c, 'reason': r} for c, r in result['failed']],
+        'total': len(recipients),
+    })
+
+
+@login_required
+@user_passes_test(is_admin)
+def participation_settings(request):
+    """GET: trả về settings hiện tại. POST: lưu settings."""
+    from .participation_export import (
+        get_recipients,
+        set_recipients,
+        get_send_time,
+        set_send_time,
+    )
+
+    if request.method == 'POST':
+        send_time_raw = (request.POST.get('send_time') or '').strip()
+        recipients_raw = request.POST.get('recipients', '')
+        codes = [line.strip() for line in recipients_raw.splitlines() if line.strip()]
+        try:
+            saved_time = set_send_time(send_time_raw)
+        except ValueError as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=400)
+        saved_codes = set_recipients(codes)
+        existing = set(UserProfile.objects.filter(employee_code__in=saved_codes).values_list('employee_code', flat=True))
+        invalid = [c for c in saved_codes if c not in existing]
+        return JsonResponse({
+            'success': True,
+            'send_time': saved_time,
+            'recipients': saved_codes,
+            'invalid_codes': invalid,
+        })
+
+    return JsonResponse({
+        'success': True,
+        'send_time': get_send_time(),
+        'recipients': get_recipients(),
+    })
+
+
 # --- HÀM CHẠY NGẦM GỬI TIN NHẮN (BACKGROUND THREAD) ---
 def _send_notifications_bg(employee_codes, target_date, config):
     netchat_url = config.get('netchat_url', '').strip().rstrip('/')
@@ -466,6 +634,8 @@ def _send_notifications_bg(employee_codes, target_date, config):
             continue
 
     print(f"[NetChat] Hoàn tất tiến trình. Thành công: {success_count}/{len(employee_codes)}")
+    # Clear state job-active để UI biết có thể bấm lại.
+    SystemConfig.objects.filter(key='notification_job_active_until').update(value='')
 
 
 @login_required
@@ -499,6 +669,21 @@ def send_meal_notifications(request):
                 'message': 'Chưa cấu hình URL hoặc Token BOT. Vui lòng vào Hồ sơ cá nhân để thiết lập.'
             }, status=400)
         # ------------------------------------------------
+
+        # Ghi state job-active trước khi start thread → UI restore countdown sau reload.
+        # Estimate: ceil(N/15) * 75 + 15 (khớp với JS frontend).
+        import math
+        n = len(employee_codes)
+        estimated_sec = max(15, math.ceil(n / 15) * 75 + 15)
+        active_until = (now() + timedelta(seconds=estimated_sec)).isoformat()
+        SystemConfig.objects.update_or_create(
+            key='notification_job_active_until',
+            defaults={'value': active_until},
+        )
+        SystemConfig.objects.update_or_create(
+            key='notification_job_total',
+            defaults={'value': str(n)},
+        )
 
         # Tạo thread chạy ngầm để không làm treo trình duyệt
         thread = threading.Thread(

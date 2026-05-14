@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+
+{% block title %}Cấu hình lựa chọn{% endblock %}
+{% block page_title %}Cấu hình lựa chọn đăng kí{% endblock %}
+
+{% block content %}
+
+<style>
+    .chip-list { min-height: 40px; padding: 4px; border: 1px dashed #cbd5e1; border-radius: 10px; }
+    .chip-list:empty::before { content: 'Chưa có lựa chọn nào'; color: #94a3b8; font-size: 13px; padding: 4px 8px; display: inline-block; }
+    .chip {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe;
+        padding: 2px 6px 2px 10px; border-radius: 10px;
+        font-size: 13px; font-weight: 500; line-height: 1.4;
+    }
+    .chip-remove {
+        background: transparent; border: none; color: #1e40af;
+        font-size: 15px; line-height: 1; cursor: pointer; padding: 0 3px;
+        border-radius: 50%;
+    }
+    .chip-remove:hover { background: rgba(30, 64, 175, 0.15); }
+</style>
+
+<div class="dashboard-card">
+    <div class="section-title">Cấu hình lựa chọn</div>
+    <div class="section-subtitle">
+        Nhập từng lựa chọn rồi bấm <strong>Thêm</strong> (hoặc Enter). Click <strong>×</strong> để xoá.
+        Áp dụng cho dropdown ở trang <a href="{% url 'registration_create' %}">Thêm người đăng kí</a>.
+    </div>
+
+    <form method="post" id="options-form" class="mt-4">
+        {% csrf_token %}
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">Bữa ăn</label>
+                <div class="d-flex gap-2 mb-2">
+                    <input type="text" id="meal-input" class="form-control" placeholder="Nhập tên bữa ăn rồi bấm Thêm" autocomplete="off">
+                    <button type="button" class="btn btn-primary" data-add-target="meal">Thêm</button>
+                </div>
+                <div class="chip-list" id="meal-chips" data-name="meal_options"></div>
+                <div class="form-text mt-2"><span id="meal-count">0</span> lựa chọn.</div>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">Tên bếp ăn</label>
+                <div class="d-flex gap-2 mb-2">
+                    <input type="text" id="kitchen-input" class="form-control" placeholder="Nhập tên bếp rồi bấm Thêm" autocomplete="off">
+                    <button type="button" class="btn btn-primary" data-add-target="kitchen">Thêm</button>
+                </div>
+                <div class="chip-list" id="kitchen-chips" data-name="kitchen_options"></div>
+                <div class="form-text mt-2"><span id="kitchen-count">0</span> lựa chọn.</div>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">Lưu cấu hình</button>
+            <a href="{% url 'registration_create' %}" class="btn btn-outline-secondary">Huỷ</a>
+        </div>
+    </form>
+</div>
+
+{{ meal_options|json_script:"meal-options-data" }}
+{{ kitchen_options|json_script:"kitchen-options-data" }}
+
+<script>
+(function () {
+    function makeChip(value, name) {
+        const wrap = document.createElement('span');
+        wrap.className = 'chip';
+        wrap.dataset.value = value;
+
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = name;
+        hidden.value = value;
+        wrap.appendChild(hidden);
+
+        const label = document.createElement('span');
+        label.textContent = value;
+        wrap.appendChild(label);
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'chip-remove';
+        btn.setAttribute('aria-label', 'Xoá');
+        btn.innerHTML = '&times;';
+        btn.addEventListener('click', function () {
+            wrap.remove();
+            updateCount();
+        });
+        wrap.appendChild(btn);
+
+        return wrap;
+    }
+
+    function setup(key) {
+        const container = document.getElementById(key + '-chips');
+        const input = document.getElementById(key + '-input');
+        const countEl = document.getElementById(key + '-count');
+        const name = container.dataset.name;
+        const initial = JSON.parse(document.getElementById(key + '-options-data').textContent || '[]');
+
+        function exists(val) {
+            return Array.from(container.querySelectorAll('.chip')).some(
+                el => el.dataset.value === val
+            );
+        }
+
+        function addValue(rawVal) {
+            const val = (rawVal || '').trim();
+            if (!val) return;
+            if (exists(val)) {
+                input.classList.add('is-invalid');
+                setTimeout(() => input.classList.remove('is-invalid'), 1200);
+                return;
+            }
+            container.appendChild(makeChip(val, name));
+            input.value = '';
+            input.focus();
+            updateCount();
+        }
+
+        window['updateCount_' + key] = function () {
+            countEl.textContent = container.querySelectorAll('.chip').length;
+        };
+
+        // Render initial chips.
+        initial.forEach(v => container.appendChild(makeChip(v, name)));
+        window['updateCount_' + key]();
+
+        // Bấm nút "Thêm".
+        document.querySelector('[data-add-target="' + key + '"]').addEventListener('click', function () {
+            addValue(input.value);
+        });
+
+        // Enter trong input.
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addValue(input.value);
+            }
+        });
+    }
+
+    function updateCount() {
+        if (window.updateCount_meal) window.updateCount_meal();
+        if (window.updateCount_kitchen) window.updateCount_kitchen();
+    }
+
+    setup('meal');
+    setup('kitchen');
+
+    // Auto-flush text còn trong ô input (chưa bấm Thêm) khi submit form.
+    document.getElementById('options-form').addEventListener('submit', function () {
+        ['meal', 'kitchen'].forEach(key => {
+            const input = document.getElementById(key + '-input');
+            if (input.value.trim()) {
+                document.querySelector('[data-add-target="' + key + '"]').click();
+            }
+        });
+    });
+})();
+</script>
+
+{% endblock %}

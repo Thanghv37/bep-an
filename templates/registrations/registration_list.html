@@ -716,6 +716,13 @@
                     alert("Đã xảy ra lỗi kết nối.");
                 });
         });
+
+        // Restore countdown nếu vào trang lúc job vẫn đang chạy ngầm (state lưu ở SystemConfig).
+        const remainingSec = parseInt("{{ notification_remaining_seconds|default:0 }}", 10);
+        const totalCount = parseInt("{{ notification_total_count|default:0 }}", 10);
+        if (remainingSec > 0 && totalCount > 0) {
+            startSendingCountdown(remainingSec, totalCount);
+        }
     });
 </script>
 {% endblock %}

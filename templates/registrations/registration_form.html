@@ -5,44 +5,160 @@
 
 {% block content %}
 
+<style>
+    /* Trạng thái xác nhận hợp lệ — nền xanh nhạt + viền xanh. */
+    .form-control.is-valid,
+    .form-select.is-valid {
+        border-color: #10b981 !important;
+        background-color: #ecfdf5 !important;
+        background-image: none !important;
+        padding-right: .75rem !important;
+    }
+    /* Trạng thái sai — Bootstrap đã có sẵn .is-invalid (viền đỏ); xóa icon mặc định. */
+    .form-control.is-invalid,
+    .form-select.is-invalid {
+        background-image: none !important;
+        padding-right: .75rem !important;
+    }
+</style>
+
 <div class="dashboard-card">
-    <div class="section-title mb-1">{{ page_title }}</div>
-    <div class="section-subtitle mb-4">
-        Thêm dữ liệu đăng kí suất ăn thủ công.
+    <div class="d-flex justify-content-between align-items-start mb-1">
+        <div>
+            <div class="section-title">{{ page_title }}</div>
+            <div class="section-subtitle">Thêm dữ liệu đăng kí suất ăn thủ công.</div>
+        </div>
+        <a href="{% url 'registration_options' %}"
+           class="btn btn-outline-secondary btn-sm"
+           title="Cấu hình danh sách Bữa ăn / Bếp ăn">
+            <i class="bi bi-gear"></i>
+        </a>
     </div>
 
-    <form method="post">
+    <form method="post" class="mt-4">
         {% csrf_token %}
 
-        {% if form.errors %}
-            <div class="alert alert-danger">
-                {{ form.errors }}
-            </div>
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
         {% endif %}
 
         <div class="row g-3">
-            {% for field in form %}
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">{{ field.label }}</label>
-                    {{ field }}
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">{{ form.employee_code.label }}</label>
+                {{ form.employee_code }}
+                <div id="mnv-feedback" class="small mt-1"></div>
+                {% for error in form.employee_code.errors %}
+                    <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+            </div>
 
-                    {% for error in field.errors %}
-                        <div class="text-danger small mt-1">{{ error }}</div>
-                    {% endfor %}
-                </div>
-            {% endfor %}
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">{{ form.full_name.label }}</label>
+                {{ form.full_name }}
+                {% for error in form.full_name.errors %}
+                    <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">{{ form.date.label }}</label>
+                {{ form.date }}
+                {% for error in form.date.errors %}
+                    <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">{{ form.meal_name.label }}</label>
+                {{ form.meal_name }}
+                {% for error in form.meal_name.errors %}
+                    <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">{{ form.kitchen_name.label }}</label>
+                {{ form.kitchen_name }}
+                {% for error in form.kitchen_name.errors %}
+                    <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">{{ form.quantity.label }}</label>
+                {{ form.quantity }}
+                {% for error in form.quantity.errors %}
+                    <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">{{ form.status.label }}</label>
+                {{ form.status }}
+            </div>
         </div>
 
         <div class="d-flex gap-2 mt-4">
-            <button type="submit" class="btn btn-primary">
-                {{ submit_label }}
-            </button>
-
-            <a href="{% url 'registration_list' %}" class="btn btn-outline-secondary">
-                Quay lại
-            </a>
+            <button type="submit" class="btn btn-primary">{{ submit_label }}</button>
+            <a href="{% url 'registration_list' %}" class="btn btn-outline-secondary">Quay lại</a>
         </div>
     </form>
 </div>
+
+{{ user_map|json_script:"user-map-data" }}
+
+<script>
+(function () {
+    const userMap = JSON.parse(document.getElementById('user-map-data').textContent || '{}');
+    const codeInput = document.getElementById('id_employee_code');
+    const nameInput = document.getElementById('id_full_name');
+    const feedback = document.getElementById('mnv-feedback');
+
+    function setState(el, ok) {
+        el.classList.remove('is-valid', 'is-invalid');
+        if (ok === true) el.classList.add('is-valid');
+        else if (ok === false) el.classList.add('is-invalid');
+    }
+
+    function lookup() {
+        const code = (codeInput.value || '').trim();
+        if (!code) {
+            // Trống → không tô màu (chưa nhập gì).
+            nameInput.value = '';
+            feedback.textContent = '';
+            setState(codeInput, null);
+            setState(nameInput, null);
+            return;
+        }
+        const fullName = userMap[code];
+        if (fullName) {
+            nameInput.value = fullName;
+            feedback.textContent = '';
+            setState(codeInput, true);
+            setState(nameInput, true);
+        } else {
+            nameInput.value = '';
+            feedback.textContent = '⚠ Mã nhân viên không tồn tại';
+            setState(codeInput, false);
+            setState(nameInput, null);
+        }
+    }
+
+    codeInput.addEventListener('input', lookup);
+    codeInput.addEventListener('blur', lookup);
+    lookup();
+
+    // Dropdown "Bữa ăn" và "Tên bếp ăn": tô đỏ khi chưa chọn, xanh khi đã chọn.
+    function syncSelect(el) {
+        setState(el, !!el.value);
+    }
+    ['id_meal_name', 'id_kitchen_name'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        syncSelect(el);
+        el.addEventListener('change', function () { syncSelect(el); });
+    });
+})();
+</script>
 
 {% endblock %}

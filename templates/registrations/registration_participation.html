@@ -79,7 +79,30 @@
                         <th>Mã nhân viên</th>
                         <th>Thời gian quét</th>
                         <th>Trạng thái</th>
-                        <th>Loại</th>
+                        <th class="th-loai">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>Loại</span>
+                                <div class="d-flex gap-2">
+                                    <a href="{% url 'export_participation_excel' %}?date={{ target_date|date:'Y-m-d' }}"
+                                       class="btn-export-excel"
+                                       title="Tải Excel danh sách ngày {{ target_date|date:'d/m/Y' }}">
+                                        <i class="bi bi-file-earmark-excel-fill"></i>
+                                    </a>
+                                    <button type="button"
+                                            class="btn-export-excel btn-send-netchat"
+                                            id="btnSendNetchat"
+                                            title="Gửi báo cáo qua NetChat DM">
+                                        <i class="bi bi-send-fill"></i>
+                                    </button>
+                                    <button type="button"
+                                            class="btn-export-excel btn-export-settings"
+                                            data-bs-toggle="modal" data-bs-target="#exportSettingsModal"
+                                            title="Cấu hình gửi báo cáo">
+                                        <i class="bi bi-gear-fill"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -164,10 +187,231 @@ img.user-list-avatar { object-fit: cover; }
 .dot-warning { background: #f59e0b; }
 .dot-danger  { background: #ef4444; }
 .type-badge { color: #64748b; font-size: 13px; font-weight: 500; }
+.btn-export-excel {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 8px;
+    background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;
+    font-size: 16px; text-decoration: none;
+    transition: all .15s;
+}
+.btn-export-excel:hover { background: #047857; color: #fff; }
+.btn-send-netchat { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.btn-send-netchat:hover { background: #1d4ed8; color: #fff; }
+.btn-export-settings { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+.btn-export-settings:hover { background: #475569; color: #fff; }
 .scan-time { font-weight: 600; color: #1e293b; line-height: 1.2; }
 </style>
 
+<!-- Modal cấu hình gửi báo cáo -->
+<div class="modal fade" id="exportSettingsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">⚙️ Cấu hình gửi báo cáo NetChat</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="settings-alert" class="alert d-none" role="alert"></div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Thời gian gửi tự động (HH:MM)</label>
+                    <input type="time" id="settings-send-time" class="form-control" value="13:00">
+                    <div class="form-text">Định dạng 24h. Hiện tại tính năng auto-send chưa kích hoạt — vẫn cần bấm tay icon gửi.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Mã nhân viên nhận báo cáo</label>
+                    <div id="settings-recipients-list" class="d-flex flex-column gap-2"></div>
+                    <button type="button" id="btnAddRecipient" class="btn btn-sm btn-outline-primary mt-2">
+                        <i class="bi bi-plus-lg"></i> Thêm người nhận
+                    </button>
+                    <div class="form-text mt-2"><span id="settings-recipients-count">0</span> mã hợp lệ. Mã không tồn tại sẽ bị bỏ qua khi gửi.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary" id="btnSaveSettings">Lưu cấu hình</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ user_map|json_script:"recipient-user-map" }}
+
 <script>
+// CSRF token lấy từ template (cookie đang HttpOnly nên JS không đọc được).
+const CSRF_TOKEN = '{{ csrf_token }}';
+
+document.addEventListener('DOMContentLoaded', function () {
+    const csrftoken = CSRF_TOKEN;
+    const dateFilter = document.getElementById('date-filter');
+
+    // ===== Gửi NetChat =====
+    const btnSend = document.getElementById('btnSendNetchat');
+    const originalSendHtml = btnSend ? btnSend.innerHTML : '';
+
+    if (btnSend) btnSend.addEventListener('click', function () {
+        const dateVal = dateFilter.value || new Date().toISOString().split('T')[0];
+        if (!confirm('Gửi báo cáo ngày ' + dateVal + ' qua NetChat cho danh sách người nhận đã cấu hình?')) return;
+
+        btnSend.disabled = true;
+        btnSend.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:14px;height:14px;"></span>';
+
+        const fd = new FormData();
+        fd.append('date', dateVal);
+
+        fetch("{% url 'participation_send_netchat' %}", {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrftoken },
+            body: fd
+        })
+        .then(r => r.json().then(data => ({ ok: r.ok, data })))
+        .then(({ ok, data }) => {
+            btnSend.disabled = false;
+            btnSend.innerHTML = originalSendHtml;
+            if (!ok || !data.success) {
+                alert('❌ ' + (data.message || 'Gửi thất bại.'));
+                return;
+            }
+            let msg = `✅ Đã gửi cho ${data.sent_count}/${data.total} người.`;
+            if (data.failed && data.failed.length) {
+                msg += '\n\nThất bại:\n' + data.failed.map(f => `- ${f.code}: ${f.reason}`).join('\n');
+            }
+            alert(msg);
+        })
+        .catch(err => {
+            btnSend.disabled = false;
+            btnSend.innerHTML = originalSendHtml;
+            alert('❌ Lỗi kết nối: ' + err);
+        });
+    });
+
+    // ===== Modal cài đặt =====
+    const modalEl = document.getElementById('exportSettingsModal');
+    const sendTimeInput = document.getElementById('settings-send-time');
+    const listEl = document.getElementById('settings-recipients-list');
+    const btnAddRecipient = document.getElementById('btnAddRecipient');
+    const countEl = document.getElementById('settings-recipients-count');
+    const alertEl = document.getElementById('settings-alert');
+    const btnSave = document.getElementById('btnSaveSettings');
+
+    const userMap = JSON.parse(document.getElementById('recipient-user-map').textContent || '{}');
+
+    function showAlert(type, html) {
+        alertEl.className = 'alert alert-' + type;
+        alertEl.innerHTML = html;
+    }
+
+    function updateCount() {
+        const valid = Array.from(listEl.querySelectorAll('.recipient-row input.mnv-input'))
+            .filter(inp => inp.value.trim() && userMap[inp.value.trim()]);
+        countEl.textContent = valid.length;
+    }
+
+    function addRow(code) {
+        const row = document.createElement('div');
+        row.className = 'recipient-row d-flex align-items-center gap-2';
+        row.innerHTML = `
+            <input type="text" class="form-control form-control-sm mnv-input" style="max-width: 140px;" placeholder="Mã NV" autocomplete="off" value="${code || ''}">
+            <span class="recipient-name flex-grow-1 small"></span>
+            <button type="button" class="btn btn-sm btn-outline-danger recipient-remove" title="Xoá">
+                <i class="bi bi-trash"></i>
+            </button>
+        `;
+        const input = row.querySelector('.mnv-input');
+        const nameSpan = row.querySelector('.recipient-name');
+
+        function lookup() {
+            const v = input.value.trim();
+            input.classList.remove('is-valid', 'is-invalid');
+            if (!v) {
+                nameSpan.textContent = '';
+                nameSpan.className = 'recipient-name flex-grow-1 small';
+                updateCount();
+                return;
+            }
+            const name = userMap[v];
+            if (name) {
+                nameSpan.textContent = name;
+                nameSpan.className = 'recipient-name flex-grow-1 small text-success fw-semibold';
+                input.classList.add('is-valid');
+            } else {
+                nameSpan.textContent = '⚠ Không tồn tại';
+                nameSpan.className = 'recipient-name flex-grow-1 small text-danger';
+                input.classList.add('is-invalid');
+            }
+            updateCount();
+        }
+        input.addEventListener('input', lookup);
+        row.querySelector('.recipient-remove').addEventListener('click', function () {
+            row.remove();
+            updateCount();
+        });
+
+        listEl.appendChild(row);
+        lookup();
+        if (!code) input.focus();
+    }
+
+    btnAddRecipient.addEventListener('click', function () { addRow(''); });
+
+    // Load settings khi mở modal.
+    modalEl.addEventListener('show.bs.modal', function () {
+        alertEl.className = 'alert d-none';
+        listEl.innerHTML = '';
+        fetch("{% url 'participation_settings' %}")
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) return;
+                sendTimeInput.value = data.send_time || '13:00';
+                const codes = data.recipients || [];
+                if (codes.length === 0) {
+                    addRow('');
+                } else {
+                    codes.forEach(c => addRow(c));
+                }
+            });
+    });
+
+    btnSave.addEventListener('click', function () {
+        const codes = Array.from(listEl.querySelectorAll('.mnv-input'))
+            .map(inp => inp.value.trim())
+            .filter(v => v);
+        const fd = new FormData();
+        fd.append('send_time', sendTimeInput.value);
+        fd.append('recipients', codes.join('\n'));
+
+        btnSave.disabled = true;
+        btnSave.textContent = 'Đang lưu...';
+
+        fetch("{% url 'participation_settings' %}", {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrftoken },
+            body: fd
+        })
+        .then(r => r.json().then(data => ({ ok: r.ok, data })))
+        .then(({ ok, data }) => {
+            btnSave.disabled = false;
+            btnSave.textContent = 'Lưu cấu hình';
+            if (!ok || !data.success) {
+                showAlert('danger', '❌ ' + (data.message || 'Lưu thất bại.'));
+                return;
+            }
+            let html = `✅ Đã lưu cấu hình. ${data.recipients.length} mã NV được lưu.`;
+            if (data.invalid_codes && data.invalid_codes.length) {
+                html += `<br><small>⚠ Có ${data.invalid_codes.length} mã không tồn tại trong hệ thống và sẽ bị bỏ qua khi gửi: ${data.invalid_codes.join(', ')}</small>`;
+            }
+            showAlert('success', html);
+        })
+        .catch(err => {
+            btnSave.disabled = false;
+            btnSave.textContent = 'Lưu cấu hình';
+            showAlert('danger', '❌ Lỗi kết nối: ' + err);
+        });
+    });
+});
+
+// Giữ logic filter cũ.
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('participation-filter-form');
     const dateInput = document.getElementById('date-filter');
