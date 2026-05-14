@@ -51,3 +51,46 @@ class DishReview(models.Model):
 
     def __str__(self):
         return f'{self.dish.name} - {self.get_evaluation_display()}'
+
+
+class DishSuggestion(models.Model):
+    """Người dùng đề xuất tên món mới muốn bếp nấu. Dedupe theo `name_normalized`.
+    Mỗi user chỉ vote 1 lần / món (tracked qua `DishSuggestionVote`). `count` là
+    số voter unique, denormalize để query nhanh.
+    """
+    name = models.CharField(max_length=120, verbose_name='Tên món đề xuất')
+    name_normalized = models.CharField(max_length=120, unique=True)
+    count = models.PositiveIntegerField(default=1, verbose_name='Số voter')
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_voted_at = models.DateTimeField(auto_now=True)
+    last_voted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='+',
+    )
+
+    class Meta:
+        ordering = ['-count', '-last_voted_at']
+        verbose_name = 'Đề xuất món ăn'
+        verbose_name_plural = 'Đề xuất món ăn'
+
+    def __str__(self):
+        return f'{self.name} ({self.count})'
+
+    @staticmethod
+    def normalize(name):
+        import re
+        return re.sub(r'\s+', ' ', (name or '').strip().lower())
+
+
+class DishSuggestionVote(models.Model):
+    """Track ai đã vote món nào để 1 user chỉ vote 1 lần / món."""
+    suggestion = models.ForeignKey(DishSuggestion, on_delete=models.CASCADE, related_name='votes')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('suggestion', 'user')
+        verbose_name = 'Vote đề xuất món'
+        verbose_name_plural = 'Vote đề xuất món'

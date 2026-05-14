@@ -186,6 +186,223 @@
                     {% csrf_token %}
                 </form>
                 {% endif %}
+
+                {# ===== Đề xuất món ăn — pastel happy zone ===== #}
+                <div class="suggestion-zone mt-4">
+                    <div class="suggestion-header">
+                        <span class="suggestion-emoji">🍜</span>
+                        <div>
+                            <div class="suggestion-title">Đề xuất món mới cho bếp nhé!</div>
+                            <div class="suggestion-sub">Có món nào bạn muốn thử? Gõ vào đây nhé, càng nhiều người đề xuất → khả năng được nấu càng cao ✨</div>
+                        </div>
+                    </div>
+
+                    <div class="suggestion-input-row">
+                        <input type="text" id="dish-suggest-input" class="suggestion-input"
+                               placeholder="VD: Bún bò Huế, Gỏi cuốn..." maxlength="60" autocomplete="off">
+                        <button type="button" id="dish-suggest-btn" class="suggestion-btn">
+                            Đề xuất <span class="suggestion-btn-emoji">💚</span>
+                        </button>
+                    </div>
+                    <div id="dish-suggest-feedback" class="suggestion-feedback"></div>
+
+                    <div id="dish-suggest-tags" class="suggestion-tags"></div>
+                </div>
+
+                <style>
+                    .suggestion-zone {
+                        position: relative;
+                        background: linear-gradient(135deg, #ecfdf5 0%, #fef3f2 50%, #fdf4ff 100%);
+                        border: 1.5px solid #d1fae5;
+                        border-radius: 18px;
+                        padding: 18px 20px;
+                        overflow: hidden;
+                    }
+                    .suggestion-zone::before {
+                        content: ''; position: absolute; top: -30px; right: -30px;
+                        width: 100px; height: 100px; border-radius: 50%;
+                        background: radial-gradient(circle, rgba(167, 243, 208, 0.4), transparent 70%);
+                    }
+                    .suggestion-zone::after {
+                        content: ''; position: absolute; bottom: -20px; left: -20px;
+                        width: 80px; height: 80px; border-radius: 50%;
+                        background: radial-gradient(circle, rgba(252, 165, 165, 0.3), transparent 70%);
+                    }
+                    .suggestion-header { display: flex; gap: 12px; align-items: flex-start; position: relative; z-index: 1; }
+                    .suggestion-emoji { font-size: 32px; animation: bounce 2s infinite ease-in-out; }
+                    @keyframes bounce {
+                        0%, 100% { transform: translateY(0) rotate(-5deg); }
+                        50% { transform: translateY(-6px) rotate(5deg); }
+                    }
+                    .suggestion-title { font-weight: 800; font-size: 16px; color: #065f46; }
+                    .suggestion-sub { font-size: 13px; color: #047857; margin-top: 2px; line-height: 1.45; }
+                    .suggestion-input-row { display: flex; gap: 8px; margin-top: 14px; position: relative; z-index: 1; }
+                    .suggestion-input {
+                        flex: 1; padding: 10px 14px; border-radius: 12px;
+                        border: 1.5px solid #a7f3d0; background: rgba(255,255,255,0.85);
+                        font-size: 14px; font-weight: 500; color: #064e3b;
+                        outline: none; transition: all .2s;
+                    }
+                    .suggestion-input:focus { border-color: #10b981; background: #fff; box-shadow: 0 0 0 4px rgba(16,185,129,0.15); }
+                    .suggestion-input::placeholder { color: #6ee7b7; }
+                    .suggestion-btn {
+                        background: linear-gradient(135deg, #10b981, #34d399);
+                        color: #fff; border: none; border-radius: 12px;
+                        padding: 10px 18px; font-weight: 700; font-size: 14px;
+                        cursor: pointer; transition: all .2s; white-space: nowrap;
+                        box-shadow: 0 4px 12px rgba(16,185,129,0.3);
+                    }
+                    .suggestion-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(16,185,129,0.4); }
+                    .suggestion-btn:active { transform: translateY(0); }
+                    .suggestion-btn:disabled { opacity: 0.5; cursor: wait; transform: none; }
+                    .suggestion-btn-emoji { display: inline-block; transition: transform .3s; }
+                    .suggestion-btn:hover .suggestion-btn-emoji { transform: scale(1.3) rotate(15deg); }
+
+                    .suggestion-feedback { margin-top: 8px; font-size: 13px; font-weight: 600; min-height: 18px; position: relative; z-index: 1; }
+                    .suggestion-feedback.ok { color: #059669; }
+                    .suggestion-feedback.err { color: #dc2626; }
+
+                    .suggestion-tags {
+                        display: flex; flex-wrap: wrap; gap: 8px;
+                        margin-top: 14px; position: relative; z-index: 1; min-height: 32px;
+                    }
+                    .suggestion-tag {
+                        display: inline-flex; align-items: center; gap: 6px;
+                        background: rgba(255,255,255,0.85); border: 1.5px solid #fbcfe8;
+                        color: #9d174d; padding: 5px 12px; border-radius: 999px;
+                        font-weight: 600; cursor: pointer; transition: all .2s;
+                        animation: tag-pop .35s ease-out;
+                    }
+                    .suggestion-tag:hover { transform: translateY(-2px) scale(1.05); border-color: #f472b6; background: #fff; box-shadow: 0 4px 10px rgba(244,114,182,0.25); }
+                    .suggestion-tag .count {
+                        background: #fbcfe8; color: #9d174d; padding: 0 8px; border-radius: 999px;
+                        font-size: 11px; font-weight: 800; min-width: 22px; text-align: center;
+                    }
+                    /* Size tier theo độ phổ biến */
+                    .suggestion-tag.size-2 { font-size: 14px; }
+                    .suggestion-tag.size-3 { font-size: 15px; border-color: #f472b6; background: linear-gradient(135deg, #fce7f3, #ddd6fe); }
+                    .suggestion-tag.size-4 { font-size: 16px; border-color: #ec4899; background: linear-gradient(135deg, #fbcfe8, #c4b5fd); animation: tag-pop .35s ease-out, tag-pulse 2.5s ease-in-out infinite; }
+                    /* Tag user đã vote — viền xanh emerald + tick */
+                    .suggestion-tag.voted { border-color: #10b981 !important; background: linear-gradient(135deg, #d1fae5, #ecfdf5) !important; color: #065f46 !important; }
+                    .suggestion-tag.voted .count { background: #6ee7b7; color: #065f46; }
+                    .suggestion-tag.voted::before { content: '✓'; font-weight: 900; color: #059669; margin-right: 2px; }
+                    .suggestion-tag.voted:hover { transform: translateY(-2px); cursor: default; box-shadow: 0 4px 10px rgba(16,185,129,0.25); }
+                    @keyframes tag-pop { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+                    @keyframes tag-pulse {
+                        0%, 100% { box-shadow: 0 0 0 0 rgba(244,114,182,0.4); }
+                        50% { box-shadow: 0 0 0 6px rgba(244,114,182,0); }
+                    }
+                    .suggestion-empty { font-size: 13px; color: #94a3b8; font-style: italic; padding: 6px 4px; }
+                </style>
+
+                <script>
+                (function () {
+                    const CSRF_TOKEN_SUG = '{{ csrf_token }}';
+                    const URL = "{% url 'dish_suggestions' %}";
+                    const input = document.getElementById('dish-suggest-input');
+                    const btn = document.getElementById('dish-suggest-btn');
+                    const feedback = document.getElementById('dish-suggest-feedback');
+                    const tagsEl = document.getElementById('dish-suggest-tags');
+                    let lastSubmit = 0;
+
+                    function setFeedback(msg, ok) {
+                        feedback.textContent = msg || '';
+                        feedback.className = 'suggestion-feedback ' + (msg ? (ok ? 'ok' : 'err') : '');
+                        if (msg) setTimeout(() => { if (feedback.textContent === msg) { feedback.textContent = ''; feedback.className = 'suggestion-feedback'; } }, 3500);
+                    }
+
+                    function sizeClass(count, max) {
+                        if (count >= max * 0.75 && count >= 3) return 'size-4';
+                        if (count >= max * 0.5 && count >= 2) return 'size-3';
+                        if (count >= 2) return 'size-2';
+                        return '';
+                    }
+
+                    function renderTags(items) {
+                        tagsEl.innerHTML = '';
+                        if (!items || items.length === 0) {
+                            tagsEl.innerHTML = '<div class="suggestion-empty">Chưa có ai đề xuất gì cả. Bạn là người đầu tiên nhé! 🌱</div>';
+                            return;
+                        }
+                        const max = Math.max(...items.map(i => i.count));
+                        items.forEach(item => {
+                            const tag = document.createElement('span');
+                            const cls = ['suggestion-tag', sizeClass(item.count, max)];
+                            if (item.voted_by_me) cls.push('voted');
+                            tag.className = cls.filter(Boolean).join(' ');
+                            tag.dataset.name = item.name;
+                            tag.title = item.voted_by_me ? 'Bạn đã vote món này' : 'Click để vote';
+                            tag.innerHTML = `<span>${escapeHtml(item.name)}</span><span class="count">${item.count}</span>`;
+                            tag.addEventListener('click', function () {
+                                if (item.voted_by_me) {
+                                    setFeedback('Bạn đã vote món này rồi 💚', true);
+                                    return;
+                                }
+                                submit(item.name);
+                            });
+                            tagsEl.appendChild(tag);
+                        });
+                    }
+
+                    function escapeHtml(s) {
+                        return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+                    }
+
+                    function loadList() {
+                        fetch(URL).then(r => r.json()).then(data => {
+                            if (data.success) renderTags(data.items);
+                        });
+                    }
+
+                    function submit(name) {
+                        const val = (name || '').trim();
+                        if (!val) {
+                            setFeedback('Vui lòng nhập tên món.', false);
+                            return;
+                        }
+                        const now = Date.now();
+                        if (now - lastSubmit < 2000) {
+                            setFeedback('Chậm thôi nào ~ đợi 2 giây nhé 😊', false);
+                            return;
+                        }
+                        lastSubmit = now;
+
+                        btn.disabled = true;
+                        fetch(URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN_SUG },
+                            body: JSON.stringify({ name: val }),
+                        })
+                        .then(r => r.json().then(d => ({ ok: r.ok, d })))
+                        .then(({ ok, d }) => {
+                            btn.disabled = false;
+                            if (!ok || !d.success) {
+                                setFeedback(d.message || 'Lỗi khi gửi.', false);
+                                return;
+                            }
+                            input.value = '';
+                            if (d.already_voted) {
+                                setFeedback('Bạn đã vote món này rồi 💚', true);
+                            } else if (d.created) {
+                                setFeedback('Cảm ơn bạn! Đã thêm món mới 🎉', true);
+                            } else {
+                                setFeedback('Đã ghi nhận vote của bạn 👍', true);
+                            }
+                            loadList();
+                        })
+                        .catch(err => {
+                            btn.disabled = false;
+                            setFeedback('Lỗi mạng: ' + err, false);
+                        });
+                    }
+
+                    btn.addEventListener('click', function () { submit(input.value); });
+                    input.addEventListener('keydown', function (e) {
+                        if (e.key === 'Enter') { e.preventDefault(); submit(input.value); }
+                    });
+                    loadList();
+                })();
+                </script>
             {% else %}
                 <div class="alert alert-warning mb-0">
                     Không được phép đánh giá.

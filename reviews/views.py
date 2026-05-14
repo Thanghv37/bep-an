@@ -13,7 +13,7 @@ from meals.models import DailyMenu
 from django.core.paginator import Paginator
 
 from .forms import MealReviewForm
-from .models import MealReview, DishReview
+from .models import MealReview, DishReview, DishSuggestion, DishSuggestionVote
 
 
 def can_review_date(target_date):
@@ -379,3 +379,76 @@ def qr_code_page(request):
         'qr_image_url': qr_image_url
     }
     return render(request, 'reviews/qr_code.html', context)
+
+
+# ---------------- Đề xuất món ăn ----------------
+
+DISH_SUGGESTION_MAX_LEN = 60
+DISH_SUGGESTION_TOP = 30
+
+
+@login_required
+def dish_suggestions(request):
+    """GET: trả list top món đã được đề xuất + món user hiện tại đã vote.
+    POST: nhận `{name}` → upsert + tạo vote record. 1 user chỉ vote 1 lần / món."""
+    from django.db import transaction, IntegrityError
+
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body or '{}')
+        except ValueError:
+            return JsonResponse({'success': False, 'message': 'Dữ liệu không hợp lệ.'}, status=400)
+
+        name = (data.get('name') or '').strip()
+        if not name:
+            return JsonResponse({'success': False, 'message': 'Tên món không được trống.'}, status=400)
+        if len(name) > DISH_SUGGESTION_MAX_LEN:
+            return JsonResponse({
+                'success': False,
+                'message': f'Tên món tối đa {DISH_SUGGESTION_MAX_LEN} ký tự.',
+            }, status=400)
+
+        normalized = DishSuggestion.normalize(name)
+
+        with transaction.atomic():
+            obj, created = DishSuggestion.objects.get_or_create(
+                name_normalized=normalized,
+                defaults={'name': name, 'count': 1, 'last_voted_by': request.user},
+            )
+
+            if created:
+                # Người đầu tiên đề xuất → tự động là voter đầu tiên.
+                DishSuggestionVote.objects.create(suggestion=obj, user=request.user)
+                voted_now = True
+                already_voted = False
+            else:
+                try:
+                    DishSuggestionVote.objects.create(suggestion=obj, user=request.user)
+                    obj.count = obj.votes.count()
+                    obj.last_voted_by = request.user
+                    obj.save(update_fields=['count', 'last_voted_at', 'last_voted_by'])
+                    voted_now = True
+                    already_voted = False
+                except IntegrityError:
+                    # User đã vote rồi → không thay đổi count.
+                    voted_now = False
+                    already_voted = True
+
+        return JsonResponse({
+            'success': True,
+            'created': created,
+            'voted_now': voted_now,
+            'already_voted': already_voted,
+            'item': {'id': obj.id, 'name': obj.name, 'count': obj.count, 'voted_by_me': True},
+        })
+
+    # GET
+    items = list(DishSuggestion.objects.values('id', 'name', 'count')[:DISH_SUGGESTION_TOP])
+    my_voted_ids = set(
+        DishSuggestionVote.objects
+        .filter(user=request.user, suggestion_id__in=[i['id'] for i in items])
+        .values_list('suggestion_id', flat=True)
+    )
+    for item in items:
+        item['voted_by_me'] = item['id'] in my_voted_ids
+    return JsonResponse({'success': True, 'items': items})

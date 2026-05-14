@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     review_dashboard, review_delete, ajax_review_dish,
     public_review_view, ajax_public_review_dish, qr_code_page,
+    dish_suggestions,
 )
 
 urlpatterns = [
@@ -12,4 +13,5 @@ urlpatterns = [
     path('reviews/public/', public_review_view, name='public_review'),
     path('reviews/public/ajax-dish/', ajax_public_review_dish, name='ajax_public_review_dish'),
     path('reviews/qr-code/', qr_code_page, name='qr_code_page'),
+    path('reviews/dish-suggestions/', dish_suggestions, name='dish_suggestions'),
 ]
