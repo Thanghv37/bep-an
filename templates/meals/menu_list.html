@@ -453,7 +453,7 @@
                                 <td>{{ item.quantity_per_person }} {{ item.unit }}</td>
 
                                 <td class="text-primary fw-bold">
-                                    {{ item.required_total_quantity|format_weight }}
+                                    {{ item.required_total_quantity|format_weight:item.unit }}
                                 </td>
                             </tr>
                             {% endfor %}
