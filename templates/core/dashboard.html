@@ -7,69 +7,210 @@
 {% block content %}
 
 
-<div class="row g-3 mb-3">
+<div class="row g-3 mb-3 kpi-row">
     <div class="col-12 col-md-6 col-lg-3">
-        <div class="stat-card stat-blue">
-            <div class="stat-label">Người ăn</div>
-            <div class="stat-value">
-                {% if registered_count != None %}
-                    {{ registered_count }}
-                {% else %}
-                    Chưa có dữ liệu
-                {% endif %}
-            </div>
-            <div class="stat-meta">Số suất đăng ký trong ngày</div>
-        </div>
-    </div>
-
-    <div class="col-12 col-md-6 col-lg-3">
-        <div class="stat-card stat-green">
-            <div class="stat-label">Thu</div>
-            <div class="stat-value">
-                {% if total_income != None %}
-                    {{ total_income|vnd }} VNĐ
-                {% else %}
-                    Chưa có dữ liệu
-                {% endif %}
-            </div>
-            <div class="stat-meta">
-                {% if registered_count != None and meal_price != None %}
-                    {{ registered_count }} × {{ meal_price|vnd }}
-                {% else %}
-                    Chưa có dữ liệu
-                {% endif %}
+        <div class="kpi-card kpi-people">
+            <div class="kpi-icon">👥</div>
+            <div class="kpi-body">
+                <div class="kpi-label">Người ăn</div>
+                <div class="kpi-value">
+                    {% if registered_count != None %}
+                        {{ registered_count }}<span class="kpi-unit">suất</span>
+                    {% else %}
+                        <span class="kpi-empty">Chưa có dữ liệu</span>
+                    {% endif %}
+                </div>
+                <div class="kpi-meta">Số suất đăng ký trong ngày</div>
             </div>
         </div>
     </div>
 
     <div class="col-12 col-md-6 col-lg-3">
-        <div class="stat-card stat-red" style="cursor:pointer;" onclick="toggleExpenseDetail()">
-            <div class="stat-label">Chi</div>
-            <div class="stat-value">
-                {% if total_expense != None %}
-                    {{ total_expense|vnd }} VNĐ
-                {% else %}
-                    Chưa có dữ liệu
-                {% endif %}
+        <div class="kpi-card kpi-income">
+            <div class="kpi-icon">💰</div>
+            <div class="kpi-body">
+                <div class="kpi-label">Thu</div>
+                <div class="kpi-value">
+                    {% if total_income != None %}
+                        {{ total_income|vnd }}<span class="kpi-unit">đ</span>
+                    {% else %}
+                        <span class="kpi-empty">Chưa có dữ liệu</span>
+                    {% endif %}
+                </div>
+                <div class="kpi-meta">
+                    {% if registered_count != None and meal_price != None %}
+                        {{ registered_count }} × {{ meal_price|vnd }}
+                    {% else %}
+                        Chưa có dữ liệu
+                    {% endif %}
+                </div>
             </div>
-            <div class="stat-meta">Chi phí thực tế</div>
         </div>
     </div>
 
     <div class="col-12 col-md-6 col-lg-3">
-        <div class="stat-card {% if balance != None %}{% if balance >= 0 %}stat-green{% else %}stat-amber{% endif %}{% else %}stat-blue{% endif %}">
-            <div class="stat-label">Chênh lệch</div>
-            <div class="stat-value">
-                {% if balance != None %}
-                    {{ balance|vnd }} VNĐ
-                {% else %}
-                    Chưa có dữ liệu
-                {% endif %}
+        <div class="kpi-card kpi-expense kpi-clickable" onclick="toggleExpenseDetail()">
+            <div class="kpi-icon">🧾</div>
+            <div class="kpi-body">
+                <div class="kpi-label">Chi <i class="bi bi-chevron-down kpi-label-icon"></i></div>
+                <div class="kpi-value">
+                    {% if total_expense != None %}
+                        {{ total_expense|vnd }}<span class="kpi-unit">đ</span>
+                    {% else %}
+                        <span class="kpi-empty">Chưa có dữ liệu</span>
+                    {% endif %}
+                </div>
+                <div class="kpi-meta">Chi phí thực tế · bấm để xem chi tiết</div>
             </div>
-            <div class="stat-meta">Thu - Chi</div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="kpi-card {% if balance != None %}{% if balance >= 0 %}kpi-positive{% else %}kpi-negative{% endif %}{% else %}kpi-people{% endif %}">
+            <div class="kpi-icon">{% if balance != None and balance < 0 %}⚠️{% else %}📊{% endif %}</div>
+            <div class="kpi-body">
+                <div class="kpi-label">Chênh lệch</div>
+                <div class="kpi-value">
+                    {% if balance != None %}
+                        {{ balance|vnd }}<span class="kpi-unit">đ</span>
+                    {% else %}
+                        <span class="kpi-empty">Chưa có dữ liệu</span>
+                    {% endif %}
+                </div>
+                <div class="kpi-meta">Thu - Chi</div>
+            </div>
         </div>
     </div>
 </div>
+
+<style>
+.kpi-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+    border-radius: 18px;
+    border: 1px solid transparent;
+    background: #fff;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    height: 100%;
+}
+.kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+}
+.kpi-clickable {
+    cursor: pointer;
+}
+
+.kpi-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 25px;
+    flex-shrink: 0;
+}
+
+.kpi-body {
+    min-width: 0;
+    flex: 1;
+}
+
+.kpi-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+.kpi-label-icon {
+    font-size: 9px;
+    opacity: 0.55;
+    margin-left: 2px;
+}
+
+.kpi-value {
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1.15;
+    letter-spacing: -0.3px;
+}
+.kpi-unit {
+    font-size: 13px;
+    font-weight: 700;
+    opacity: 0.7;
+    margin-left: 3px;
+}
+.kpi-empty {
+    font-size: 14px;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.kpi-meta {
+    font-size: 11.5px;
+    color: #94a3b8;
+    margin-top: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* People / neutral - blue */
+.kpi-people {
+    background: linear-gradient(135deg, #eff6ff 0%, #ffffff 70%);
+    border-color: #bfdbfe;
+}
+.kpi-people .kpi-icon {
+    background: linear-gradient(135deg, #bfdbfe 0%, #60a5fa 100%);
+}
+.kpi-people .kpi-value { color: #1d4ed8; }
+
+/* Income - green */
+.kpi-income {
+    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 70%);
+    border-color: #bbf7d0;
+}
+.kpi-income .kpi-icon {
+    background: linear-gradient(135deg, #bbf7d0 0%, #34d399 100%);
+}
+.kpi-income .kpi-value { color: #047857; }
+
+/* Expense - red */
+.kpi-expense {
+    background: linear-gradient(135deg, #fef2f2 0%, #ffffff 70%);
+    border-color: #fecdd3;
+}
+.kpi-expense .kpi-icon {
+    background: linear-gradient(135deg, #fecdd3 0%, #fb7185 100%);
+}
+.kpi-expense .kpi-value { color: #be123c; }
+
+/* Balance positive - indigo */
+.kpi-positive {
+    background: linear-gradient(135deg, #eef2ff 0%, #ffffff 70%);
+    border-color: #c7d2fe;
+}
+.kpi-positive .kpi-icon {
+    background: linear-gradient(135deg, #c7d2fe 0%, #818cf8 100%);
+}
+.kpi-positive .kpi-value { color: #4338ca; }
+
+/* Balance negative - amber */
+.kpi-negative {
+    background: linear-gradient(135deg, #fff7ed 0%, #ffffff 70%);
+    border-color: #fed7aa;
+}
+.kpi-negative .kpi-icon {
+    background: linear-gradient(135deg, #fed7aa 0%, #fb923c 100%);
+}
+.kpi-negative .kpi-value { color: #c2410c; }
+</style>
 <div id="expense-detail-box" class="dashboard-card mt-3 d-none">
     <div class="fw-bold mb-2">Chi tiết chi phí ngày {{ selected_date|date:"d/m/Y" }}</div>
 
@@ -544,40 +685,9 @@
         height: 100% !important;
         width: 100% !important;
     }
-    /* ===== PASTEL THEME ===== */
-    .stat-blue {
-        background: linear-gradient(135deg, #93c5fd, #dbeafe) !important;
-        color: #1e3a8a !important;
-    }
-
-    .stat-green {
-        background: linear-gradient(135deg, #86efac, #dcfce7) !important;
-        color: #14532d !important;
-    }
-
-    .stat-red {
-        background: linear-gradient(135deg, #fca5a5, #fee2e2) !important;
-        color: #7f1d1d !important;
-    }
-
-    .stat-amber {
-        background: linear-gradient(135deg, #fde68a, #fef3c7) !important;
-        color: #78350f !important;
-    }
-
-    .stat-card {
-        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06) !important;
-        padding: 18px 20px !important;
-        min-height: 105px !important;
-    }
     .dashboard-card {
         padding: 18px !important;
         border-radius: 20px !important;
-    }
-    .stat-card .stat-label,
-    .stat-card .stat-meta,
-    .stat-card .stat-value {
-        color: inherit !important;
     }
     /* ========== AI BOX REDESIGN ========== */
     .ai-chat-card {
