@@ -67,76 +67,81 @@
 
 <div class="row g-4 mb-4">
     <div class="col-lg-6">
-        <div class="dashboard-card h-100">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-                <div class="section-title mb-0">Thực đơn ngày {{ selected_date|date:"d/m/Y" }}</div>
+        <div class="dashboard-card h-100 menu-review-card">
+            <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                <div class="section-title d-flex align-items-center gap-2 mb-0">
+                    <span class="menu-review-icon">🍽️</span>
+                    Thực đơn ngày {{ selected_date|date:"d/m/Y" }}
+                </div>
                 {% if request.user.is_staff or request.user.is_superuser %}
-                <a href="{% url 'qr_code_page' %}" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" title="Lấy mã QR">
+                <a href="{% url 'qr_code_page' %}" class="btn btn-sm qr-btn d-flex align-items-center gap-1" title="Lấy mã QR">
                     <i class="bi bi-qr-code"></i> <span class="d-none d-sm-inline">QR-CODE</span>
                 </a>
                 {% endif %}
             </div>
+            <div class="section-subtitle mb-0">Bấm 👍 / 👎 để chấm điểm từng món</div>
 
             {% if menu %}
-                <div class="d-flex flex-column gap-2 mt-3">
+                <div class="menu-review-list mt-3">
                     {% for item in menu.items.all %}
-                    <div class="p-3 border rounded-4 bg-white d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="fw-semibold">{{ item.dish.name }}</div>
-                            <div class="small text-muted">
-                                {{ item.dish.get_dish_type_display }}
+                    <div class="menu-review-item dish-type-{{ item.dish.dish_type }}">
+                        <div class="menu-review-info">
+                            <span class="menu-review-dish-icon">
+                                {% if item.dish.dish_type == 'main' %}🍚
+                                {% elif item.dish.dish_type == 'side' %}🥬
+                                {% elif item.dish.dish_type == 'soup' %}🍲
+                                {% elif item.dish.dish_type == 'dessert' %}🍮
+                                {% else %}🍽️{% endif %}
+                            </span>
+                            <div class="menu-review-text">
+                                <div class="menu-review-name">{{ item.dish.name }}</div>
+                                <span class="menu-review-type">{{ item.dish.get_dish_type_display }}</span>
                             </div>
                         </div>
-                        
+
                         {% if can_review %}
-                        <div class="d-flex gap-2">
-                            <div class="d-flex flex-column align-items-center">
-                                <label class="btn btn-outline-success btn-sm d-flex align-items-center gap-1 review-btn">
-                                    <input type="radio" name="dish_{{ item.dish.id }}" value="like" class="d-none dish-review-radio" data-dish-id="{{ item.dish.id }}"
-                                        {% if item.user_evaluation == 'like' %}checked{% endif %}>
-                                    <i class="bi bi-hand-thumbs-up empty-icon"></i>
-                                    <i class="bi bi-hand-thumbs-up-fill fill-icon d-none"></i>
-                                    Thích
-                                </label>
-                                <small class="text-success fw-bold mt-1" style="font-size: 0.75rem;">{{ item.likes_count }}</small>
-                            </div>
-                            <div class="d-flex flex-column align-items-center">
-                                <label class="btn btn-outline-danger btn-sm d-flex align-items-center gap-1 review-btn">
-                                    <input type="radio" name="dish_{{ item.dish.id }}" value="dislike" class="d-none dish-review-radio" data-dish-id="{{ item.dish.id }}"
-                                        {% if item.user_evaluation == 'dislike' %}checked{% endif %}>
-                                    <i class="bi bi-hand-thumbs-down empty-icon"></i>
-                                    <i class="bi bi-hand-thumbs-down-fill fill-icon d-none"></i>
-                                    Không thích
-                                </label>
-                                <small class="text-danger fw-bold mt-1" style="font-size: 0.75rem; color: #f87171 !important;">{{ item.dislikes_count }}</small>
-                            </div>
+                        <div class="vote-group">
+                            <label class="vote-pill vote-like">
+                                <input type="radio" name="dish_{{ item.dish.id }}" value="like" class="dish-review-radio" data-dish-id="{{ item.dish.id }}"
+                                    {% if item.user_evaluation == 'like' %}checked{% endif %}>
+                                <i class="bi bi-hand-thumbs-up-fill"></i>
+                                <span class="vote-count">{{ item.likes_count }}</span>
+                            </label>
+                            <label class="vote-pill vote-dislike">
+                                <input type="radio" name="dish_{{ item.dish.id }}" value="dislike" class="dish-review-radio" data-dish-id="{{ item.dish.id }}"
+                                    {% if item.user_evaluation == 'dislike' %}checked{% endif %}>
+                                <i class="bi bi-hand-thumbs-down-fill"></i>
+                                <span class="vote-count">{{ item.dislikes_count }}</span>
+                            </label>
                         </div>
                         {% else %}
-                            <div class="d-flex gap-3 align-items-center">
-                                <div class="text-muted small">
-                                    {% if item.user_evaluation == 'like' %}<i class="bi bi-hand-thumbs-up-fill text-success"></i> Đã thích
-                                    {% elif item.user_evaluation == 'dislike' %}<i class="bi bi-hand-thumbs-down-fill text-danger"></i> Không thích{% endif %}
-                                </div>
-                                <div class="d-flex gap-2 small fw-bold">
-                                    <span class="text-success"><i class="bi bi-hand-thumbs-up-fill"></i> {{ item.likes_count }}</span>
-                                    <span class="text-danger" style="color: #f87171 !important;"><i class="bi bi-hand-thumbs-down-fill"></i> {{ item.dislikes_count }}</span>
-                                </div>
-                            </div>
+                        <div class="vote-group vote-group-readonly">
+                            <span class="vote-pill vote-like {% if item.user_evaluation == 'like' %}vote-mine{% endif %}">
+                                <i class="bi bi-hand-thumbs-up-fill"></i>
+                                <span class="vote-count">{{ item.likes_count }}</span>
+                            </span>
+                            <span class="vote-pill vote-dislike {% if item.user_evaluation == 'dislike' %}vote-mine{% endif %}">
+                                <i class="bi bi-hand-thumbs-down-fill"></i>
+                                <span class="vote-count">{{ item.dislikes_count }}</span>
+                            </span>
+                        </div>
                         {% endif %}
                     </div>
                     {% endfor %}
                 </div>
             {% else %}
-                <div class="empty-state mt-3">
-                    Chưa có thực đơn đã duyệt cho ngày này.
+                <div class="menu-review-empty">
+                    <span class="menu-review-empty-icon">🍽️</span>
+                    <div>Chưa có thực đơn đã duyệt cho ngày này.</div>
                 </div>
             {% endif %}
         </div>
     </div>
 
     <div class="col-lg-6">
-        <div class="dashboard-card h-100">
-            <div class="section-title mb-1">
+        <div class="dashboard-card h-100 send-review-card">
+            <div class="section-title d-flex align-items-center gap-2 mb-1">
+                <span class="send-review-icon">{% if existing_review %}✏️{% else %}💬{% endif %}</span>
                 {% if existing_review %}
                     Sửa đánh giá của bạn
                 {% else %}
@@ -146,21 +151,24 @@
 
             {% if can_review %}
                 <div class="section-subtitle mb-3">
-                    Chạm vào số sao để đánh giá nhanh.
+                    Để lại góp ý giúp bếp nấu ngon hơn mỗi ngày 🌟
                 </div>
 
                 <form method="post">
                     {% csrf_token %}
 
-                    <div class="mt-3">
-                        <label class="form-label fw-semibold">Góp ý thêm</label>
+                    <div class="review-comment-field">
+                        <label class="review-comment-label">
+                            <i class="bi bi-chat-heart-fill"></i> Góp ý thêm
+                        </label>
                         {{ form.comment }}
                     </div>
 
                     <div class="d-flex gap-2 mt-3">
-                        <button class="btn btn-primary">
+                        <button class="btn send-review-btn">
+                            <i class="bi bi-send-fill"></i>
                             {% if existing_review %}
-                                Sửa đánh giá
+                                Cập nhật đánh giá
                             {% else %}
                                 Gửi đánh giá
                             {% endif %}
@@ -172,7 +180,7 @@
                                 class="btn btn-outline-danger"
                                 data-bs-toggle="modal"
                                 data-bs-target="#deleteReviewModal">
-                                Xóa
+                                <i class="bi bi-trash3"></i> Xóa
                             </button>
                         {% endif %}
                     </div>
@@ -726,22 +734,212 @@
 </style>
 
 <style>
-.btn-outline-success input[type="radio"]:checked ~ .empty-icon { display: none !important; }
-.btn-outline-success input[type="radio"]:checked ~ .fill-icon { display: inline-block !important; }
-.btn-outline-danger input[type="radio"]:checked ~ .empty-icon { display: none !important; }
-.btn-outline-danger input[type="radio"]:checked ~ .fill-icon { display: inline-block !important; }
+/* ===== THỰC ĐƠN NGÀY - dish review list ===== */
+.menu-review-icon,
+.send-review-icon { font-size: 20px; }
 
-.btn-outline-success input[type="radio"]:checked ~ i,
-.btn-outline-success input[type="radio"]:checked ~ span {
-    font-weight: bold;
+.qr-btn {
+    border: 1px solid #c7d2fe;
+    background: linear-gradient(135deg, #eef2ff 0%, #ffffff 100%);
+    color: #4338ca;
+    border-radius: 9px;
+    font-weight: 600;
 }
-.btn-outline-success:has(input[type="radio"]:checked) {
-    background-color: #198754;
-    color: white;
+.qr-btn:hover {
+    background: linear-gradient(135deg, #e0e7ff 0%, #eef2ff 100%);
+    color: #3730a3;
+    border-color: #a5b4fc;
 }
-.btn-outline-danger:has(input[type="radio"]:checked) {
-    background-color: #dc3545;
-    color: white;
+
+.menu-review-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.menu-review-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    border-left: 4px solid #cbd5e1;
+    transition: all 0.18s ease;
+}
+.menu-review-item:hover {
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.07);
+    transform: translateY(-1px);
+}
+.menu-review-item.dish-type-main    { border-left-color: #60a5fa; }
+.menu-review-item.dish-type-side    { border-left-color: #a78bfa; }
+.menu-review-item.dish-type-soup    { border-left-color: #34d399; }
+.menu-review-item.dish-type-dessert { border-left-color: #fb923c; }
+
+.menu-review-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+.menu-review-dish-icon {
+    font-size: 22px;
+    flex-shrink: 0;
+}
+.menu-review-text { min-width: 0; }
+.menu-review-name {
+    font-weight: 700;
+    font-size: 14.5px;
+    color: #0f172a;
+    line-height: 1.3;
+}
+.menu-review-type {
+    display: inline-block;
+    margin-top: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #475569;
+}
+.dish-type-main .menu-review-type    { background: #dbeafe; color: #1e40af; }
+.dish-type-side .menu-review-type    { background: #ede9fe; color: #5b21b6; }
+.dish-type-soup .menu-review-type    { background: #d1fae5; color: #065f46; }
+.dish-type-dessert .menu-review-type { background: #ffedd5; color: #9a3412; }
+
+/* Vote pills */
+.vote-group {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.vote-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: 1.5px solid;
+    background: #fff;
+    font-weight: 800;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.16s ease;
+    user-select: none;
+}
+.vote-pill input { display: none; }
+.vote-pill i { font-size: 14px; }
+.vote-count { font-variant-numeric: tabular-nums; }
+
+.vote-like {
+    border-color: #a7f3d0;
+    color: #059669;
+}
+.vote-like:hover { background: #ecfdf5; }
+.vote-dislike {
+    border-color: #fecdd3;
+    color: #e11d48;
+}
+.vote-dislike:hover { background: #fff1f2; }
+
+/* Selected (checked) state */
+.vote-like:has(input:checked),
+.vote-like.vote-mine {
+    background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+    border-color: #10b981;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    animation: vote-pop 0.28s ease;
+}
+.vote-dislike:has(input:checked),
+.vote-dislike.vote-mine {
+    background: linear-gradient(135deg, #fb7185 0%, #f43f5e 100%);
+    border-color: #f43f5e;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(244, 63, 94, 0.3);
+    animation: vote-pop 0.28s ease;
+}
+@keyframes vote-pop {
+    0% { transform: scale(0.9); }
+    60% { transform: scale(1.08); }
+    100% { transform: scale(1); }
+}
+.vote-group-readonly .vote-pill { cursor: default; }
+
+.menu-review-empty {
+    text-align: center;
+    padding: 36px 16px;
+    color: #94a3b8;
+}
+.menu-review-empty-icon {
+    font-size: 36px;
+    display: block;
+    margin-bottom: 8px;
+    opacity: 0.6;
+}
+
+/* ===== GỬI ĐÁNH GIÁ - comment form ===== */
+.send-review-card {
+    background: linear-gradient(165deg, #fffbeb 0%, #ffffff 30%);
+}
+
+.review-comment-field {
+    margin-top: 14px;
+}
+.review-comment-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+    font-size: 13.5px;
+    color: #475569;
+    margin-bottom: 8px;
+}
+.review-comment-label i { color: #f59e0b; }
+
+.review-comment-field textarea,
+.review-comment-field input[type="text"] {
+    width: 100%;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 14px;
+    color: #0f172a;
+    background: #fff;
+    transition: all 0.18s ease;
+    resize: vertical;
+    min-height: 90px;
+}
+.review-comment-field textarea:focus,
+.review-comment-field input[type="text"]:focus {
+    outline: none;
+    border-color: #fbbf24;
+    box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.15);
+}
+.review-comment-field textarea::placeholder { color: #cbd5e1; }
+
+.send-review-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+    color: #fff;
+    border: none;
+    border-radius: 11px;
+    padding: 9px 20px;
+    font-weight: 700;
+    font-size: 14px;
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+    transition: all 0.2s ease;
+}
+.send-review-btn:hover {
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 7px 18px rgba(99, 102, 241, 0.4);
 }
 </style>
 
