@@ -50,48 +50,8 @@
     </div>
 </div>
 
-<div class="dashboard-card mb-4">
-    <form method="get" class="order-filter-form">
-        <div>
-            <label class="form-label small fw-semibold mb-1">Ngày áp dụng</label>
-            <input type="date"
-                   name="date"
-                   value="{{ selected_date|date:'Y-m-d' }}"
-                   class="form-control form-control-sm">
-        </div>
-
-        <div>
-            <label class="form-label small fw-semibold mb-1">Loại đơn</label>
-            <select name="type" class="form-select form-select-sm">
-                <option value="" {% if order_type == '' %}selected{% endif %}>Tất cả</option>
-                <option value="main" {% if order_type == 'main' %}selected{% endif %}>Nguyên liệu chính</option>
-                <option value="extra" {% if order_type == 'extra' %}selected{% endif %}>Đơn hàng phụ</option>
-            </select>
-        </div>
-
-        <div>
-            <label class="form-label small fw-semibold mb-1">Trạng thái</label>
-            <select name="status" class="form-select form-select-sm">
-                <option value="" {% if status_filter == '' %}selected{% endif %}>Tất cả</option>
-                <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Chờ duyệt</option>
-                <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Đã duyệt</option>
-                <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Đã từ chối</option>
-                <option value="cost_entered" {% if status_filter == 'cost_entered' %}selected{% endif %}>Đã nhập chi phí</option>
-                <option value="cost_not_entered" {% if status_filter == 'cost_not_entered' %}selected{% endif %}>Chưa nhập chi phí</option>
-            </select>
-        </div>
-
-        <div class="d-flex gap-2 align-items-end">
-            <button class="btn btn-primary btn-sm px-3">Xem</button>
-            <a href="{% url 'extra_request_list' %}" class="btn btn-outline-secondary btn-sm px-3">
-                Reset
-            </a>
-        </div>
-    </form>
-</div>
-
 <div class="dashboard-card">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+    <div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-3 order-list-header">
         <div>
             <div class="section-title mb-1">
                 Danh sách hóa đơn ngày {{ selected_date|date:"d/m/Y" }}
@@ -100,6 +60,46 @@
                 Bấm vào từng dòng để xem chi tiết nguyên liệu.
             </div>
         </div>
+
+        <form method="get" class="order-filter-inline">
+            <div class="filter-field">
+                <label class="form-label">Ngày</label>
+                <input type="date"
+                       name="date"
+                       value="{{ selected_date|date:'Y-m-d' }}"
+                       class="form-control form-control-sm">
+            </div>
+
+            <div class="filter-field">
+                <label class="form-label">Loại đơn</label>
+                <select name="type" class="form-select form-select-sm">
+                    <option value="" {% if order_type == '' %}selected{% endif %}>Tất cả</option>
+                    <option value="main" {% if order_type == 'main' %}selected{% endif %}>NL chính</option>
+                    <option value="extra" {% if order_type == 'extra' %}selected{% endif %}>Đơn phụ</option>
+                </select>
+            </div>
+
+            <div class="filter-field">
+                <label class="form-label">Trạng thái</label>
+                <select name="status" class="form-select form-select-sm">
+                    <option value="" {% if status_filter == '' %}selected{% endif %}>Tất cả</option>
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Chờ duyệt</option>
+                    <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Đã duyệt</option>
+                    <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Đã từ chối</option>
+                    <option value="cost_entered" {% if status_filter == 'cost_entered' %}selected{% endif %}>Đã nhập CP</option>
+                    <option value="cost_not_entered" {% if status_filter == 'cost_not_entered' %}selected{% endif %}>Chưa nhập CP</option>
+                </select>
+            </div>
+
+            <div class="filter-actions">
+                <button class="btn btn-primary btn-sm" title="Áp dụng bộ lọc">
+                    <i class="bi bi-funnel-fill"></i> Xem
+                </button>
+                <a href="{% url 'extra_request_list' %}" class="btn btn-outline-secondary btn-sm">
+                    Reset
+                </a>
+            </div>
+        </form>
     </div>
 
     {% if main_order or requests %}
@@ -349,18 +349,55 @@
     color: #2563eb;
 }
 
-.order-filter-form {
-    display: grid;
-    grid-template-columns: 220px 180px 220px auto;
-    gap: 12px;
-    align-items: end;
+.order-list-header {
+    padding-bottom: 14px;
+    border-bottom: 1px solid #eef2f7;
 }
 
-.order-filter-form .form-control,
-.order-filter-form .form-select,
-.order-filter-form .btn {
-    height: 38px;
-    border-radius: 10px;
+.order-filter-inline {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    flex-wrap: nowrap;
+}
+
+.order-filter-inline .filter-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.order-filter-inline .form-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 4px;
+}
+
+.order-filter-inline .form-control,
+.order-filter-inline .form-select {
+    height: 34px;
+    border-radius: 9px;
+    font-size: 13px;
+    min-width: 120px;
+}
+
+.order-filter-inline .filter-field:first-child .form-control {
+    min-width: 140px;
+}
+
+.order-filter-inline .filter-actions {
+    display: flex;
+    gap: 6px;
+    align-items: flex-end;
+}
+
+.order-filter-inline .btn {
+    height: 34px;
+    border-radius: 9px;
+    font-size: 13px;
+    white-space: nowrap;
 }
 
 .order-table thead th {
@@ -423,8 +460,15 @@
 }
 
 @media (max-width: 992px) {
-    .order-filter-form {
-        grid-template-columns: 1fr;
+    .order-filter-inline {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+    .order-filter-inline .filter-field {
+        flex: 1 1 140px;
+    }
+    .order-filter-inline .filter-actions {
+        flex: 1 1 100%;
     }
 }
 .badge-soft {

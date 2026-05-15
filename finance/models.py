@@ -120,6 +120,11 @@ class DailyPurchase(models.Model):
 
     rejected_at = models.DateTimeField(null=True, blank=True, verbose_name='Thời điểm từ chối')
 
+    was_edited_after_approval = models.BooleanField(
+        default=False,
+        verbose_name='Đã chỉnh sửa sau khi duyệt'
+    )
+
     class Meta:
         ordering = ['-date', '-created_at']
         verbose_name = 'Chi phí mua hàng ngày'
@@ -127,6 +132,33 @@ class DailyPurchase(models.Model):
 
     def __str__(self):
         return f"{self.date} - {self.get_purchase_type_display()} - {self.actual_cost}"
+
+
+class PurchaseEditLog(models.Model):
+    purchase = models.ForeignKey(
+        DailyPurchase,
+        on_delete=models.CASCADE,
+        related_name='edit_logs',
+        verbose_name='Chi phí'
+    )
+    edited_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Người chỉnh sửa'
+    )
+    edited_at = models.DateTimeField(auto_now_add=True, verbose_name='Thời điểm sửa')
+    previous_status = models.CharField(max_length=20, blank=True, verbose_name='Trạng thái trước khi sửa')
+    reason = models.TextField(verbose_name='Lý do chỉnh sửa')
+
+    class Meta:
+        ordering = ['-edited_at']
+        verbose_name = 'Lịch sử chỉnh sửa chi phí'
+        verbose_name_plural = 'Lịch sử chỉnh sửa chi phí'
+
+    def __str__(self):
+        return f"Edit #{self.purchase_id} by {self.edited_by} at {self.edited_at}"
 
 
 class PurchaseExtraItem(models.Model):

@@ -8,7 +8,7 @@ from decimal import Decimal, InvalidOperation
 from datetime import date
 
 from meals.models import DailyMenu
-from .models import DailyPurchase, ExtraPurchaseRequest, PurchaseExtraItem
+from .models import DailyPurchase, ExtraPurchaseRequest, ExtraPurchaseRequestItem, PurchaseEditLog, PurchaseExtraItem
 from accounts.permissions import is_admin, is_kitchen
 from .forms import DailyPurchaseForm
 from core.services.finance_ai import scan_receipt_image
@@ -198,10 +198,26 @@ def purchase_update(request, pk):
         messages.error(request, "Chi phí đã được duyệt, không thể chỉnh sửa.")
         return redirect('purchase_list')
 
+    was_previously_approved = (purchase.status == DailyPurchase.STATUS_APPROVED)
+
     if request.method == 'POST':
         form = DailyPurchaseForm(request.POST, request.FILES, instance=purchase)
 
+        edit_reason = (request.POST.get('edit_reason') or '').strip()
+        if was_previously_approved and not edit_reason:
+            messages.error(request, 'Bạn phải nhập lý do chỉnh sửa chi phí đã được duyệt.')
+            return render(request, 'finance/purchase_form.html', {
+                'form': form,
+                'page_title': 'Cập nhật chi phí',
+                'submit_label': 'Cập nhật',
+                'is_create': False,
+                'was_previously_approved': was_previously_approved,
+                'edit_reason_value': edit_reason,
+            })
+
         if form.is_valid():
+            previous_status = purchase.status
+
             purchase = form.save(commit=False)
             purchase.created_by = request.user
             purchase.status = DailyPurchase.STATUS_PENDING
@@ -210,11 +226,13 @@ def purchase_update(request, pk):
             purchase.reject_reason = ''
             purchase.rejected_by = None
             purchase.rejected_at = None
+            if was_previously_approved:
+                purchase.was_edited_after_approval = True
             purchase.save()
-            
+
             # Update dynamic items: delete old ones, recreate new ones
             purchase.extra_items.all().delete()
-            
+
             names = request.POST.getlist('ai_item_name[]')
             quantities = request.POST.getlist('ai_item_quantity[]')
             units = request.POST.getlist('ai_item_unit[]')
@@ -223,12 +241,12 @@ def purchase_update(request, pk):
             for i, raw_name in enumerate(names):
                 name = (raw_name or '').strip()
                 if not name: continue
-                
+
                 try: quantity = Decimal(quantities[i].replace(',', '.'))
                 except: quantity = Decimal('0')
-                
+
                 unit = units[i] if i < len(units) else ''
-                
+
                 try: price = Decimal(prices[i].replace(',', '.'))
                 except: price = Decimal('0')
 
@@ -241,6 +259,14 @@ def purchase_update(request, pk):
                     unit_price=price
                 )
 
+            if was_previously_approved:
+                PurchaseEditLog.objects.create(
+                    purchase=purchase,
+                    edited_by=request.user,
+                    previous_status=previous_status,
+                    reason=edit_reason,
+                )
+
             messages.success(request, 'Đã cập nhật chi phí, đang chờ phê duyệt lại.')
             return redirect('purchase_list')
     else:
@@ -251,6 +277,7 @@ def purchase_update(request, pk):
         'page_title': 'Cập nhật chi phí',
         'submit_label': 'Cập nhật',
         'is_create': False,
+        'was_previously_approved': was_previously_approved,
     })
 
 

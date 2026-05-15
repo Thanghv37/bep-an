@@ -102,6 +102,43 @@
                             {% endif %}
                         </div>
 
+                        {% if was_previously_approved %}
+                        <div class="mb-4 edit-reason-box">
+                            <div class="edit-reason-warning">
+                                <i class="bi bi-exclamation-triangle-fill"></i>
+                                <span>Chi phí này đã được duyệt. Mọi chỉnh sửa sẽ được ghi lại trong lịch sử để minh bạch.</span>
+                            </div>
+                            <label class="form-label fw-semibold mt-2">
+                                Lý do chỉnh sửa <span class="text-danger">*</span>
+                            </label>
+                            <textarea name="edit_reason" rows="3"
+                                      class="form-control"
+                                      required
+                                      placeholder="Vd: Nhập sai chi phí thực tế, đã đối chiếu lại với bill..."
+                            >{{ edit_reason_value|default:"" }}</textarea>
+                        </div>
+                        <style>
+                            .edit-reason-box {
+                                background: linear-gradient(135deg, #fff7ed 0%, #ffffff 70%);
+                                border: 1px solid #fed7aa;
+                                border-radius: 14px;
+                                padding: 14px 16px;
+                            }
+                            .edit-reason-warning {
+                                display: flex;
+                                align-items: flex-start;
+                                gap: 8px;
+                                color: #c2410c;
+                                font-size: 13px;
+                                font-weight: 600;
+                            }
+                            .edit-reason-warning i {
+                                font-size: 16px;
+                                margin-top: 1px;
+                            }
+                        </style>
+                        {% endif %}
+
                         <div class="d-flex gap-2">
                             <button type="submit" id="submit-purchase-btn" class="btn btn-primary flex-fill">
                                 {{ submit_label }}

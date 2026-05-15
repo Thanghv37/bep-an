@@ -137,6 +137,16 @@
                                                     {% else %}
                                                         {{ item.get_status_display }}
                                                     {% endif %}
+
+                                                    {% if item.was_edited_after_approval %}
+                                                        <button type="button"
+                                                                class="badge edited-badge"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#editHistoryModal-{{ item.id }}"
+                                                                title="Đã chỉnh sửa sau khi duyệt - bấm để xem lịch sử">
+                                                            <i class="bi bi-pencil-square"></i> Đã chỉnh sửa
+                                                        </button>
+                                                    {% endif %}
                                                 </td>
 
                                                 <td>
@@ -267,6 +277,65 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- EDIT HISTORY MODALS (ngoài table cho HTML hợp lệ) -->
+        {% for day in purchase_days %}
+            {% for item in day.items %}
+                {% if item.was_edited_after_approval %}
+                <div class="modal fade" id="editHistoryModal-{{ item.id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content rounded-4">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="bi bi-clock-history text-warning"></i>
+                                    Lịch sử chỉnh sửa
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="text-muted small mb-3">
+                                    Chi phí ngày <strong>{{ item.date|date:"d/m/Y" }}</strong>
+                                    ({% if item.purchase_type == 'extra' %}Mua bổ sung{% else %}Nguyên liệu chính{% endif %})
+                                </div>
+
+                                {% if item.edit_logs.all %}
+                                    <div class="edit-log-list">
+                                        {% for log in item.edit_logs.all %}
+                                        <div class="edit-log-item">
+                                            <div class="edit-log-header">
+                                                <span class="edit-log-time">
+                                                    <i class="bi bi-clock"></i>
+                                                    {{ log.edited_at|date:"d/m/Y H:i" }}
+                                                </span>
+                                                <span class="edit-log-user">
+                                                    <i class="bi bi-person-fill"></i>
+                                                    {% if log.edited_by %}
+                                                        {{ log.edited_by.profile.full_name|default:log.edited_by.username }}
+                                                    {% else %}
+                                                        Không rõ
+                                                    {% endif %}
+                                                </span>
+                                            </div>
+                                            <div class="edit-log-reason">
+                                                <span class="edit-log-label">Lý do:</span>
+                                                {{ log.reason }}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <div class="text-muted text-center py-3">Không có log chi tiết.</div>
+                                {% endif %}
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
     {% else %}
         <div class="empty-state">
             Chưa có dữ liệu chi phí thực tế.
@@ -285,6 +354,67 @@
 
 .purchase-detail-row td {
     padding-top: 0;
+}
+
+/* Edit badge + log */
+.edited-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+    color: #c2410c;
+    border: 1px solid #fed7aa;
+    margin-left: 4px;
+    cursor: pointer;
+    font-weight: 700;
+    padding: 4px 8px;
+    transition: all 0.15s ease;
+}
+.edited-badge:hover {
+    background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(194, 65, 12, 0.18);
+}
+
+.edit-log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.edit-log-item {
+    background: linear-gradient(135deg, #fff7ed 0%, #ffffff 50%);
+    border: 1px solid #fed7aa;
+    border-radius: 12px;
+    padding: 12px 14px;
+}
+.edit-log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed #fed7aa;
+    font-size: 12.5px;
+}
+.edit-log-time {
+    color: #c2410c;
+    font-weight: 700;
+}
+.edit-log-user {
+    color: #475569;
+    font-weight: 600;
+}
+.edit-log-reason {
+    font-size: 13.5px;
+    color: #0f172a;
+    line-height: 1.5;
+}
+.edit-log-label {
+    font-weight: 700;
+    color: #64748b;
+    margin-right: 4px;
 }
 </style>
 

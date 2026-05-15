@@ -7,36 +7,97 @@
 {% block content %}
 
 <div class="dashboard-card mb-4">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+    <div class="dish-list-header">
         <div>
             <div class="section-title mb-1">Danh sách món ăn</div>
             <div class="section-subtitle mb-0">
                 Quản lý danh mục món dùng để lên thực đơn hằng ngày.
             </div>
         </div>
-        <a href="{% url 'dish_create' %}" class="btn btn-primary">+ Thêm món ăn</a>
+
+        <div class="dish-list-actions">
+            <form method="get" id="dish-filter-form" class="dish-filter-inline">
+                <div class="filter-field filter-field-search">
+                    <input type="text" id="dish-search-input" name="q" value="{{ keyword }}"
+                           class="form-control form-control-sm" placeholder="🔍 Tìm theo tên món...">
+                </div>
+                <div class="filter-field">
+                    <select name="type" class="form-select form-select-sm">
+                        <option value="">Tất cả loại</option>
+                        {% for value, label in dish_type_choices %}
+                            <option value="{{ value }}" {% if dish_type == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button class="btn btn-outline-primary btn-sm">Lọc</button>
+                <a href="{% url 'dish_list' %}" class="btn btn-outline-secondary btn-sm">Reset</a>
+            </form>
+
+            <a href="{% url 'dish_create' %}" class="btn btn-primary btn-sm dish-add-btn">
+                <i class="bi bi-plus-lg"></i> Thêm món ăn
+            </a>
+        </div>
     </div>
 
-    <form method="get" id="dish-filter-form" class="row g-3">
-        <div class="col-md-5">
-            <input type="text" id="dish-search-input" name="q" value="{{ keyword }}" class="form-control" placeholder="Tìm theo tên món...">
-        </div>
-        <div class="col-md-3">
-            <select name="type" class="form-select">
-                <option value="">-- Tất cả loại món --</option>
-                {% for value, label in dish_type_choices %}
-                    <option value="{{ value }}" {% if dish_type == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-2">
-            <button class="btn btn-outline-primary w-100">Lọc</button>
-        </div>
-        <div class="col-md-2">
-            <a href="{% url 'dish_list' %}" class="btn btn-outline-secondary w-100">Đặt lại</a>
-        </div>
-    </form>
-    <hr class="my-3">
+    <style>
+    .dish-list-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        flex-wrap: wrap;
+        gap: 16px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid #eef2f7;
+        margin-bottom: 16px;
+    }
+    .dish-list-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .dish-filter-inline {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .dish-filter-inline .form-control,
+    .dish-filter-inline .form-select {
+        height: 34px;
+        border-radius: 9px;
+        font-size: 13px;
+    }
+    .dish-filter-inline .filter-field-search .form-control {
+        min-width: 220px;
+    }
+    .dish-filter-inline .btn {
+        height: 34px;
+        border-radius: 9px;
+        font-size: 13px;
+    }
+    .dish-add-btn {
+        height: 34px;
+        border-radius: 9px;
+        font-weight: 600;
+    }
+    @media (max-width: 767px) {
+        .dish-list-actions {
+            width: 100%;
+        }
+        .dish-filter-inline {
+            width: 100%;
+        }
+        .dish-filter-inline .filter-field-search {
+            flex: 1;
+            min-width: 0;
+        }
+        .dish-filter-inline .filter-field-search .form-control {
+            min-width: 0;
+            width: 100%;
+        }
+    }
+    </style>
 
     <div class="section-title mt-3">Dữ liệu hiện có</div>
     <div class="section-subtitle">

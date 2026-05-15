@@ -12,32 +12,41 @@
 
 
 <!-- BIỂU ĐỒ TỔNG HỢP -->
-<div class="dashboard-card mb-4" id="main-report-section">
+<div class="dashboard-card mb-4 report-card" id="main-report-section">
 
     <!-- HEADER -->
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+    <div class="report-header">
+        <div>
+            <div class="section-title d-flex align-items-center gap-2 mb-1">
+                <span class="report-title-icon">📈</span>
+                Tổng hợp Thu - Chi
+            </div>
+            <div class="section-subtitle mb-0">
+                <i class="bi bi-calendar-range"></i>
+                <span class="report-range">{{ start_date|date:"d/m/Y" }} - {{ end_date|date:"d/m/Y" }}</span>
+            </div>
+        </div>
 
-        <!-- LEFT: FILTER -->
-        <form method="get" action="{% url 'report_dashboard' %}" class="d-flex align-items-end gap-2 flex-wrap">
+        <form method="get" action="{% url 'report_dashboard' %}" class="report-filter-inline">
 
             <input type="hidden" name="form_type" value="main">
             <input type="hidden" name="balance_chart_type" value="{{ balance_chart_type }}">
 
-            <div>
-                <label class="form-label small mb-1">Chế độ</label>
+            <div class="filter-field">
+                <label>Chế độ</label>
                 <select name="view_type" class="form-select form-select-sm" onchange="toggleFilters(this.value)">
                     <option value="week" {% if view_type == 'week' %}selected{% endif %}>Tuần</option>
                     <option value="month" {% if view_type == 'month' %}selected{% endif %}>Tháng</option>
                 </select>
             </div>
 
-            <div id="week-filter" {% if view_type != 'week' %}style="display:none;"{% endif %}>
-                <label class="form-label small mb-1">Ngày</label>
+            <div class="filter-field" id="week-filter" {% if view_type != 'week' %}style="display:none;"{% endif %}>
+                <label>Ngày</label>
                 <input type="date" name="selected_date" value="{{ selected_date }}" class="form-control form-control-sm">
             </div>
 
-            <div id="month-filter" {% if view_type != 'month' %}style="display:none;"{% endif %}>
-                <label class="form-label small mb-1">Tháng</label>
+            <div class="filter-field" id="month-filter" {% if view_type != 'month' %}style="display:none;"{% endif %}>
+                <label>Tháng</label>
                 <select name="month" class="form-select form-select-sm">
                     {% for m in month_choices %}
                         <option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>{{ m }}</option>
@@ -45,8 +54,8 @@
                 </select>
             </div>
 
-            <div id="year-filter" {% if view_type != 'month' %}style="display:none;"{% endif %}>
-                <label class="form-label small mb-1">Năm</label>
+            <div class="filter-field" id="year-filter" {% if view_type != 'month' %}style="display:none;"{% endif %}>
+                <label>Năm</label>
                 <select name="year" class="form-select form-select-sm">
                     {% for y in year_choices %}
                         <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
@@ -54,69 +63,79 @@
                 </select>
             </div>
 
-            <button class="btn btn-primary btn-sm mt-3">Xem</button>
+            <button class="btn btn-primary btn-sm filter-btn">
+                <i class="bi bi-funnel-fill"></i> Xem
+            </button>
         </form>
-
-        <!-- RIGHT: RANGE -->
-        <div class="fw-semibold text-muted">
-            {{ start_date|date:"d/m/Y" }} - {{ end_date|date:"d/m/Y" }}
-        </div>
-
     </div>
 
     <!-- STAT CARDS -->
-    <div class="row g-3 mb-3">
+    <div class="row g-3 mb-3 report-stats">
         <div class="col-md-4">
-            <div class="stat-card stat-green">
-                <div class="stat-value">{{ total_income|vnd }} VNĐ</div>
-                <div class="stat-meta">Thu</div>
+            <div class="report-stat-card report-stat-income">
+                <div class="report-stat-icon">💰</div>
+                <div class="report-stat-body">
+                    <div class="report-stat-label">Tổng thu</div>
+                    <div class="report-stat-value">{{ total_income|vnd }} <span class="report-stat-unit">đ</span></div>
+                </div>
             </div>
         </div>
 
         <div class="col-md-4">
-            <div class="stat-card stat-red">
-                <div class="stat-value">{{ total_expense|vnd }} VNĐ</div>
-                <div class="stat-meta">Chi</div>
+            <div class="report-stat-card report-stat-expense">
+                <div class="report-stat-icon">🧾</div>
+                <div class="report-stat-body">
+                    <div class="report-stat-label">Tổng chi</div>
+                    <div class="report-stat-value">{{ total_expense|vnd }} <span class="report-stat-unit">đ</span></div>
+                </div>
             </div>
         </div>
 
         <div class="col-md-4">
-            <div class="stat-card {% if total_balance >= 0 %}stat-blue{% else %}stat-amber{% endif %}">
-                <div class="stat-value">{{ total_balance|vnd }} VNĐ</div>
-                <div class="stat-meta">Chênh lệch</div>
+            <div class="report-stat-card {% if total_balance >= 0 %}report-stat-positive{% else %}report-stat-negative{% endif %}">
+                <div class="report-stat-icon">{% if total_balance >= 0 %}📊{% else %}⚠️{% endif %}</div>
+                <div class="report-stat-body">
+                    <div class="report-stat-label">Chênh lệch</div>
+                    <div class="report-stat-value">{{ total_balance|vnd }} <span class="report-stat-unit">đ</span></div>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- CHART -->
-    <canvas id="reportChart" height="110"></canvas>
+    <div class="chart-wrap">
+        <canvas id="reportChart"></canvas>
+    </div>
 
 </div>
 
 <!-- BIỂU ĐỒ CHÊNH LỆCH -->
-<div class="dashboard-card mb-4" id="balance-report-section">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+<div class="dashboard-card mb-4 report-card" id="balance-report-section">
+    <div class="report-header">
         <div>
-            <div class="section-title mb-1">Biểu đồ chênh lệch Thu - Chi</div>
+            <div class="section-title d-flex align-items-center gap-2 mb-1">
+                <span class="report-title-icon">📉</span>
+                Biểu đồ chênh lệch Thu - Chi
+            </div>
             <div class="section-subtitle mb-0">
                 {% if balance_chart_type == 'daily_in_month' %}
-                    Hiển thị chênh lệch theo từng ngày trong tháng đã chọn.
+                    Chênh lệch theo từng ngày trong tháng đã chọn
                 {% else %}
-                    Hiển thị chênh lệch theo từng tháng trong năm đã chọn.
+                    Chênh lệch theo từng tháng trong năm đã chọn
                 {% endif %}
             </div>
         </div>
 
         <form method="get" action="{% url 'report_dashboard' %}#balance-report-section"
-              class="d-flex align-items-end gap-2 flex-wrap">
+              class="report-filter-inline">
             <input type="hidden" name="form_type" value="balance">
             <input type="hidden" name="view_type_state" value="{{ view_type }}">
             <input type="hidden" name="month_state" value="{{ selected_month }}">
             <input type="hidden" name="year_state" value="{{ selected_year }}">
             <input type="hidden" name="selected_date_state" value="{{ selected_date }}">
 
-            <div>
-                <label class="form-label small fw-semibold mb-1">Loại biểu đồ</label>
+            <div class="filter-field">
+                <label>Loại biểu đồ</label>
                 <select name="balance_chart_type" class="form-select form-select-sm">
                     <option value="daily_in_month" {% if balance_chart_type == 'daily_in_month' %}selected{% endif %}>
                         Theo ngày trong tháng
@@ -127,31 +146,36 @@
                 </select>
             </div>
 
-            <button type="submit" class="btn btn-outline-primary btn-sm px-3">
-                Xem
+            <button type="submit" class="btn btn-primary btn-sm filter-btn">
+                <i class="bi bi-funnel-fill"></i> Xem
             </button>
         </form>
     </div>
 
-    <canvas id="balanceOnlyChart" height="100"></canvas>
+    <div class="chart-wrap chart-wrap-tall">
+        <canvas id="balanceOnlyChart"></canvas>
+    </div>
 </div>
 
 <!-- CHI TIẾT TỪNG NGÀY -->
-<div class="dashboard-card">
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+<div class="dashboard-card report-card">
+    <div id="monthly-detail-section"></div>
+    <div class="report-header">
         <div>
-            <div class="section-title mb-1">Chi tiết các ngày trong tháng</div>
-            <div id="monthly-detail-section"></div>
+            <div class="section-title d-flex align-items-center gap-2 mb-1">
+                <span class="report-title-icon">📅</span>
+                Chi tiết các ngày trong tháng
+            </div>
             <div class="section-subtitle mb-0">
-                Mỗi ô là một ngày, giúp theo dõi nhanh và trực quan hơn bảng dài.
+                Mỗi ô là một ngày — bấm vào dòng "Chi" để xem chi tiết hóa đơn
             </div>
         </div>
 
-        <form method="get" action="#monthly-detail-section" class="d-flex align-items-end gap-2">
+        <form method="get" action="#monthly-detail-section" class="report-filter-inline">
             <input type="hidden" name="view_type" value="month">
 
-            <div>
-                <label class="form-label small fw-semibold mb-1">Tháng</label>
+            <div class="filter-field">
+                <label>Tháng</label>
                 <select name="month" class="form-select form-select-sm">
                     {% for m in month_choices %}
                         <option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>
@@ -161,8 +185,8 @@
                 </select>
             </div>
 
-            <div>
-                <label class="form-label small fw-semibold mb-1">Năm</label>
+            <div class="filter-field">
+                <label>Năm</label>
                 <select name="year" class="form-select form-select-sm">
                     {% for y in year_choices %}
                         <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>
@@ -172,102 +196,83 @@
                 </select>
             </div>
 
-            <button class="btn btn-primary btn-sm px-3">Xem</button>
+            <button class="btn btn-primary btn-sm filter-btn">
+                <i class="bi bi-funnel-fill"></i> Xem
+            </button>
         </form>
     </div>
 
-    <div class="row g-2">
+    <div class="row g-2 mt-1">
     {% for row in daily_rows %}
         <div class="report-day-col">
-            <div class="report-day-card border rounded-3 bg-white h-100
+            <div class="report-day-card
                 {% if row.balance != None %}
-                    {% if row.balance < 0 %}border-warning
-                    {% elif row.balance > 0 %}border-primary
-                    {% else %}border-success-subtle
+                    {% if row.balance < 0 %}day-negative
+                    {% elif row.balance > 0 %}day-positive
+                    {% else %}day-zero
                     {% endif %}
-                {% else %}border-secondary-subtle
+                {% else %}day-empty
                 {% endif %}">
 
-                <div class="fw-bold text-center mb-2">{{ row.date|date:"d/m" }}</div>
-
-                <div class="d-flex justify-content-between mb-1">
-                    <span class="text-muted">SL</span>
-                    <span class="fw-semibold">
-                        {% if row.registered_count != None %}
-                            {{ row.registered_count }}
+                <div class="day-header">
+                    <span class="day-date">{{ row.date|date:"d/m" }}</span>
+                    {% if row.balance != None %}
+                        {% if row.balance > 0 %}
+                            <span class="day-trend day-trend-up">↑</span>
+                        {% elif row.balance < 0 %}
+                            <span class="day-trend day-trend-down">↓</span>
                         {% else %}
-                            -
+                            <span class="day-trend day-trend-zero">=</span>
                         {% endif %}
-                    </span>
-                </div>
-
-                <div class="d-flex justify-content-between mb-2">
-                    <span class="text-muted">Giá</span>
-                    <span class="fw-semibold">
-                        {% if row.meal_price != None %}
-                            {{ row.meal_price|vnd }}
-                        {% else %}
-                            -
-                        {% endif %}
-                    </span>
-                </div>
-
-                <div class="d-flex justify-content-between mb-1">
-                    <span class="text-success">Thu</span>
-                    <span class="fw-semibold text-success">
-                        {% if row.income != None %}
-                            {{ row.income|vnd }}
-                        {% else %}
-                            -
-                        {% endif %}
-                    </span>
-                </div>
-
-                <div class="d-flex justify-content-between mb-2 report-expense-row"
-                    onclick="toggleDayDetail('{{ row.date|date:'Y-m-d' }}')">
-                    <span class="text-danger">Chi</span>
-                    <span class="fw-semibold text-danger">
-                        {% if row.expense != None %}
-                            {{ row.expense|vnd }}
-                        {% else %}
-                            -
-                        {% endif %}
-                    </span>
-                </div>
-
-                <div id="day-detail-{{ row.date|date:'Y-m-d' }}" class="d-none mb-2">
-                    {% if row.purchase_list %}
-                        <div class="border rounded-3 p-2 bg-light">
-                            {% for p in row.purchase_list %}
-                                <div class="d-flex justify-content-between small mb-1">
-                                    <span>
-                                        {% if p.purchase_type == 'extra' %}
-                                            Mua bổ sung
-                                        {% else %}
-                                            Nguyên liệu chính
-                                        {% endif %}
-                                    </span>
-                                    <span class="fw-semibold text-danger">
-                                        {{ p.actual_cost|vnd }}
-                                    </span>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <div class="small text-muted border rounded-3 p-2 bg-light">
-                            Không có chi phí
-                        </div>
                     {% endif %}
                 </div>
 
-                <div class="border-top pt-1 d-flex justify-content-between">
-                    <span class="text-muted">Chênh</span>
-                    <span class="fw-bold {% if row.balance != None %}{% if row.balance >= 0 %}text-primary{% else %}text-warning{% endif %}{% else %}text-muted{% endif %}">
-                        {% if row.balance != None %}
-                            {{ row.balance|vnd }}
-                        {% else %}
-                            -
-                        {% endif %}
+                <div class="day-row">
+                    <span class="day-label">SL</span>
+                    <span class="day-value">
+                        {% if row.registered_count != None %}{{ row.registered_count }}{% else %}-{% endif %}
+                    </span>
+                </div>
+
+                <div class="day-row">
+                    <span class="day-label">Giá</span>
+                    <span class="day-value">
+                        {% if row.meal_price != None %}{{ row.meal_price|vnd }}{% else %}-{% endif %}
+                    </span>
+                </div>
+
+                <div class="day-row day-row-income">
+                    <span class="day-label">Thu</span>
+                    <span class="day-value">
+                        {% if row.income != None %}{{ row.income|vnd }}{% else %}-{% endif %}
+                    </span>
+                </div>
+
+                <div class="day-row day-row-expense"
+                    onclick="toggleDayDetail('{{ row.date|date:'Y-m-d' }}')">
+                    <span class="day-label">Chi <i class="bi bi-chevron-down day-expand-icon"></i></span>
+                    <span class="day-value">
+                        {% if row.expense != None %}{{ row.expense|vnd }}{% else %}-{% endif %}
+                    </span>
+                </div>
+
+                <div id="day-detail-{{ row.date|date:'Y-m-d' }}" class="d-none day-detail-box">
+                    {% if row.purchase_list %}
+                        {% for p in row.purchase_list %}
+                            <div class="day-detail-row">
+                                <span>{% if p.purchase_type == 'extra' %}Bổ sung{% else %}NL chính{% endif %}</span>
+                                <span class="text-danger fw-semibold">{{ p.actual_cost|vnd }}</span>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="day-detail-empty">Không có chi phí</div>
+                    {% endif %}
+                </div>
+
+                <div class="day-balance">
+                    <span class="day-label">Chênh</span>
+                    <span class="day-balance-value">
+                        {% if row.balance != None %}{{ row.balance|vnd }}{% else %}-{% endif %}
                     </span>
                 </div>
 
@@ -307,8 +312,81 @@
     const expenseData = JSON.parse(document.getElementById('report-expense-data').textContent);
     const balanceData = JSON.parse(document.getElementById('report-balance-data').textContent);
 
-    const ctx = document.getElementById('reportChart').getContext('2d');
-    new Chart(ctx, {
+    const vndFmt = (v) => {
+        if (v === null || v === undefined) return '-';
+        return new Intl.NumberFormat('vi-VN').format(v) + ' đ';
+    };
+    const tickFmt = (v) => {
+        const abs = Math.abs(v);
+        if (abs >= 1000000) return (v / 1000000).toFixed(1) + 'tr';
+        if (abs >= 1000) return (v / 1000).toFixed(0) + 'k';
+        return v;
+    };
+
+    function makeVertGradient(ctx, color1, color2, h) {
+        const g = ctx.createLinearGradient(0, 0, 0, h || 280);
+        g.addColorStop(0, color1);
+        g.addColorStop(1, color2);
+        return g;
+    }
+
+    const commonAxes = {
+        x: {
+            grid: { display: false },
+            ticks: { color: '#64748b', font: { size: 11, weight: '600' } },
+            border: { color: '#e2e8f0' }
+        },
+        y: {
+            grid: { color: 'rgba(226, 232, 240, 0.6)', drawBorder: false },
+            ticks: {
+                color: '#94a3b8',
+                font: { size: 10 },
+                callback: tickFmt
+            },
+            border: { display: false }
+        }
+    };
+
+    const commonTooltip = {
+        backgroundColor: 'rgba(15, 23, 42, 0.92)',
+        titleColor: '#ffffff',
+        titleFont: { size: 12, weight: '700' },
+        bodyColor: '#e2e8f0',
+        bodyFont: { size: 12 },
+        padding: 10,
+        cornerRadius: 10,
+        boxPadding: 6,
+        usePointStyle: true,
+        callbacks: {
+            label: function (ctx) {
+                return '  ' + ctx.dataset.label + ': ' + vndFmt(ctx.parsed.y);
+            }
+        }
+    };
+
+    const commonLegend = {
+        position: 'top',
+        align: 'end',
+        labels: {
+            usePointStyle: true,
+            pointStyle: 'circle',
+            padding: 14,
+            color: '#475569',
+            font: { size: 12, weight: '600' },
+            boxWidth: 8,
+            boxHeight: 8
+        }
+    };
+
+    // ===== CHART 1: 3 BARS Thu / Chi / Chênh lệch =====
+    const mainCanvas = document.getElementById('reportChart');
+    const mainCtx = mainCanvas.getContext('2d');
+
+    const gradIncome  = makeVertGradient(mainCtx, 'rgba(16, 185, 129, 0.95)', 'rgba(16, 185, 129, 0.35)');
+    const gradExpense = makeVertGradient(mainCtx, 'rgba(244, 63, 94, 0.90)',  'rgba(244, 63, 94, 0.30)');
+    const gradBalance = makeVertGradient(mainCtx, 'rgba(99, 102, 241, 0.90)', 'rgba(99, 102, 241, 0.30)');
+
+    new Chart(mainCanvas, {
         type: 'bar',
         data: {
             labels: chartLabels,
@@ -316,64 +394,98 @@
                 {
                     label: 'Thu',
                     data: incomeData,
-                    backgroundColor: 'rgba(34, 197, 94, 0.75)',
-                    borderRadius: 6
+                    backgroundColor: gradIncome,
+                    borderRadius: 8,
+                    borderSkipped: false,
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.7
                 },
                 {
                     label: 'Chi',
                     data: expenseData,
-                    backgroundColor: 'rgba(239, 68, 68, 0.75)',
-                    borderRadius: 6
+                    backgroundColor: gradExpense,
+                    borderRadius: 8,
+                    borderSkipped: false,
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.7
                 },
                 {
                     label: 'Chênh lệch',
                     data: balanceData,
-                    backgroundColor: 'rgba(37, 99, 235, 0.75)',
-                    borderRadius: 6
-                },
-                
-                
+                    backgroundColor: gradBalance,
+                    borderRadius: 8,
+                    borderSkipped: false,
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.7
+                }
             ]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
             plugins: {
-                legend: {
-                    position: 'top'
-                }
-            }
+                legend: commonLegend,
+                tooltip: commonTooltip
+            },
+            scales: commonAxes
         }
     });
 
+    // ===== CHART 2: LINE Chênh lệch Thu - Chi =====
     const balanceOnlyLabels = JSON.parse(document.getElementById('balance-chart-labels').textContent);
     const balanceOnlyValues = JSON.parse(document.getElementById('balance-chart-values').textContent);
 
-    const ctxBalanceOnly = document.getElementById('balanceOnlyChart').getContext('2d');
-    new Chart(ctxBalanceOnly, {
-        type: 'bar',
+    const balanceCanvas = document.getElementById('balanceOnlyChart');
+    const balanceCtx = balanceCanvas.getContext('2d');
+    const gradPositiveArea = makeVertGradient(balanceCtx, 'rgba(99, 102, 241, 0.35)', 'rgba(99, 102, 241, 0.02)', 320);
+
+    const pointColors = balanceOnlyValues.map(v => {
+        if (v === null) return '#cbd5e1';
+        return v >= 0 ? '#6366f1' : '#f59e0b';
+    });
+
+    new Chart(balanceCanvas, {
+        type: 'line',
         data: {
             labels: balanceOnlyLabels,
             datasets: [
                 {
                     label: 'Chênh lệch Thu - Chi',
                     data: balanceOnlyValues,
-                    backgroundColor: balanceOnlyValues.map(v => {
-                        if (v === null) return 'rgba(203, 213, 225, 0.6)';
-                        return v >= 0
-                            ? 'rgba(37, 99, 235, 0.75)'
-                            : 'rgba(245, 158, 11, 0.75)';
-                    }),
-                    borderRadius: 6
+                    borderColor: '#6366f1',
+                    borderWidth: 2.5,
+                    backgroundColor: gradPositiveArea,
+                    fill: true,
+                    tension: 0.4,
+                    spanGaps: true,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: pointColors,
+                    pointBorderWidth: 2.5,
+                    pointRadius: 4.5,
+                    pointHoverRadius: 7,
+                    pointHoverBackgroundColor: pointColors,
+                    pointHoverBorderColor: '#ffffff',
+                    pointHoverBorderWidth: 2,
+                    segment: {
+                        borderColor: ctx => {
+                            const v = ctx.p1.parsed.y;
+                            if (v === null || v === undefined) return '#cbd5e1';
+                            return v >= 0 ? '#6366f1' : '#f59e0b';
+                        }
+                    }
                 }
             ]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
             plugins: {
-                legend: {
-                    position: 'top'
-                }
-            }
+                legend: commonLegend,
+                tooltip: commonTooltip
+            },
+            scales: commonAxes
         }
     });
 </script>
@@ -394,14 +506,419 @@ function toggleDayDetail(date) {
 </script>
 
 <style>
-.report-expense-row {
-    cursor: pointer;
-    border-radius: 8px;
-    padding: 2px 4px;
+/* ========== REPORT PAGE REDESIGN ========== */
+.report-card {
+    position: relative;
 }
 
-.report-expense-row:hover {
-    background: #fef2f2;
+.report-title-icon {
+    font-size: 20px;
+}
+
+.report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #eef2f7;
+    margin-bottom: 16px;
+}
+
+.report-range {
+    color: #475569;
+    font-weight: 600;
+}
+
+/* Inline filter */
+.report-filter-inline {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.report-filter-inline .filter-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.report-filter-inline label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 4px;
+}
+
+.report-filter-inline .form-control,
+.report-filter-inline .form-select {
+    height: 34px;
+    border-radius: 9px;
+    font-size: 13px;
+    min-width: 120px;
+}
+
+.report-filter-inline .filter-btn {
+    height: 34px;
+    border-radius: 9px;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+/* Stat cards */
+.report-stat-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+    border-radius: 18px;
+    border: 1px solid transparent;
+    background: #fff;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    height: 100%;
+}
+.report-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+}
+
+.report-stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.report-stat-body {
+    min-width: 0;
+}
+
+.report-stat-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.report-stat-value {
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -0.3px;
+}
+.report-stat-unit {
+    font-size: 14px;
+    font-weight: 700;
+    opacity: 0.7;
+}
+
+.report-stat-income {
+    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 70%);
+    border-color: #bbf7d0;
+}
+.report-stat-income .report-stat-icon {
+    background: linear-gradient(135deg, #bbf7d0 0%, #34d399 100%);
+}
+.report-stat-income .report-stat-value {
+    color: #047857;
+}
+
+.report-stat-expense {
+    background: linear-gradient(135deg, #fef2f2 0%, #ffffff 70%);
+    border-color: #fecdd3;
+}
+.report-stat-expense .report-stat-icon {
+    background: linear-gradient(135deg, #fecdd3 0%, #fb7185 100%);
+}
+.report-stat-expense .report-stat-value {
+    color: #be123c;
+}
+
+.report-stat-positive {
+    background: linear-gradient(135deg, #eef2ff 0%, #ffffff 70%);
+    border-color: #c7d2fe;
+}
+.report-stat-positive .report-stat-icon {
+    background: linear-gradient(135deg, #c7d2fe 0%, #818cf8 100%);
+}
+.report-stat-positive .report-stat-value {
+    color: #4338ca;
+}
+
+.report-stat-negative {
+    background: linear-gradient(135deg, #fff7ed 0%, #ffffff 70%);
+    border-color: #fed7aa;
+}
+.report-stat-negative .report-stat-icon {
+    background: linear-gradient(135deg, #fed7aa 0%, #fb923c 100%);
+}
+.report-stat-negative .report-stat-value {
+    color: #c2410c;
+}
+
+/* Chart wrap */
+.chart-wrap {
+    height: 280px;
+    width: 100%;
+}
+.chart-wrap-tall {
+    height: 320px;
+}
+
+/* Day grid cards */
+.report-day-col {
+    width: 14.2857%;
+    flex: 0 0 auto;
+    padding: 4px;
+}
+@media (max-width: 1199px) { .report-day-col { width: 16.6667%; } }
+@media (max-width: 991px)  { .report-day-col { width: 25%; } }
+@media (max-width: 767px)  { .report-day-col { width: 33.3333%; } }
+@media (max-width: 575px)  { .report-day-col { width: 50%; } }
+
+.report-day-card {
+    padding: 10px;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    height: 100%;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+.report-day-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    opacity: 0.8;
+}
+.report-day-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+.report-day-card.day-positive {
+    background: linear-gradient(180deg, #eef2ff 0%, #ffffff 35%);
+    border-color: #c7d2fe;
+}
+.report-day-card.day-positive::before {
+    background: linear-gradient(90deg, #818cf8 0%, #06b6d4 100%);
+}
+.report-day-card.day-negative {
+    background: linear-gradient(180deg, #fff7ed 0%, #ffffff 35%);
+    border-color: #fed7aa;
+}
+.report-day-card.day-negative::before {
+    background: linear-gradient(90deg, #fbbf24 0%, #fb923c 100%);
+}
+.report-day-card.day-zero {
+    background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 35%);
+    border-color: #bbf7d0;
+}
+.report-day-card.day-zero::before {
+    background: #6ee7b7;
+}
+.report-day-card.day-empty {
+    background: #fafafa;
+    border-color: #e2e8f0;
+    opacity: 0.85;
+}
+
+.day-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed #e2e8f0;
+}
+.day-date {
+    font-weight: 800;
+    font-size: 14px;
+    color: #0f172a;
+}
+.day-trend {
+    font-size: 14px;
+    font-weight: 900;
+    width: 22px;
+    height: 22px;
+    border-radius: 7px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.day-trend-up { background: #e0e7ff; color: #4338ca; }
+.day-trend-down { background: #ffedd5; color: #c2410c; }
+.day-trend-zero { background: #d1fae5; color: #047857; }
+
+.day-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+.day-label {
+    color: #64748b;
+}
+.day-value {
+    font-weight: 700;
+    color: #0f172a;
+}
+.day-row-income .day-label { color: #059669; }
+.day-row-income .day-value { color: #047857; }
+.day-row-expense {
+    cursor: pointer;
+    padding: 3px 6px;
+    margin: 0 -6px 4px -6px;
+    border-radius: 7px;
+    transition: background 0.15s;
+}
+.day-row-expense .day-label { color: #e11d48; }
+.day-row-expense .day-value { color: #be123c; }
+.day-row-expense:hover { background: #fef2f2; }
+.day-expand-icon {
+    font-size: 9px;
+    margin-left: 2px;
+    opacity: 0.6;
+}
+
+.day-detail-box {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 6px 8px;
+    margin-bottom: 6px;
+    font-size: 11.5px;
+}
+.day-detail-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 3px;
+}
+.day-detail-row:last-child {
+    margin-bottom: 0;
+}
+.day-detail-empty {
+    color: #94a3b8;
+    text-align: center;
+    font-style: italic;
+}
+
+.day-balance {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 6px;
+    border-top: 1px solid #e2e8f0;
+    font-size: 12.5px;
+    font-weight: 800;
+}
+.day-balance-value {
+    font-weight: 900;
+}
+.day-positive .day-balance-value { color: #4338ca; }
+.day-negative .day-balance-value { color: #c2410c; }
+.day-zero .day-balance-value { color: #047857; }
+.day-empty .day-balance-value { color: #94a3b8; }
+
+/* Export cards */
+.export-card {
+    position: relative;
+    padding: 22px;
+    border-radius: 18px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    transition: all 0.25s ease;
+}
+.export-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+.export-card-accent {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    opacity: 0.75;
+}
+.export-card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 800;
+    font-size: 15px;
+    margin-bottom: 6px;
+}
+.export-card-icon {
+    font-size: 22px;
+}
+.export-card-desc {
+    color: #64748b;
+    font-size: 12.5px;
+    line-height: 1.5;
+    margin-bottom: 16px;
+}
+
+.export-card-income {
+    background: linear-gradient(180deg, #eff6ff 0%, #ffffff 25%);
+}
+.export-card-income .export-card-accent {
+    background: linear-gradient(90deg, #60a5fa 0%, #3b82f6 100%);
+}
+.export-card-income .export-card-title { color: #1e40af; }
+
+.export-card-cost {
+    background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 25%);
+}
+.export-card-cost .export-card-accent {
+    background: linear-gradient(90deg, #34d399 0%, #10b981 100%);
+}
+.export-card-cost .export-card-title { color: #065f46; }
+
+.export-card-review {
+    background: linear-gradient(180deg, #faf5ff 0%, #ffffff 25%);
+}
+.export-card-review .export-card-accent {
+    background: linear-gradient(90deg, #c084fc 0%, #a855f7 100%);
+}
+.export-card-review .export-card-title { color: #7c3aed; }
+
+.export-btn {
+    border: none;
+    color: #fff;
+    font-weight: 600;
+    border-radius: 10px;
+    height: 36px;
+    transition: all 0.2s;
+}
+.export-btn:hover {
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+}
+.export-btn-income {
+    background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+}
+.export-btn-cost {
+    background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+}
+.export-btn-review {
+    background: linear-gradient(135deg, #c084fc 0%, #a855f7 100%);
 }
 </style>
 
@@ -409,19 +926,24 @@ function toggleDayDetail(date) {
 <!-- XUẤT BÁO CÁO (chỉ admin & nhân viên bếp) -->
 <!-- ================================================================ -->
 {% if can_export_report %}
-<div class="dashboard-card mt-4" id="export-section">
-    <div class="section-title mb-1"><i class="bi bi-file-earmark-arrow-down"></i> Xuất báo cáo Excel</div>
+<div class="dashboard-card mt-4 report-card" id="export-section">
+    <div class="section-title d-flex align-items-center gap-2 mb-1">
+        <span class="report-title-icon">📥</span>
+        Xuất báo cáo Excel
+    </div>
     <div class="section-subtitle mb-4">Tải xuống file .xlsx để lưu trữ hoặc gửi báo cáo.</div>
 
     <div class="row g-4">
 
         <!-- BÁO CÁO 1: THU – CHI -->
         <div class="col-lg-4">
-            <div class="border rounded-4 p-4 h-100" style="border-color:#dbe4f0!important; background:#fafcff;">
-                <div class="fw-bold mb-1" style="color:#1e40af;">
-                    <i class="bi bi-bar-chart-line"></i> Báo cáo Thu – Chi
+            <div class="export-card export-card-income h-100">
+                <div class="export-card-accent"></div>
+                <div class="export-card-title">
+                    <span class="export-card-icon">📊</span>
+                    Báo cáo Thu - Chi
                 </div>
-                <div class="text-muted small mb-3">
+                <div class="export-card-desc">
                     Tuần/Tháng → chi tiết theo ngày<br>
                     Năm → tổng hợp theo tháng
                 </div>
@@ -460,7 +982,7 @@ function toggleDayDetail(date) {
                             {% for y in year_choices %}<option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>{% endfor %}
                         </select>
                     </div>
-                    <button class="btn btn-primary btn-sm w-100 mt-1">
+                    <button class="btn btn-sm w-100 mt-1 export-btn export-btn-income">
                         <i class="bi bi-download"></i> Tải xuống Excel
                     </button>
                 </form>
@@ -469,11 +991,13 @@ function toggleDayDetail(date) {
 
         <!-- BÁO CÁO 2: CHI PHÍ -->
         <div class="col-lg-4">
-            <div class="border rounded-4 p-4 h-100" style="border-color:#dbe4f0!important; background:#fafcff;">
-                <div class="fw-bold mb-1" style="color:#065f46;">
-                    <i class="bi bi-receipt"></i> Báo cáo Chi phí
+            <div class="export-card export-card-cost h-100">
+                <div class="export-card-accent"></div>
+                <div class="export-card-title">
+                    <span class="export-card-icon">🧾</span>
+                    Báo cáo Chi phí
                 </div>
-                <div class="text-muted small mb-3">
+                <div class="export-card-desc">
                     Ngày/Tuần → chi tiết từng mặt hàng bill<br>
                     Tháng/Năm → tổng hợp theo kỳ
                 </div>
@@ -517,7 +1041,7 @@ function toggleDayDetail(date) {
                             {% for y in year_choices %}<option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>{% endfor %}
                         </select>
                     </div>
-                    <button class="btn btn-success btn-sm w-100 mt-1">
+                    <button class="btn btn-sm w-100 mt-1 export-btn export-btn-cost">
                         <i class="bi bi-download"></i> Tải xuống Excel
                     </button>
                 </form>
@@ -526,11 +1050,13 @@ function toggleDayDetail(date) {
 
         <!-- BÁO CÁO 3: ĐÁNH GIÁ MÓN ĂN -->
         <div class="col-lg-4">
-            <div class="border rounded-4 p-4 h-100" style="border-color:#dbe4f0!important; background:#fafcff;">
-                <div class="fw-bold mb-1" style="color:#7c3aed;">
-                    <i class="bi bi-hand-thumbs-up"></i> Báo cáo Đánh giá món ăn
+            <div class="export-card export-card-review h-100">
+                <div class="export-card-accent"></div>
+                <div class="export-card-title">
+                    <span class="export-card-icon">⭐</span>
+                    Báo cáo Đánh giá món ăn
                 </div>
-                <div class="text-muted small mb-3">
+                <div class="export-card-desc">
                     Gồm thống kê Like/Dislike + sheet riêng chứa toàn bộ góp ý typing
                 </div>
                 <form method="get" action="{% url 'export_review_report' %}">
@@ -566,7 +1092,7 @@ function toggleDayDetail(date) {
                             </div>
                         </div>
                     </div>
-                    <button class="btn btn-sm w-100 mt-1" style="background:#7c3aed; color:white;">
+                    <button class="btn btn-sm w-100 mt-1 export-btn export-btn-review">
                         <i class="bi bi-download"></i> Tải xuống Excel
                     </button>
                 </form>

@@ -172,6 +172,13 @@
                                         {% for group in day.menu_groups %}
                                             {% if group.items %}
                                                 <div class="week-menu-group week-menu-group-{{ group.type }}">
+                                                    <span class="week-menu-group-icon">
+                                                        {% if group.type == 'main' %}🍚
+                                                        {% elif group.type == 'side' %}🥬
+                                                        {% elif group.type == 'soup' %}🍲
+                                                        {% elif group.type == 'dessert' %}🍮
+                                                        {% else %}🍽️{% endif %}
+                                                    </span>
                                                     <ul class="week-menu-dishes">
                                                         {% for item in group.items %}
                                                             <li>{{ item.dish.name }}</li>
@@ -182,13 +189,16 @@
                                         {% endfor %}
                                     </div>
                                 {% else %}
-                                    <div class="small text-muted mt-3">Chưa có menu</div>
+                                    <div class="week-empty-state">
+                                        <span class="week-empty-icon">🌱</span>
+                                        <span>Chưa có menu</span>
+                                    </div>
                                 {% endif %}
                             </div>
 
                             <div class="week-card-footer">
                                 {% if day.date == selected_date %}
-                                    <span>Đang xem</span>
+                                    <span><i class="bi bi-eye-fill"></i> Đang xem</span>
                                 {% endif %}
                             </div>
 
@@ -250,10 +260,17 @@
 
 <div class="row g-3 mb-3">
     <div class="col-lg-8">
-        <div class="dashboard-card h-100">
-            <div class="section-title">Xu hướng trong tuần</div>
-            <div class="section-subtitle">
-                So sánh Thu - Chi - Chênh lệch.
+        <div class="dashboard-card h-100 finance-chart-card">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                <div>
+                    <div class="section-title d-flex align-items-center gap-2">
+                        <span class="chart-title-icon">📊</span>
+                        Xu hướng trong tuần
+                    </div>
+                    <div class="section-subtitle">
+                        So sánh Thu - Chi - Chênh lệch theo ngày
+                    </div>
+                </div>
             </div>
             <div class="chart-container">
                 <canvas id="financeChart"></canvas>
@@ -263,27 +280,42 @@
 
     <div class="col-lg-4">
         <div class="dashboard-card ai-chat-card h-100">
+            <span class="ai-deco-blob ai-deco-blob-1"></span>
+            <span class="ai-deco-blob ai-deco-blob-2"></span>
+            <span class="ai-sparkle ai-sparkle-1">✨</span>
+            <span class="ai-sparkle ai-sparkle-2">✦</span>
+
             <div class="ai-chat-header">
-                <div class="ai-avatar">🤖</div>
-                <div>
+                <div class="ai-avatar">
+                    <span class="ai-avatar-icon">🤖</span>
+                    <span class="ai-avatar-ring"></span>
+                </div>
+                <div class="ai-chat-header-text">
                     <div class="ai-title">AI dinh dưỡng</div>
                     <div class="ai-subtitle">Phân tích menu hôm nay</div>
                 </div>
+                <span class="ai-status-pill">
+                    <span class="ai-status-dot"></span>
+                    Đang hoạt động
+                </span>
             </div>
 
             <div class="ai-chat-body">
-                <div class="ai-message">
+                <div class="ai-message ai-message-main">
                     <div id="ai-nutrition-content">
 
-                        <div class="text-muted">
-                            🤖 AI đang phân tích dinh dưỡng hôm nay...
+                        <div class="ai-loading">
+                            <span class="ai-loading-bot">🤖</span>
+                            <span>AI đang phân tích dinh dưỡng hôm nay<span class="ai-typing-dots"><span></span><span></span><span></span></span></span>
                         </div>
 
                     </div>
                 </div>
 
                 <div class="ai-message ai-tip">
-                    <div class="ai-message-title">Thông tin bổ ích</div>
+                    <div class="ai-message-title">
+                        <span class="ai-tip-icon">💡</span> Thông tin bổ ích
+                    </div>
                     <div id="healthTipText">
                         Uống đủ nước giúp cơ thể trao đổi chất tốt hơn.
                     </div>
@@ -315,32 +347,53 @@
         justify-content: space-between !important;
         min-height: 132px !important;
         height: 100% !important;
-        padding: 10px !important;
-        border-radius: 16px !important;
+        padding: 12px !important;
+        border-radius: 18px !important;
         border: 1px solid #e2e8f0 !important;
         background: #fff !important;
-        transition: all 0.2s ease !important;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        position: relative !important;
+        overflow: hidden !important;
+    }
+
+    #weekly-menu-section .week-day-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: transparent;
+        transition: background 0.25s ease;
     }
 
     #weekly-menu-section .week-day-card:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08) !important;
+        transform: translateY(-3px) !important;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1) !important;
+        border-color: #c7d2fe !important;
     }
 
     #weekly-menu-section .week-day-card-selected {
-        border-color: #2563eb !important;
-        background: #eff6ff !important;
-        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.18) !important;
+        border-color: #6366f1 !important;
+        background: linear-gradient(165deg, #eef2ff 0%, #ffffff 60%, #ecfeff 100%) !important;
+        box-shadow: 0 10px 24px rgba(99, 102, 241, 0.18) !important;
+    }
+    #weekly-menu-section .week-day-card-selected::before {
+        background: linear-gradient(90deg, #6366f1 0%, #06b6d4 100%) !important;
     }
 
     #weekly-menu-section .week-day-card-has-menu {
-        border-color: #86efac !important;
-        background: #f0fdf4 !important;
+        border-color: #bbf7d0 !important;
+        background: linear-gradient(165deg, #f0fdf4 0%, #ffffff 70%) !important;
+    }
+    #weekly-menu-section .week-day-card-has-menu::before {
+        background: linear-gradient(90deg, #86efac 0%, #6ee7b7 100%) !important;
     }
 
     #weekly-menu-section .week-day-card-empty {
         border-color: #e2e8f0 !important;
-        background: #ffffff !important;
+        background: linear-gradient(165deg, #fafafa 0%, #ffffff 70%) !important;
+        opacity: 0.85;
     }
 
     #weekly-menu-section .badge-register {
@@ -422,18 +475,8 @@
     .week-card-body {
         flex: 1;
         display: flex;
-        align-items: center;
-    }
-
-    .week-menu-dishes {
-        width: 100%;
-        margin: 0;
-        padding-left: 18px;
-        font-weight: 700;
-    }
-
-    .week-menu-dishes li {
-        margin-bottom: 6px;
+        align-items: flex-start;
+        padding-top: 4px;
     }
 
     .today-menu-list {
@@ -444,14 +487,6 @@
 
     .today-menu-item {
         min-width: 0;
-    }
-
-    .week-card-footer {
-        height: 24px;
-        text-align: center;
-        font-size: 13px;
-        font-weight: 800;
-        color: #2563eb;
     }
 
     .dish-gallery-side {
@@ -493,8 +528,16 @@
         margin-bottom: 6px;
     }
     .chart-container {
-        height: 220px;   /* 👈 chỉnh ở đây */
+        height: 260px;
         width: 100%;
+        margin-top: 4px;
+    }
+    .finance-chart-card {
+        background: linear-gradient(180deg, #ffffff 0%, #fafbff 100%);
+        position: relative;
+    }
+    .chart-title-icon {
+        font-size: 18px;
     }
 
     .chart-container canvas {
@@ -536,116 +579,402 @@
     .stat-card .stat-value {
         color: inherit !important;
     }
+    /* ========== AI BOX REDESIGN ========== */
     .ai-chat-card {
-        background: linear-gradient(180deg, #ffffff, #f8fafc);
-        border: 1px solid #e2e8f0;
+        background: linear-gradient(155deg, #f5f3ff 0%, #ffffff 35%, #ecfeff 100%);
+        border: 1px solid #e0e7ff;
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Decorative blobs floating in background */
+    .ai-deco-blob {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(40px);
+        opacity: 0.55;
+        pointer-events: none;
+        z-index: 0;
+    }
+    .ai-deco-blob-1 {
+        width: 180px;
+        height: 180px;
+        background: radial-gradient(circle, #c4b5fd 0%, transparent 70%);
+        top: -50px;
+        right: -40px;
+        animation: ai-blob-float 8s ease-in-out infinite;
+    }
+    .ai-deco-blob-2 {
+        width: 160px;
+        height: 160px;
+        background: radial-gradient(circle, #a5f3fc 0%, transparent 70%);
+        bottom: -50px;
+        left: -40px;
+        animation: ai-blob-float 10s ease-in-out infinite reverse;
+    }
+    @keyframes ai-blob-float {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        50% { transform: translate(10px, -8px) scale(1.08); }
+    }
+
+    /* Sparkles */
+    .ai-sparkle {
+        position: absolute;
+        font-size: 14px;
+        opacity: 0.7;
+        z-index: 1;
+        pointer-events: none;
+        animation: ai-sparkle-twinkle 2.4s ease-in-out infinite;
+    }
+    .ai-sparkle-1 {
+        top: 18%;
+        right: 12%;
+        font-size: 16px;
+        animation-delay: 0s;
+    }
+    .ai-sparkle-2 {
+        bottom: 24%;
+        right: 18%;
+        font-size: 12px;
+        animation-delay: 0.8s;
+    }
+    @keyframes ai-sparkle-twinkle {
+        0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.4; }
+        50% { transform: scale(1.3) rotate(15deg); opacity: 1; }
     }
 
     .ai-chat-header {
         display: flex;
         align-items: center;
         gap: 12px;
-        margin-bottom: 14px;
+        margin-bottom: 16px;
+        position: relative;
+        z-index: 2;
     }
 
     .ai-avatar {
-        width: 42px;
-        height: 42px;
-        border-radius: 999px;
-        background: #eff6ff;
+        width: 46px;
+        height: 46px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #818cf8 0%, #06b6d4 100%);
         display: flex;
         align-items: center;
         justify-content: center;
+        position: relative;
+        box-shadow: 0 6px 18px rgba(99, 102, 241, 0.35);
+        flex-shrink: 0;
+    }
+    .ai-avatar-icon {
         font-size: 22px;
+        animation: ai-bot-bob 2.5s ease-in-out infinite;
+        display: inline-block;
+    }
+    @keyframes ai-bot-bob {
+        0%, 100% { transform: translateY(0) rotate(-3deg); }
+        50% { transform: translateY(-3px) rotate(3deg); }
+    }
+    .ai-avatar-ring {
+        position: absolute;
+        inset: -4px;
+        border-radius: 18px;
+        border: 2px solid #a5b4fc;
+        opacity: 0;
+        animation: ai-avatar-pulse 2s ease-out infinite;
+    }
+    @keyframes ai-avatar-pulse {
+        0% { transform: scale(1); opacity: 0.6; }
+        100% { transform: scale(1.15); opacity: 0; }
     }
 
+    .ai-chat-header-text {
+        flex: 1;
+        min-width: 0;
+    }
     .ai-title {
         font-weight: 800;
-        color: #0f172a;
+        font-size: 16px;
+        background: linear-gradient(90deg, #4f46e5 0%, #06b6d4 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+    .ai-subtitle {
+        font-size: 12.5px;
+        color: #64748b;
     }
 
-    .ai-subtitle {
-        font-size: 13px;
-        color: #64748b;
+    .ai-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        color: #047857;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+    .ai-status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #10b981;
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+        animation: ai-status-blink 1.6s ease-out infinite;
+    }
+    @keyframes ai-status-blink {
+        0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+        70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
 
     .ai-chat-body {
         display: flex;
         flex-direction: column;
         gap: 12px;
+        position: relative;
+        z-index: 2;
     }
 
     .ai-message {
-        background: #f1f5f9;
-        border-radius: 18px 18px 18px 6px;
-        padding: 14px;
-        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 14px 16px;
+        border: 1px solid transparent;
+        backdrop-filter: blur(6px);
     }
 
-    .ai-message-title {
-        font-weight: 800;
-        margin-bottom: 8px;
+    /* Main nutrition card */
+    .ai-message-main {
+        background: rgba(255, 255, 255, 0.85);
+        border-color: #e0e7ff;
+        box-shadow: 0 6px 20px rgba(79, 70, 229, 0.06);
     }
 
-    .ai-kcal {
-        font-size: 26px;
-        font-weight: 900;
-        color: #2563eb;
-        margin-bottom: 4px;
-    }
-
-    .ai-level {
-        color: #334155;
-        margin-bottom: 8px;
-    }
-
-    .ai-summary {
+    /* Loading state */
+    .ai-loading {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         color: #64748b;
+        font-size: 13.5px;
+    }
+    .ai-loading-bot {
+        animation: ai-bot-bob 2.5s ease-in-out infinite;
+        display: inline-block;
+    }
+    .ai-typing-dots {
+        display: inline-flex;
+        gap: 3px;
+        margin-left: 2px;
+    }
+    .ai-typing-dots span {
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: #818cf8;
+        animation: ai-typing-bounce 1.2s ease-in-out infinite;
+    }
+    .ai-typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+    .ai-typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes ai-typing-bounce {
+        0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+        40% { transform: scale(1); opacity: 1; }
+    }
+
+    /* Bot message content */
+    .ai-bot-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 10px;
+        font-size: 14px;
+    }
+    .ai-bot-title-icon {
+        font-size: 18px;
+    }
+
+    .ai-kcal-wrap {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    .ai-kcal-number {
+        font-size: 36px;
+        font-weight: 900;
+        background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 50%, #10b981 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        line-height: 1;
+        letter-spacing: -0.5px;
+    }
+    .ai-kcal-unit {
+        font-size: 13px;
+        font-weight: 700;
+        color: #64748b;
+    }
+
+    .ai-level-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 13px;
+        margin-bottom: 10px;
+        border: 1px solid;
+    }
+    .ai-level-badge strong {
+        font-weight: 800;
+    }
+    .ai-level-label {
+        color: inherit;
+        opacity: 0.85;
+    }
+    .ai-level-balanced {
+        background: #ecfdf5;
+        color: #047857;
+        border-color: #a7f3d0;
+    }
+    .ai-level-low {
+        background: #fff7ed;
+        color: #c2410c;
+        border-color: #fed7aa;
+    }
+    .ai-level-high {
+        background: #fef2f2;
+        color: #be123c;
+        border-color: #fecdd3;
+    }
+    .ai-level-icon {
         font-size: 14px;
     }
 
+    .ai-summary-text {
+        color: #475569;
+        font-size: 13.5px;
+        line-height: 1.55;
+    }
+
+    /* Title row of tip card */
+    .ai-message-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 800;
+        margin-bottom: 6px;
+        font-size: 13.5px;
+    }
+    .ai-tip-icon {
+        display: inline-block;
+        animation: ai-tip-glow 2.2s ease-in-out infinite;
+    }
+    @keyframes ai-tip-glow {
+        0%, 100% { transform: scale(1) rotate(-4deg); filter: drop-shadow(0 0 0 transparent); }
+        50% { transform: scale(1.15) rotate(4deg); filter: drop-shadow(0 0 6px #fcd34d); }
+    }
+
     .ai-tip {
-        background: #ecfdf5;
+        background: linear-gradient(135deg, #ecfdf5 0%, #fefce8 100%);
         border-color: #bbf7d0;
+        color: #064e3b;
+        font-size: 13.5px;
     }
     .week-menu-groups {
         width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
     }
 
     .week-menu-group {
-        padding: 6px 8px;
-        margin-bottom: 6px;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-        background: #ffffff80;
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+        padding: 5px 8px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        background: #ffffffcc;
+        backdrop-filter: blur(4px);
+        transition: transform 0.15s ease;
+    }
+    .week-menu-group:hover {
+        transform: translateX(2px);
+    }
+
+    .week-menu-group-icon {
+        font-size: 13px;
+        line-height: 1.4;
+        flex-shrink: 0;
+        margin-top: 1px;
     }
 
     .week-menu-dishes {
         margin: 0;
-        padding-left: 16px;
-        font-size: 14px;
-        font-weight: 500;
+        padding-left: 0;
+        list-style: none;
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1.35;
+        flex: 1;
+        min-width: 0;
     }
 
     .week-menu-dishes li {
-        margin-bottom: 2px;
-        line-height: 1.25;
+        margin-bottom: 1px;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .week-menu-group-main {
+        background: linear-gradient(90deg, #dbeafe66 0%, #ffffffcc 100%);
         border-color: #bfdbfe;
+        color: #1e40af;
     }
-
     .week-menu-group-side {
+        background: linear-gradient(90deg, #ede9fe66 0%, #ffffffcc 100%);
         border-color: #ddd6fe;
+        color: #5b21b6;
     }
-
     .week-menu-group-soup {
+        background: linear-gradient(90deg, #dcfce766 0%, #ffffffcc 100%);
         border-color: #bbf7d0;
+        color: #166534;
+    }
+    .week-menu-group-dessert {
+        background: linear-gradient(90deg, #ffedd566 0%, #ffffffcc 100%);
+        border-color: #fed7aa;
+        color: #9a3412;
     }
 
-    .week-menu-group-dessert {
-        border-color: #fed7aa;
+    .week-empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 12px 0;
+        color: #94a3b8;
+        font-size: 12px;
+    }
+    .week-empty-icon {
+        font-size: 24px;
+        opacity: 0.6;
+    }
+
+    .week-card-footer {
+        height: 22px;
+        text-align: center;
+        font-size: 11.5px;
+        font-weight: 700;
+        color: #4f46e5;
+    }
+    .week-card-footer i {
+        margin-right: 3px;
     }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -661,41 +990,142 @@
     const expenseData = JSON.parse(document.getElementById('chart-expense-data').textContent);
     const balanceData = JSON.parse(document.getElementById('chart-balance-data').textContent);
 
-    new Chart(document.getElementById('financeChart'), {
-        type: 'bar',
-        data: {
-            labels: chartLabels,
-            datasets: [
-                {
-                    label: 'Thu',
-                    data: incomeData,
-                    backgroundColor: 'rgba(74, 222, 128, 0.85)',
+    (function () {
+        const canvas = document.getElementById('financeChart');
+        const ctx = canvas.getContext('2d');
+
+        // Gradient fills
+        function makeGradient(color1, color2) {
+            const g = ctx.createLinearGradient(0, 0, 0, 240);
+            g.addColorStop(0, color1);
+            g.addColorStop(1, color2);
+            return g;
+        }
+
+        const gradIncome  = makeGradient('rgba(16, 185, 129, 0.95)', 'rgba(16, 185, 129, 0.35)');
+        const gradExpense = makeGradient('rgba(244, 63, 94, 0.90)',  'rgba(244, 63, 94, 0.30)');
+        const gradBalance = makeGradient('rgba(99, 102, 241, 0.35)', 'rgba(99, 102, 241, 0.02)');
+
+        const vndFmt = (v) => {
+            if (v === null || v === undefined) return '-';
+            return new Intl.NumberFormat('vi-VN').format(v) + ' đ';
+        };
+
+        new Chart(canvas, {
+            data: {
+                labels: chartLabels,
+                datasets: [
+                    {
+                        type: 'bar',
+                        label: 'Thu',
+                        data: incomeData,
+                        backgroundColor: gradIncome,
+                        borderRadius: 8,
+                        borderSkipped: false,
+                        barPercentage: 0.6,
+                        categoryPercentage: 0.7,
+                        order: 2
+                    },
+                    {
+                        type: 'bar',
+                        label: 'Chi',
+                        data: expenseData,
+                        backgroundColor: gradExpense,
+                        borderRadius: 8,
+                        borderSkipped: false,
+                        barPercentage: 0.6,
+                        categoryPercentage: 0.7,
+                        order: 2
+                    },
+                    {
+                        type: 'line',
+                        label: 'Chênh lệch',
+                        data: balanceData,
+                        borderColor: '#6366f1',
+                        borderWidth: 2.5,
+                        backgroundColor: gradBalance,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#ffffff',
+                        pointBorderColor: '#6366f1',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: '#6366f1',
+                        pointHoverBorderColor: '#ffffff',
+                        pointHoverBorderWidth: 2,
+                        order: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
                 },
-                {
-                    label: 'Chi',
-                    data: expenseData,
-                    backgroundColor: 'rgba(252, 165, 165, 0.85)',
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        align: 'end',
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            padding: 14,
+                            color: '#475569',
+                            font: { size: 12, weight: '600' },
+                            boxWidth: 8,
+                            boxHeight: 8
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                        titleColor: '#ffffff',
+                        titleFont: { size: 12, weight: '700' },
+                        bodyColor: '#e2e8f0',
+                        bodyFont: { size: 12 },
+                        padding: 10,
+                        cornerRadius: 10,
+                        boxPadding: 6,
+                        usePointStyle: true,
+                        callbacks: {
+                            label: function (ctx) {
+                                return '  ' + ctx.dataset.label + ': ' + vndFmt(ctx.parsed.y);
+                            }
+                        }
+                    }
                 },
-                {
-                    label: 'Chênh lệch',
-                    data: balanceData,
-                    backgroundColor: 'rgba(96, 165, 250, 0.85)',
-                    borderRadius: 6
-                }
-                
-                
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'top'
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            color: '#64748b',
+                            font: { size: 11, weight: '600' }
+                        },
+                        border: { color: '#e2e8f0' }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(226, 232, 240, 0.6)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: '#94a3b8',
+                            font: { size: 10 },
+                            callback: function (v) {
+                                if (v >= 1000000) return (v / 1000000).toFixed(1) + 'tr';
+                                if (v >= 1000) return (v / 1000).toFixed(0) + 'k';
+                                return v;
+                            }
+                        },
+                        border: { display: false }
+                    }
                 }
             }
-        }
-    });
+        });
+    })();
 function toggleExpenseDetail() {
     const box = document.getElementById('expense-detail-box');
     box.classList.toggle('d-none');
@@ -743,22 +1173,36 @@ async function loadNutritionAnalysis() {
             return;
         }
 
+        const levelLower = (data.level || '').toLowerCase();
+        let levelClass = 'ai-level-balanced';
+        let levelIcon = '⚖️';
+        if (levelLower.includes('thiếu') || levelLower.includes('thấp')) {
+            levelClass = 'ai-level-low';
+            levelIcon = '⬇️';
+        } else if (levelLower.includes('dư') || levelLower.includes('cao') || levelLower.includes('quá') || levelLower.includes('nhiều')) {
+            levelClass = 'ai-level-high';
+            levelIcon = '⬆️';
+        }
+
         container.innerHTML = `
-            <div class="ai-message ai-message-bot">
-                <div class="fw-bold mb-2">
+            <div class="ai-message-bot">
+                <div class="ai-bot-title">
+                    <span class="ai-bot-title-icon">🥗</span>
                     Phân tích dinh dưỡng hôm nay
                 </div>
 
-                <div class="ai-kcal mb-2">
-                    ${data.total_kcal} kcal/suất
+                <div class="ai-kcal-wrap">
+                    <span class="ai-kcal-number">${data.total_kcal}</span>
+                    <span class="ai-kcal-unit">kcal/suất</span>
                 </div>
 
-                <div class="mb-2">
-                    Mức đánh giá:
+                <div class="ai-level-badge ${levelClass}">
+                    <span class="ai-level-icon">${levelIcon}</span>
+                    <span class="ai-level-label">Mức đánh giá:</span>
                     <strong>${data.level}</strong>
                 </div>
 
-                <div class="text-muted">
+                <div class="ai-summary-text">
                     ${data.summary}
                 </div>
             </div>
