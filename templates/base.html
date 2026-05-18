@@ -179,6 +179,25 @@
             margin-bottom: 12px;
         }
 
+        /* Nút Đăng xuất: tông hồng rose, hiện rõ trên nền sidebar sáng pastel.
+           Trước đây dùng .btn-outline-light (chữ trắng) nên bị "tàng hình". */
+        .sidebar-logout-btn {
+            color: #e11d48;
+            font-weight: 600;
+            border: 1px solid rgba(225, 29, 72, 0.35);
+            background: rgba(225, 29, 72, 0.05);
+            border-radius: 12px;
+            padding: 9px 12px;
+            transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+        }
+
+        .sidebar-logout-btn:hover,
+        .sidebar-logout-btn:focus {
+            color: #fff;
+            background: #e11d48;
+            border-color: #e11d48;
+        }
+
         .main-panel {
             margin-left: 270px;
             width: calc(100% - 270px);
@@ -883,7 +902,7 @@
 
                     <form method="post" action="/accounts/logout/" class="mt-2">
                         {% csrf_token %}
-                        <button type="submit" class="btn btn-outline-light w-100">
+                        <button type="submit" class="btn w-100 sidebar-logout-btn">
                             Đăng xuất
                         </button>
                     </form>

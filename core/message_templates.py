@@ -18,9 +18,13 @@ KEY_OTP = 'msg_template_otp'
 KEY_MEAL = 'msg_template_meal'
 
 
-# Template mặc định (giữ nguyên nội dung gốc trong code cũ)
+# Template mặc định (dùng khi admin chưa lưu mẫu riêng trong DB).
+# NetChat render Markdown: dòng bắt đầu bằng "# " là tiêu đề H1 → cỡ chữ to
+# (khoảng gấp đôi). Đặt mã OTP riêng 1 dòng "# {otp_code}" để CHỈ mã OTP to,
+# các dòng còn lại giữ cỡ chữ thường.
 DEFAULT_OTP = (
-    "🔒 **Mã xác thực đăng nhập của bạn là: {otp_code}**\n\n"
+    "🔒 Mã xác thực đăng nhập của bạn là:\n\n"
+    "# {otp_code}\n\n"
     "Mã có hiệu lực trong 10 phút. Vui lòng không chia sẻ mã này cho bất kỳ ai."
 )
 
