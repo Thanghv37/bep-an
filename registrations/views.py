@@ -2,12 +2,13 @@ from datetime import date, datetime, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import render, redirect
 from django.db.models import Sum
 from accounts.models import UserProfile
 from accounts.permissions import can_manage_menu
-from .forms import MealRegistrationForm
+from .forms import STATUS_FIXED
 from .import_utils import import_registrations_from_excel
 from .models import MealRegistration
 from .options import (
@@ -161,39 +162,152 @@ def registration_import(request):
 @login_required
 @user_passes_test(can_manage_menu)
 def registration_create(request):
-    if request.method == 'POST':
-        form = MealRegistrationForm(request.POST)
+    """Thêm đăng kí suất ăn thủ công — hỗ trợ nhập NHIỀU người cùng lúc.
 
-        if form.is_valid():
-            obj = form.save(commit=False)
-            obj.source = 'manual'
-            # Force full_name từ UserProfile (đã verify exist trong form.clean_employee_code).
-            profile = UserProfile.objects.filter(employee_code=obj.employee_code).first()
-            if profile and profile.full_name:
-                obj.full_name = profile.full_name
-            obj.save()
+    Ngày / Bữa ăn / Bếp ăn dùng chung cho cả lô; mỗi người là 1 dòng
+    (mã NV + số suất). Nếu có bất kỳ dòng nào sai → không lưu gì cả,
+    render lại form kèm lỗi từng dòng (giữ nguyên dữ liệu đã nhập).
+    """
+    meal_options = get_meal_options()
+    kitchen_options = get_kitchen_options()
 
-            messages.success(request, 'Đã thêm đăng kí suất ăn.')
-            return redirect('registration_list')
-    else:
-        form = MealRegistrationForm(initial={
-            'date': date.today(),
-            'quantity': 1,
-        })
-
-    # Dict {employee_code: full_name} cho JS auto-fill khi nhập MNV.
-    # Pass dict thẳng cho |json_script trong template (filter tự dumps).
+    # Dict {employee_code: full_name} cho JS auto-fill tên khi nhập mã NV.
     user_map = {
         p.employee_code: p.full_name
         for p in UserProfile.objects.exclude(employee_code='')
         if p.employee_code
     }
 
+    if request.method == 'POST':
+        date_raw = (request.POST.get('date') or '').strip()
+        meal_name = (request.POST.get('meal_name') or '').strip()
+        kitchen_name = (request.POST.get('kitchen_name') or '').strip()
+        codes = request.POST.getlist('employee_code')
+        quantities = request.POST.getlist('quantity')
+
+        form_errors = []  # lỗi của field dùng chung
+
+        # --- Validate field dùng chung ---
+        parsed_date = None
+        if not date_raw:
+            form_errors.append('Vui lòng chọn ngày đặt cơm.')
+        else:
+            try:
+                parsed_date = datetime.strptime(date_raw, '%Y-%m-%d').date()
+            except ValueError:
+                form_errors.append('Ngày đặt cơm không hợp lệ.')
+
+        if not meal_name:
+            form_errors.append('Vui lòng chọn bữa ăn.')
+        elif meal_name not in meal_options:
+            form_errors.append('Bữa ăn không hợp lệ.')
+
+        if not kitchen_name:
+            form_errors.append('Vui lòng chọn bếp ăn.')
+        elif kitchen_name not in kitchen_options:
+            form_errors.append('Bếp ăn không hợp lệ.')
+
+        # --- Dựng từng dòng + validate (dòng không nhập mã → bỏ qua) ---
+        rows = []
+        seen_codes = set()
+        for i, raw_code in enumerate(codes):
+            code = (raw_code or '').strip()
+            if not code:
+                continue
+
+            qty_raw = (quantities[i] if i < len(quantities) else '').strip()
+            try:
+                qty_int = int(qty_raw) if qty_raw else 1
+            except ValueError:
+                qty_int = 0
+
+            row = {
+                'code': code,
+                'name': user_map.get(code, ''),
+                'quantity': qty_raw or '1',
+                'qty_int': qty_int,
+                'error': '',
+            }
+
+            if qty_int < 1:
+                row['error'] = 'Số suất phải là số nguyên ≥ 1.'
+            elif code not in user_map:
+                row['error'] = 'Mã nhân viên không tồn tại.'
+            elif code in seen_codes:
+                row['error'] = 'Mã nhân viên bị trùng trong danh sách.'
+            else:
+                seen_codes.add(code)
+
+            rows.append(row)
+
+        # --- Trùng với đăng kí đã có trong DB (chỉ check khi field chung OK) ---
+        if (parsed_date and meal_name in meal_options
+                and kitchen_name in kitchen_options):
+            valid_codes = [r['code'] for r in rows if not r['error']]
+            if valid_codes:
+                already = set(
+                    MealRegistration.objects.filter(
+                        date=parsed_date,
+                        meal_name=meal_name,
+                        kitchen_name=kitchen_name,
+                        employee_code__in=valid_codes,
+                    ).values_list('employee_code', flat=True)
+                )
+                for r in rows:
+                    if not r['error'] and r['code'] in already:
+                        r['error'] = ('Người này đã được đăng kí cho '
+                                      'ngày / bữa / bếp này.')
+
+        if not rows:
+            form_errors.append('Vui lòng nhập ít nhất một người.')
+
+        has_row_error = any(r['error'] for r in rows)
+
+        if form_errors or has_row_error:
+            # Có lỗi → không lưu gì, render lại kèm dữ liệu đã nhập.
+            display_rows = rows or [
+                {'code': '', 'name': '', 'quantity': '1', 'error': ''}
+            ]
+            return render(request, 'registrations/registration_form.html', {
+                'page_title': 'Thêm người đăng kí',
+                'meal_options': meal_options,
+                'kitchen_options': kitchen_options,
+                'user_map': user_map,
+                'form_errors': form_errors,
+                'sel_date': date_raw,
+                'sel_meal': meal_name,
+                'sel_kitchen': kitchen_name,
+                'rows': display_rows,
+            })
+
+        # --- Hợp lệ toàn bộ → lưu trong 1 transaction ---
+        with transaction.atomic():
+            for r in rows:
+                MealRegistration.objects.create(
+                    employee_code=r['code'],
+                    full_name=user_map.get(r['code'], ''),
+                    date=parsed_date,
+                    meal_name=meal_name,
+                    kitchen_name=kitchen_name,
+                    quantity=r['qty_int'],
+                    status=STATUS_FIXED,
+                    source='manual',
+                )
+
+        messages.success(request, f'Đã thêm {len(rows)} đăng kí suất ăn.')
+        return redirect('registration_list')
+
+    # --- GET: form trống với 1 dòng ---
     return render(request, 'registrations/registration_form.html', {
-        'form': form,
         'page_title': 'Thêm người đăng kí',
-        'submit_label': 'Lưu đăng kí',
+        'meal_options': meal_options,
+        'kitchen_options': kitchen_options,
         'user_map': user_map,
+        'form_errors': [],
+        'sel_date': date.today().strftime('%Y-%m-%d'),
+        'sel_meal': '',
+        'sel_kitchen': '',
+        'rows': [{'code': '', 'name': '', 'quantity': '1', 'error': ''}],
     })
 
 

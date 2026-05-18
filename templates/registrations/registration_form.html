@@ -20,13 +20,24 @@
         background-image: none !important;
         padding-right: .75rem !important;
     }
+    .reg-rows-table th {
+        font-size: 12px;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: .03em;
+    }
+    .reg-rows-table td { vertical-align: top; }
+    .reg-rows-table .row-feedback:empty { display: none; }
 </style>
 
 <div class="dashboard-card">
     <div class="d-flex justify-content-between align-items-start mb-1">
         <div>
             <div class="section-title">{{ page_title }}</div>
-            <div class="section-subtitle">Thêm dữ liệu đăng kí suất ăn thủ công.</div>
+            <div class="section-subtitle">
+                Thêm dữ liệu đăng kí suất ăn thủ công — có thể nhập nhiều người cùng lúc.
+            </div>
         </div>
         <a href="{% url 'registration_options' %}"
            class="btn btn-outline-secondary btn-sm"
@@ -35,84 +46,162 @@
         </a>
     </div>
 
-    <form method="post" class="mt-4">
+    <form method="post" class="mt-4" id="reg-form">
         {% csrf_token %}
 
-        {% if form.non_field_errors %}
-            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% if form_errors %}
+            <div class="alert alert-danger">
+                <ul class="mb-0">
+                    {% for err in form_errors %}<li>{{ err }}</li>{% endfor %}
+                </ul>
+            </div>
         {% endif %}
 
+        {# --- Field dùng chung cho cả lô --- #}
         <div class="row g-3">
             <div class="col-md-4">
-                <label class="form-label fw-semibold">{{ form.employee_code.label }}</label>
-                {{ form.employee_code }}
-                <div id="mnv-feedback" class="small mt-1"></div>
-                {% for error in form.employee_code.errors %}
-                    <div class="text-danger small mt-1">{{ error }}</div>
-                {% endfor %}
+                <label class="form-label fw-semibold">Ngày đặt cơm</label>
+                <input type="date" name="date" class="form-control" value="{{ sel_date }}">
             </div>
 
             <div class="col-md-4">
-                <label class="form-label fw-semibold">{{ form.full_name.label }}</label>
-                {{ form.full_name }}
-                {% for error in form.full_name.errors %}
-                    <div class="text-danger small mt-1">{{ error }}</div>
-                {% endfor %}
+                <label class="form-label fw-semibold">Bữa ăn</label>
+                <select name="meal_name" id="id_meal_name" class="form-select">
+                    <option value="">— Chọn bữa ăn —</option>
+                    {% for opt in meal_options %}
+                        <option value="{{ opt }}" {% if opt == sel_meal %}selected{% endif %}>{{ opt }}</option>
+                    {% endfor %}
+                </select>
             </div>
 
             <div class="col-md-4">
-                <label class="form-label fw-semibold">{{ form.date.label }}</label>
-                {{ form.date }}
-                {% for error in form.date.errors %}
-                    <div class="text-danger small mt-1">{{ error }}</div>
-                {% endfor %}
+                <label class="form-label fw-semibold">Tên bếp ăn</label>
+                <select name="kitchen_name" id="id_kitchen_name" class="form-select">
+                    <option value="">— Chọn bếp ăn —</option>
+                    {% for opt in kitchen_options %}
+                        <option value="{{ opt }}" {% if opt == sel_kitchen %}selected{% endif %}>{{ opt }}</option>
+                    {% endfor %}
+                </select>
             </div>
 
             <div class="col-md-4">
-                <label class="form-label fw-semibold">{{ form.meal_name.label }}</label>
-                {{ form.meal_name }}
-                {% for error in form.meal_name.errors %}
-                    <div class="text-danger small mt-1">{{ error }}</div>
-                {% endfor %}
-            </div>
-
-            <div class="col-md-4">
-                <label class="form-label fw-semibold">{{ form.kitchen_name.label }}</label>
-                {{ form.kitchen_name }}
-                {% for error in form.kitchen_name.errors %}
-                    <div class="text-danger small mt-1">{{ error }}</div>
-                {% endfor %}
-            </div>
-
-            <div class="col-md-4">
-                <label class="form-label fw-semibold">{{ form.quantity.label }}</label>
-                {{ form.quantity }}
-                {% for error in form.quantity.errors %}
-                    <div class="text-danger small mt-1">{{ error }}</div>
-                {% endfor %}
-            </div>
-
-            <div class="col-md-4">
-                <label class="form-label fw-semibold">{{ form.status.label }}</label>
-                {{ form.status }}
+                <label class="form-label fw-semibold">Trạng thái</label>
+                <input type="text" class="form-control bg-light" value="Đặt thành công"
+                       readonly tabindex="-1">
             </div>
         </div>
 
-        <div class="d-flex gap-2 mt-4">
-            <button type="submit" class="btn btn-primary">{{ submit_label }}</button>
+        {# --- Danh sách người (mỗi người 1 dòng) --- #}
+        <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
+            <div class="fw-semibold">Danh sách người đăng kí</div>
+            <button type="button" class="btn btn-outline-primary btn-sm" id="add-row-btn">
+                <i class="bi bi-plus-lg"></i> Thêm dòng
+            </button>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table reg-rows-table align-middle">
+                <thead>
+                    <tr>
+                        <th style="width: 42%;">Mã nhân viên</th>
+                        <th style="width: 38%;">Họ và tên</th>
+                        <th style="width: 12%;">Số suất</th>
+                        <th style="width: 8%;"></th>
+                    </tr>
+                </thead>
+                <tbody id="reg-rows">
+                    {% for row in rows %}
+                    <tr class="reg-row">
+                        <td>
+                            <input type="text" name="employee_code" autocomplete="off"
+                                   class="form-control row-emp-code{% if row.error %} is-invalid{% elif row.code %} is-valid{% endif %}"
+                                   value="{{ row.code }}" placeholder="Nhập mã NV">
+                            <div class="small mt-1 row-feedback text-danger">{{ row.error }}</div>
+                        </td>
+                        <td>
+                            <input type="text" readonly placeholder="Tự động điền"
+                                   class="form-control bg-light row-emp-name{% if row.name %} is-valid{% endif %}"
+                                   value="{{ row.name }}">
+                        </td>
+                        <td>
+                            <input type="number" name="quantity" min="1"
+                                   class="form-control row-qty" value="{{ row.quantity }}">
+                        </td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-outline-danger btn-sm row-remove"
+                                    title="Xóa dòng">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="d-flex gap-2 mt-3">
+            <button type="submit" class="btn btn-primary">Lưu đăng kí</button>
             <a href="{% url 'registration_list' %}" class="btn btn-outline-secondary">Quay lại</a>
         </div>
     </form>
 </div>
+
+{# Popup xác nhận trước khi lưu — liệt kê người đăng kí #}
+<div class="modal fade" id="confirmRegModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Xác nhận đăng kí suất ăn</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <div class="small text-muted mb-2" id="confirm-context"></div>
+                <div class="fw-semibold mb-2" id="confirm-count"></div>
+                <ul class="list-group" id="confirm-list"></ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" id="confirm-save-btn">
+                    <i class="bi bi-check-lg"></i> Xác nhận đăng kí
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Khuôn dòng mới — JS clone khi bấm "Thêm dòng" #}
+<template id="row-template">
+    <tr class="reg-row">
+        <td>
+            <input type="text" name="employee_code" autocomplete="off"
+                   class="form-control row-emp-code" value="" placeholder="Nhập mã NV">
+            <div class="small mt-1 row-feedback text-danger"></div>
+        </td>
+        <td>
+            <input type="text" readonly placeholder="Tự động điền"
+                   class="form-control bg-light row-emp-name" value="">
+        </td>
+        <td>
+            <input type="number" name="quantity" min="1"
+                   class="form-control row-qty" value="1">
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-outline-danger btn-sm row-remove"
+                    title="Xóa dòng">
+                <i class="bi bi-trash"></i>
+            </button>
+        </td>
+    </tr>
+</template>
 
 {{ user_map|json_script:"user-map-data" }}
 
 <script>
 (function () {
     const userMap = JSON.parse(document.getElementById('user-map-data').textContent || '{}');
-    const codeInput = document.getElementById('id_employee_code');
-    const nameInput = document.getElementById('id_full_name');
-    const feedback = document.getElementById('mnv-feedback');
+    const tbody = document.getElementById('reg-rows');
+    const rowTemplate = document.getElementById('row-template');
+    const addBtn = document.getElementById('add-row-btn');
 
     function setState(el, ok) {
         el.classList.remove('is-valid', 'is-invalid');
@@ -120,10 +209,14 @@
         else if (ok === false) el.classList.add('is-invalid');
     }
 
-    function lookup() {
+    // Auto-fill họ tên theo mã NV cho 1 dòng.
+    function lookupRow(row) {
+        const codeInput = row.querySelector('.row-emp-code');
+        const nameInput = row.querySelector('.row-emp-name');
+        const feedback = row.querySelector('.row-feedback');
         const code = (codeInput.value || '').trim();
+
         if (!code) {
-            // Trống → không tô màu (chưa nhập gì).
             nameInput.value = '';
             feedback.textContent = '';
             setState(codeInput, null);
@@ -144,19 +237,111 @@
         }
     }
 
-    codeInput.addEventListener('input', lookup);
-    codeInput.addEventListener('blur', lookup);
-    lookup();
+    // Event delegation — áp được cho cả dòng thêm sau này.
+    tbody.addEventListener('input', function (e) {
+        if (e.target.classList.contains('row-emp-code')) {
+            lookupRow(e.target.closest('.reg-row'));
+        }
+    });
 
-    // Dropdown "Bữa ăn" và "Tên bếp ăn": tô đỏ khi chưa chọn, xanh khi đã chọn.
-    function syncSelect(el) {
-        setState(el, !!el.value);
-    }
+    tbody.addEventListener('click', function (e) {
+        const removeBtn = e.target.closest('.row-remove');
+        if (!removeBtn) return;
+        const rows = tbody.querySelectorAll('.reg-row');
+        if (rows.length <= 1) {
+            // Luôn giữ tối thiểu 1 dòng — bấm xóa thì chỉ clear nội dung.
+            const row = removeBtn.closest('.reg-row');
+            row.querySelector('.row-emp-code').value = '';
+            row.querySelector('.row-qty').value = '1';
+            lookupRow(row);
+        } else {
+            removeBtn.closest('.reg-row').remove();
+        }
+    });
+
+    addBtn.addEventListener('click', function () {
+        tbody.appendChild(rowTemplate.content.cloneNode(true));
+        tbody.lastElementChild.querySelector('.row-emp-code').focus();
+    });
+
+    // Dropdown Bữa ăn / Bếp ăn — tô đỏ khi chưa chọn, xanh khi đã chọn.
+    function syncSelect(el) { setState(el, !!el.value); }
     ['id_meal_name', 'id_kitchen_name'].forEach(function (id) {
         const el = document.getElementById(id);
         if (!el) return;
         syncSelect(el);
         el.addEventListener('change', function () { syncSelect(el); });
+    });
+
+    // --- Popup xác nhận trước khi lưu ---
+    const form = document.getElementById('reg-form');
+    const confirmModalEl = document.getElementById('confirmRegModal');
+    const confirmContext = document.getElementById('confirm-context');
+    const confirmCount = document.getElementById('confirm-count');
+    const confirmList = document.getElementById('confirm-list');
+    const confirmSaveBtn = document.getElementById('confirm-save-btn');
+
+    form.addEventListener('submit', function (e) {
+        // Chặn submit thẳng — hiện popup xác nhận trước.
+        e.preventDefault();
+
+        // Thu thập các dòng có nhập mã NV.
+        const people = [];
+        tbody.querySelectorAll('.reg-row').forEach(function (row) {
+            const code = (row.querySelector('.row-emp-code').value || '').trim();
+            if (!code) return;
+            const qty = (row.querySelector('.row-qty').value || '1').trim();
+            people.push({ code: code, name: userMap[code] || '', qty: qty });
+        });
+
+        if (!people.length) {
+            alert('Vui lòng nhập ít nhất một người đăng kí.');
+            return;
+        }
+
+        // Dòng thông tin dùng chung.
+        const dateVal = form.querySelector('input[name="date"]').value;
+        const mealVal = document.getElementById('id_meal_name').value;
+        const kitchenVal = document.getElementById('id_kitchen_name').value;
+        confirmContext.textContent =
+            'Ngày ' + (dateVal || '(chưa chọn)') +
+            ' · ' + (mealVal || '(chưa chọn bữa ăn)') +
+            ' · ' + (kitchenVal || '(chưa chọn bếp ăn)');
+
+        confirmCount.textContent = 'Đăng kí suất ăn cho ' + people.length + ' người:';
+
+        // Dựng danh sách bằng DOM (an toàn XSS — không nội suy chuỗi vào innerHTML).
+        confirmList.innerHTML = '';
+        people.forEach(function (p) {
+            const li = document.createElement('li');
+            li.className = 'list-group-item';
+            const strong = document.createElement('strong');
+            strong.textContent = p.code;
+            if (p.name) {
+                li.classList.add('d-flex', 'justify-content-between', 'align-items-center');
+                const left = document.createElement('span');
+                left.appendChild(strong);
+                left.appendChild(document.createTextNode(' — ' + p.name));
+                const right = document.createElement('span');
+                right.className = 'text-muted small';
+                right.textContent = p.qty + ' suất';
+                li.appendChild(left);
+                li.appendChild(right);
+            } else {
+                li.classList.add('text-danger');
+                li.appendChild(strong);
+                li.appendChild(document.createTextNode(' — ⚠ Mã nhân viên không tồn tại'));
+            }
+            confirmList.appendChild(li);
+        });
+
+        bootstrap.Modal.getOrCreateInstance(confirmModalEl).show();
+    });
+
+    confirmSaveBtn.addEventListener('click', function () {
+        bootstrap.Modal.getOrCreateInstance(confirmModalEl).hide();
+        // submit() native — bỏ qua listener 'submit' ở trên, gửi form thật.
+        form.submit();
     });
 })();
 </script>
