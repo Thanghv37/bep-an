@@ -7,18 +7,6 @@
 {% block content %}
 
 <div class="dashboard-card mb-4">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-        <div>
-            <div class="section-title mb-1">Cập nhật giá suất ăn</div>
-            <div class="section-subtitle mb-0">
-                Giá suất ăn được áp dụng theo khoảng thời gian. Bảng tổng quan giúp kiểm tra ngày nào đã được set giá.
-            </div>
-        </div>
-        <a href="{% url 'meal_price_create' %}" class="btn btn-primary">+ Thêm giá suất ăn</a>
-    </div>
-</div>
-
-<div class="dashboard-card mb-4">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
         <div>
             <div class="section-title mb-1">Tổng quan giá suất ăn năm {{ selected_year }}</div>
@@ -27,17 +15,24 @@
             </div>
         </div>
 
-        <form method="get" class="d-flex gap-2 align-items-end">
-            <div>
-                <label class="form-label small fw-semibold mb-1">Năm</label>
-                <select name="year" class="form-select form-select-sm">
-                    {% for y in year_choices %}
-                        <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <button class="btn btn-primary btn-sm">Xem</button>
-        </form>
+        <div class="d-flex gap-3 align-items-end flex-wrap">
+            <form method="get" class="d-flex gap-2 align-items-end">
+                <div>
+                    <label class="form-label small fw-semibold mb-1">Năm</label>
+                    <select name="year" class="form-select form-select-sm">
+                        {% for y in year_choices %}
+                            <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-funnel-fill"></i> Xem</button>
+            </form>
+
+            <a href="{% url 'meal_price_create' %}" class="btn-price-config">
+                <i class="bi bi-gear-fill"></i>
+                <span>Cấu hình giá</span>
+            </a>
+        </div>
     </div>
 
     <div class="meal-price-year-grid">
@@ -167,6 +162,33 @@
 </div>
 
 <style>
+/* Nút "Cấu hình giá" — gradient pill + icon răng cưa, cố ý khác hẳn nút "Xem"
+   (nút Xem là btn-primary nhỏ, phẳng). */
+.btn-price-config {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: linear-gradient(135deg, #6366f1, #06b6d4);
+    color: #ffffff;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    padding: 9px 18px;
+    text-decoration: none;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.28);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-price-config:hover {
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+}
+
+.btn-price-config i {
+    font-size: 15px;
+}
+
 .meal-price-year-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));

@@ -392,41 +392,10 @@ def apply_week_menu_draft(request):
 @login_required
 @user_passes_test(can_manage_menu)
 def menu_list(request):
-    selected_dates_raw = request.GET.get('dates', '').strip()
     focus_date_raw = request.GET.get('focus_date', '').strip()
-
-    selected_dates = []
-    menus = []
-
-    if selected_dates_raw:
-        for part in selected_dates_raw.split(','):
-            part = part.strip()
-            if not part:
-                continue
-            try:
-                selected_dates.append(datetime.strptime(part, '%Y-%m-%d').date())
-            except ValueError:
-                continue
-
-    selected_dates = sorted(selected_dates)
 
     now = timezone.localtime()
     today = now.date()
-
-    if selected_dates:
-        selected_menus = DailyMenu.objects.filter(
-            date__in=selected_dates
-        ).prefetch_related('items__dish')
-        selected_menu_map = {menu.date: menu for menu in selected_menus}
-
-        for d in selected_dates:
-            menu = selected_menu_map.get(d)
-            menus.append({
-                'date': d,
-                'menu': menu,
-                'can_delete': can_delete_menu(d, now=now) if menu else False,
-                'is_late_menu': bool(menu and menu.edit_reason),
-            })
 
     try:
         year = int(request.GET.get('year', today.year))
@@ -524,8 +493,6 @@ def menu_list(request):
             focus_date = datetime.strptime(focus_date_raw, '%Y-%m-%d').date()
         except ValueError:
             focus_date = None
-    elif selected_dates:
-        focus_date = selected_dates[0]
 
     focus_registered_count = None
     focus_can_delete = False
@@ -572,8 +539,6 @@ def menu_list(request):
             preparation_items = list(ingredient_summary.values())
 
     context = {
-        'selected_dates_input': ', '.join([d.strftime('%Y-%m-%d') for d in selected_dates]),
-        'menus': menus,
         'calendar_weeks': calendar_weeks,
         'calendar_month': month,
         'calendar_year': year,

@@ -5,48 +5,6 @@
 
 {% block content %}
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-
-<div class="dashboard-card mb-4">
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
-        <div>
-            <div class="section-title mb-1">Xem thực đơn theo lịch</div>
-            <div class="section-subtitle mb-0">
-                Chọn một hoặc nhiều ngày trên lịch để xem thực đơn tương ứng.
-            </div>
-        </div>
-
-        <div class="d-flex flex-column align-items-end gap-2">
-            <a href="{% url 'menu_create' %}" class="btn btn-primary">
-                + Tạo thực đơn
-            </a>            
-        </div>
-    </div>
-
-    <form method="get" action="{% url 'menu_list' %}#menu-detail-section">
-        <div class="row g-3 align-items-end">
-            <div class="col-lg-5 col-md-7">
-                <label class="form-label fw-semibold">Chọn ngày cần xem</label>
-                <input
-                    type="text"
-                    id="menu-date-picker"
-                    name="dates"
-                    value="{{ selected_dates_input }}"
-                    class="form-control"
-                    placeholder="Chọn một hoặc nhiều ngày"
-                >
-            </div>
-
-            <div class="col-auto">
-                <button type="submit" class="btn btn-primary btn-sm px-3">Xem thực đơn</button>
-            </div>
-
-            <div class="col-auto">
-                <a href="{% url 'menu_list' %}" class="btn btn-outline-secondary btn-sm px-3">Đặt lại</a>
-            </div>
-        </div>
-    </form>
-</div>
 <div class="dashboard-card mb-4">
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div>
@@ -103,7 +61,7 @@
                 </select>
             </div>
 
-            <button class="btn btn-primary btn-sm px-3">Xem</button>
+            <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-funnel-fill"></i> Xem</button>
         </form>
     </div>
 
@@ -229,102 +187,6 @@
         </div>
     </div>
 </div>
-
-{% if menus %}
-    <div class="dashboard-card mb-4">
-        <div class="section-title mb-1">Các ngày đang xem</div>
-        <div class="section-subtitle mb-3">
-            Chọn một ngày để xem thực đơn chi tiết và khối lượng cần chuẩn bị.
-        </div>
-
-        <div class="row g-3">
-            {% for item in menus %}
-            <div class="col-xl-3 col-lg-4 col-md-6">
-                <div class="menu-summary-card h-100 {% if focus_date == item.date %}menu-summary-card-active{% endif %}">
-                    <a href="{% url 'menu_list' %}?dates={{ selected_dates_input|urlencode }}&focus_date={{ item.date|date:'Y-m-d' }}#menu-detail-section"
-                        style="text-decoration: none; color: inherit; display:block;">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div class="fw-bold">{{ item.date|date:"d/m/Y" }}</div>
-
-                            {% if item.menu %}
-                                {% if item.is_late_menu %}
-                                    <span class="summary-badge summary-badge-warning">Tạo/Sửa trễ</span>
-                                {% else %}
-                                    <span class="summary-badge summary-badge-success">Đã có menu</span>
-                                {% endif %}
-                            {% else %}
-                                <span class="summary-badge summary-badge-muted">Chưa tạo</span>
-                            {% endif %}
-                        </div>
-
-                        <div class="small text-muted mb-2">
-                            {% if item.menu %}
-                                {{ item.menu.get_status_display }}
-                            {% else %}
-                                Chưa có thực đơn
-                            {% endif %}
-                        </div>
-
-                        <div class="d-flex justify-content-between small mb-1">
-                            <span class="text-muted">Số món</span>
-                            <span class="fw-semibold">
-                                {% if item.menu %}
-                                    {{ item.menu.items.all|length }}
-                                {% else %}
-                                    Chưa có dữ liệu
-                                {% endif %}
-                            </span>
-                        </div>
-
-                        <div class="d-flex justify-content-between small mb-2">
-                            <span class="text-muted">Ghi chú</span>
-                            <span class="fw-semibold">
-                                {% if item.menu and item.menu.note %}
-                                    Có
-                                {% else %}
-                                    Không
-                                {% endif %}
-                            </span>
-                        </div>
-
-                        <div class="small {% if focus_date == item.date %}text-primary fw-semibold{% else %}text-muted{% endif %}">
-                            {% if focus_date == item.date %}
-                                Đang xem chi tiết
-                            {% else %}
-                                Bấm để xem chi tiết
-                            {% endif %}
-                        </div>
-                    </a>
-
-                    {% if item.menu %}
-                    <div class="d-flex gap-2 mt-3 pt-3 border-top">
-                        <a href="{% url 'menu_update' item.menu.id %}" class="btn btn-sm btn-outline-primary">Sửa</a>
-
-                        {% if item.can_delete %}
-                        <button
-                            type="button"
-                            class="btn btn-sm btn-outline-danger btn-delete-menu"
-                            data-name="{{ item.date|date:'d/m/Y' }}"
-                            data-delete-url="{% url 'menu_delete' item.menu.id %}"
-                            data-bs-toggle="modal"
-                            data-bs-target="#deleteMenuModal">
-                            Xóa
-                        </button>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-{% else %}
-    <div class="dashboard-card">
-        <div class="empty-state">
-            Chọn một hoặc nhiều ngày trên lịch để xem thực đơn.
-        </div>
-    </div>
-{% endif %}
 
 {% if focus_date %}
 <div class="row g-4 mb-4" id="menu-detail-section">
@@ -604,15 +466,6 @@
     color: transparent;
 }
 </style>
-
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script>
-    flatpickr("#menu-date-picker", {
-        mode: "multiple",
-        dateFormat: "Y-m-d",
-        conjunction: ", ",
-    });
-</script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
