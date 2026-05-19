@@ -14,9 +14,11 @@ from django.utils import timezone
 from core.models import SystemConfig
 from registrations.participation_export import (
     build_excel_bytes,
+    get_channel_id,
     get_recipients,
+    get_send_mode,
     get_send_time,
-    send_excel_to_recipients,
+    send_participation_excel,
 )
 
 
@@ -24,7 +26,7 @@ KEY_LAST_SENT = 'participation_export_last_sent_date'
 
 
 class Command(BaseCommand):
-    help = 'Auto-send báo cáo Tham gia qua NetChat DM theo lịch cấu hình.'
+    help = 'Auto-send báo cáo Tham gia qua NetChat (DM hoặc channel) theo lịch cấu hình.'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -35,9 +37,13 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         force = options.get('force', False)
 
-        # 1. Check recipient
-        recipients = get_recipients()
-        if not recipients:
+        # 1. Check đã cấu hình đích gửi chưa (tùy hình thức dm / channel)
+        mode = get_send_mode()
+        if mode == 'channel':
+            if not get_channel_id():
+                self.stdout.write('[skip] Channel mode but no channel_id configured.')
+                return
+        elif not get_recipients():
             self.stdout.write('[skip] No recipients configured.')
             return
 
@@ -71,20 +77,17 @@ class Command(BaseCommand):
         rows = _build_participation_rows(target_date)
         file_bytes = build_excel_bytes(target_date, rows)
 
-        self.stdout.write(f'[run] Sending report for {target_date} to {len(recipients)} recipient(s)...')
-        result = send_excel_to_recipients(target_date, file_bytes, recipients)
+        self.stdout.write(f'[run] Sending report for {target_date} (mode={mode})...')
+        result = send_participation_excel(target_date, file_bytes)
 
-        # 5. Chỉ mark last_sent nếu thành công (≥1 người nhận được).
-        # Nếu fail hết → lần fire kế tiếp thử lại.
-        if result['success']:
+        # 5. Chỉ mark last_sent nếu gửi thành công. Nếu thất bại → để lần fire
+        # kế tiếp (trong cùng phút khớp giờ) thử lại.
+        msg = result['message'].encode('ascii', 'replace').decode('ascii')
+        if result['ok']:
             SystemConfig.objects.update_or_create(
                 key=KEY_LAST_SENT,
                 defaults={'value': today_str},
             )
-            self.stdout.write(self.style.SUCCESS(
-                f'[ok] Sent {len(result["success"])}/{len(recipients)} recipient(s).'
-            ))
-
-        if result['failed']:
-            for code, reason in result['failed']:
-                self.stderr.write(f'[fail] {code}: {reason.encode("ascii", "replace").decode("ascii")}')
+            self.stdout.write(self.style.SUCCESS(f'[ok] {msg}'))
+        else:
+            self.stderr.write(f'[fail] {msg}')

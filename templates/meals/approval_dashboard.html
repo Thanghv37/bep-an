@@ -32,7 +32,18 @@
                             <div class="section-subtitle mb-0 small">Món mới hoặc món vừa chỉnh sửa</div>
                         </div>
                     </div>
-                    <span class="approval-count count-dish">{{ pending_dishes|length }}</span>
+                    <div class="d-flex align-items-center gap-2">
+                        {% if pending_dishes %}
+                        <form method="post" action="{% url 'approve_all_dishes' %}" class="m-0"
+                              onsubmit="return confirm('Phê duyệt tất cả {{ pending_dishes|length }} món ăn đang chờ?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-approve-all">
+                                <i class="bi bi-check2-all"></i> Phê duyệt tất cả
+                            </button>
+                        </form>
+                        {% endif %}
+                        <span class="approval-count count-dish">{{ pending_dishes|length }}</span>
+                    </div>
                 </div>
 
                 {% if pending_dishes %}
@@ -105,7 +116,18 @@
                             <div class="section-subtitle mb-0 small">Thực đơn bếp tạo hoặc chỉnh sửa</div>
                         </div>
                     </div>
-                    <span class="approval-count count-menu">{{ pending_menus|length }}</span>
+                    <div class="d-flex align-items-center gap-2">
+                        {% if pending_menus %}
+                        <form method="post" action="{% url 'approve_all_menus' %}" class="m-0"
+                              onsubmit="return confirm('Phê duyệt tất cả {{ pending_menus|length }} thực đơn đang chờ?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-approve-all">
+                                <i class="bi bi-check2-all"></i> Phê duyệt tất cả
+                            </button>
+                        </form>
+                        {% endif %}
+                        <span class="approval-count count-menu">{{ pending_menus|length }}</span>
+                    </div>
                 </div>
 
                 {% if pending_menus %}
@@ -200,7 +222,18 @@
                     <div class="section-subtitle mb-0 small">Yêu cầu mua phát sinh ngoài thực đơn</div>
                 </div>
             </div>
-            <span class="approval-count count-extra">{{ pending_extra_requests|length }}</span>
+            <div class="d-flex align-items-center gap-2">
+                {% if pending_extra_requests %}
+                <form method="post" action="{% url 'approve_all_extra_requests' %}" class="m-0"
+                      onsubmit="return confirm('Phê duyệt tất cả {{ pending_extra_requests|length }} đơn mua bổ sung đang chờ?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-approve-all">
+                        <i class="bi bi-check2-all"></i> Phê duyệt tất cả
+                    </button>
+                </form>
+                {% endif %}
+                <span class="approval-count count-extra">{{ pending_extra_requests|length }}</span>
+            </div>
         </div>
 
         {% if pending_extra_requests %}
@@ -281,7 +314,18 @@
                     <div class="section-subtitle mb-0 small">Chi phí thực tế và bill đã nhập</div>
                 </div>
             </div>
-            <span class="approval-count count-purchase">{{ pending_purchases|length }}</span>
+            <div class="d-flex align-items-center gap-2">
+                {% if pending_purchases %}
+                <form method="post" action="{% url 'approve_all_purchases' %}" class="m-0"
+                      onsubmit="return confirm('Phê duyệt tất cả {{ pending_purchases|length }} chi phí đang chờ?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-approve-all">
+                        <i class="bi bi-check2-all"></i> Phê duyệt tất cả
+                    </button>
+                </form>
+                {% endif %}
+                <span class="approval-count count-purchase">{{ pending_purchases|length }}</span>
+            </div>
         </div>
 
         {% if pending_purchases %}
@@ -882,6 +926,25 @@
     border: 1px solid #bfdbfe;
     font-size: 13px;
     font-weight: 700;
+}
+
+/* Nút "Phê duyệt tất cả" — đặt bên trái ô đếm số lượng */
+.btn-approve-all {
+    white-space: nowrap;
+    border: none;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #ffffff;
+    background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+    transition: all 0.18s ease;
+}
+.btn-approve-all:hover {
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.35);
 }
 
 .approval-item {

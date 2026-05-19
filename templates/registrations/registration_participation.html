@@ -242,12 +242,32 @@ img.user-list-avatar { object-fit: cover; }
                 </div>
 
                 <div class="mb-3">
+                    <label class="form-label fw-semibold d-block">Hình thức gửi</label>
+                    <div class="d-flex gap-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="send-mode" id="mode-dm" value="dm" checked>
+                            <label class="form-check-label" for="mode-dm">DM tới từng người</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="send-mode" id="mode-channel" value="channel">
+                            <label class="form-check-label" for="mode-channel">Đăng vào channel</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3" id="dm-section">
                     <label class="form-label fw-semibold">Mã nhân viên nhận báo cáo</label>
                     <div id="settings-recipients-list" class="d-flex flex-column gap-2"></div>
                     <button type="button" id="btnAddRecipient" class="btn btn-sm btn-outline-primary mt-2">
                         <i class="bi bi-plus-lg"></i> Thêm người nhận
                     </button>
                     <div class="form-text mt-2"><span id="settings-recipients-count">0</span> mã hợp lệ. Mã không tồn tại sẽ bị bỏ qua khi gửi.</div>
+                </div>
+
+                <div class="mb-3 d-none" id="channel-section">
+                    <label class="form-label fw-semibold">Channel ID</label>
+                    <input type="text" id="settings-channel-id" class="form-control" placeholder="Dán Channel ID từ NetChat" autocomplete="off">
+                    <div class="form-text">Báo cáo sẽ đăng thẳng vào channel này. Bot phải là thành viên của channel mới đăng được.</div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -295,11 +315,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 alert('❌ ' + (data.message || 'Gửi thất bại.'));
                 return;
             }
-            let msg = `✅ Đã gửi cho ${data.sent_count}/${data.total} người.`;
-            if (data.failed && data.failed.length) {
-                msg += '\n\nThất bại:\n' + data.failed.map(f => `- ${f.code}: ${f.reason}`).join('\n');
-            }
-            alert(msg);
+            alert('✅ ' + (data.message || 'Đã gửi báo cáo.'));
         })
         .catch(err => {
             btnSend.disabled = false;
@@ -316,6 +332,23 @@ document.addEventListener('DOMContentLoaded', function () {
     const countEl = document.getElementById('settings-recipients-count');
     const alertEl = document.getElementById('settings-alert');
     const btnSave = document.getElementById('btnSaveSettings');
+    const channelInput = document.getElementById('settings-channel-id');
+    const dmSection = document.getElementById('dm-section');
+    const channelSection = document.getElementById('channel-section');
+    const modeRadios = document.querySelectorAll('input[name="send-mode"]');
+
+    function getMode() {
+        const checked = document.querySelector('input[name="send-mode"]:checked');
+        return checked ? checked.value : 'dm';
+    }
+    function applyMode(mode) {
+        const isChannel = mode === 'channel';
+        dmSection.classList.toggle('d-none', isChannel);
+        channelSection.classList.toggle('d-none', !isChannel);
+    }
+    modeRadios.forEach(function (r) {
+        r.addEventListener('change', function () { applyMode(getMode()); });
+    });
 
     const userMap = JSON.parse(document.getElementById('recipient-user-map').textContent || '{}');
 
@@ -386,6 +419,11 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(data => {
                 if (!data.success) return;
                 sendTimeInput.value = data.send_time || '13:00';
+                channelInput.value = data.channel_id || '';
+                const mode = data.mode === 'channel' ? 'channel' : 'dm';
+                const modeInput = document.getElementById('mode-' + mode);
+                if (modeInput) modeInput.checked = true;
+                applyMode(mode);
                 const codes = data.recipients || [];
                 if (codes.length === 0) {
                     addRow('');
@@ -401,7 +439,9 @@ document.addEventListener('DOMContentLoaded', function () {
             .filter(v => v);
         const fd = new FormData();
         fd.append('send_time', sendTimeInput.value);
+        fd.append('mode', getMode());
         fd.append('recipients', codes.join('\n'));
+        fd.append('channel_id', channelInput.value.trim());
 
         btnSave.disabled = true;
         btnSave.textContent = 'Đang lưu...';

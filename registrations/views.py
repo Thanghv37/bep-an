@@ -549,30 +549,18 @@ def export_participation_excel(request):
 @user_passes_test(is_admin)
 @require_POST
 def participation_send_netchat(request):
-    """Gửi Excel báo cáo qua DM NetChat cho danh sách MNV đã cấu hình."""
-    from .participation_export import (
-        build_excel_bytes,
-        get_recipients,
-        send_excel_to_recipients,
-    )
+    """Gửi Excel báo cáo qua NetChat — DM tới từng người hoặc đăng vào channel,
+    tùy hình thức đã chọn trong Cài đặt."""
+    from .participation_export import build_excel_bytes, send_participation_excel
 
     target_date = _parse_date_param(request)
-    recipients = get_recipients()
-    if not recipients:
-        return JsonResponse({
-            'success': False,
-            'message': 'Chưa cấu hình người nhận. Vào Cài đặt để thêm mã NV nhận báo cáo.',
-        }, status=400)
-
     rows = _build_participation_rows(target_date)
     file_bytes = build_excel_bytes(target_date, rows)
-    result = send_excel_to_recipients(target_date, file_bytes, recipients)
+    result = send_participation_excel(target_date, file_bytes)
 
     return JsonResponse({
-        'success': True,
-        'sent_count': len(result['success']),
-        'failed': [{'code': c, 'reason': r} for c, r in result['failed']],
-        'total': len(recipients),
+        'success': result['ok'],
+        'message': result['message'],
     })
 
 
@@ -585,30 +573,42 @@ def participation_settings(request):
         set_recipients,
         get_send_time,
         set_send_time,
+        get_send_mode,
+        set_send_mode,
+        get_channel_id,
+        set_channel_id,
     )
 
     if request.method == 'POST':
         send_time_raw = (request.POST.get('send_time') or '').strip()
         recipients_raw = request.POST.get('recipients', '')
+        mode_raw = (request.POST.get('mode') or '').strip()
+        channel_id_raw = (request.POST.get('channel_id') or '').strip()
         codes = [line.strip() for line in recipients_raw.splitlines() if line.strip()]
         try:
             saved_time = set_send_time(send_time_raw)
         except ValueError as e:
             return JsonResponse({'success': False, 'message': str(e)}, status=400)
+        saved_mode = set_send_mode(mode_raw)
         saved_codes = set_recipients(codes)
+        saved_channel = set_channel_id(channel_id_raw)
         existing = set(UserProfile.objects.filter(employee_code__in=saved_codes).values_list('employee_code', flat=True))
         invalid = [c for c in saved_codes if c not in existing]
         return JsonResponse({
             'success': True,
             'send_time': saved_time,
+            'mode': saved_mode,
             'recipients': saved_codes,
+            'channel_id': saved_channel,
             'invalid_codes': invalid,
         })
 
     return JsonResponse({
         'success': True,
         'send_time': get_send_time(),
+        'mode': get_send_mode(),
         'recipients': get_recipients(),
+        'channel_id': get_channel_id(),
     })
 
 

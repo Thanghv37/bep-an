@@ -19,6 +19,8 @@ from core.models import SystemConfig
 
 KEY_RECIPIENTS = 'participation_export_recipients'
 KEY_SEND_TIME = 'participation_export_send_time'
+KEY_SEND_MODE = 'participation_export_send_mode'      # 'dm' | 'channel'
+KEY_CHANNEL_ID = 'participation_export_channel_id'
 
 
 # ---------- Config trong SystemConfig ----------
@@ -66,6 +68,36 @@ def set_send_time(value):
         raise ValueError('Thời gian phải có dạng HH:MM (24h).')
     SystemConfig.objects.update_or_create(
         key=KEY_SEND_TIME,
+        defaults={'value': val},
+    )
+    return val
+
+
+def get_send_mode():
+    """Hình thức gửi báo cáo: 'dm' (gửi từng người - mặc định) hoặc 'channel'."""
+    cfg = SystemConfig.objects.filter(key=KEY_SEND_MODE).first()
+    val = (cfg.value if cfg else '') or ''
+    return 'channel' if val == 'channel' else 'dm'
+
+
+def set_send_mode(value):
+    val = 'channel' if (value or '').strip() == 'channel' else 'dm'
+    SystemConfig.objects.update_or_create(
+        key=KEY_SEND_MODE,
+        defaults={'value': val},
+    )
+    return val
+
+
+def get_channel_id():
+    cfg = SystemConfig.objects.filter(key=KEY_CHANNEL_ID).first()
+    return (cfg.value.strip() if cfg and cfg.value else '')
+
+
+def set_channel_id(value):
+    val = (value or '').strip()
+    SystemConfig.objects.update_or_create(
+        key=KEY_CHANNEL_ID,
         defaults={'value': val},
     )
     return val
@@ -250,3 +282,94 @@ def send_excel_to_recipients(target_date, file_bytes, recipient_codes):
             failed.append((code, f'Lỗi mạng: {e}'))
 
     return {'success': success, 'failed': failed}
+
+
+def send_excel_to_channel(target_date, file_bytes, channel_id):
+    """Đăng file Excel báo cáo trực tiếp vào 1 channel NetChat theo channel_id.
+
+    Bot phải là thành viên của channel đó. Trả về {'ok': bool, 'message': str}.
+    """
+    cfg = _get_netchat_config()
+    if not cfg:
+        return {'ok': False, 'message': 'Bot chưa được cấu hình URL/Token (vào Profile admin để thiết lập).'}
+
+    channel_id = (channel_id or '').strip()
+    if not channel_id:
+        return {'ok': False, 'message': 'Chưa cấu hình Channel ID.'}
+
+    headers = {
+        'Authorization': f"Bearer {cfg['token']}",
+        'User-Agent': 'curl/8.7.1',
+    }
+    filename = f'tham_gia_{target_date.strftime("%Y-%m-%d")}.xlsx'
+
+    try:
+        # 1. Upload file vào channel.
+        r_file = requests.post(
+            f"{cfg['url']}/api/v4/files",
+            headers=headers,
+            data={'channel_id': channel_id},
+            files={'files': (
+                filename, file_bytes,
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            )},
+            timeout=30,
+        )
+        if r_file.status_code not in (200, 201):
+            return {'ok': False, 'message': (
+                f'Upload file thất bại (HTTP {r_file.status_code}). '
+                'Kiểm tra Channel ID đúng chưa và Bot đã là thành viên channel chưa.'
+            )}
+        file_infos = r_file.json().get('file_infos') or []
+        if not file_infos:
+            return {'ok': False, 'message': 'NetChat không trả về file_id.'}
+        file_id = file_infos[0].get('id')
+
+        # 2. Tạo post kèm file trong channel.
+        message = f'📊 Báo cáo Tham gia ngày {target_date.strftime("%d-%m-%Y")}'
+        r_post = requests.post(
+            f"{cfg['url']}/api/v4/posts",
+            headers={**headers, 'Content-Type': 'application/json'},
+            json={'channel_id': channel_id, 'message': message, 'file_ids': [file_id]},
+            timeout=10,
+        )
+        if r_post.status_code not in (200, 201):
+            return {'ok': False, 'message': (
+                f'Gửi post thất bại (HTTP {r_post.status_code}). '
+                'Bot có thể chưa là thành viên của channel.'
+            )}
+        return {'ok': True, 'message': f'Đã đăng báo cáo vào channel ({channel_id}).'}
+    except requests.RequestException as e:
+        return {'ok': False, 'message': f'Lỗi kết nối NetChat: {e}'}
+
+
+def send_participation_excel(target_date, file_bytes):
+    """Gửi báo cáo Tham gia qua NetChat theo hình thức đã cấu hình (dm | channel).
+
+    Dùng chung cho view gửi tay và management command auto-send.
+    Trả về {'ok': bool, 'message': str}.
+    """
+    mode = get_send_mode()
+
+    if mode == 'channel':
+        channel_id = get_channel_id()
+        if not channel_id:
+            return {'ok': False, 'message': 'Chưa cấu hình Channel ID. Vào Cài đặt để nhập.'}
+        return send_excel_to_channel(target_date, file_bytes, channel_id)
+
+    # mode == 'dm'
+    recipients = get_recipients()
+    if not recipients:
+        return {'ok': False, 'message': 'Chưa cấu hình người nhận. Vào Cài đặt để thêm mã NV.'}
+
+    result = send_excel_to_recipients(target_date, file_bytes, recipients)
+    sent = len(result['success'])
+    total = len(recipients)
+    if sent == 0:
+        message = f'Gửi thất bại cho cả {total} người.'
+    else:
+        message = f'Đã gửi cho {sent}/{total} người.'
+    if result['failed']:
+        fails = '; '.join(f'{c}: {r}' for c, r in result['failed'])
+        message += f'\nLỗi: {fails}'
+    return {'ok': sent > 0, 'message': message}

@@ -1047,6 +1047,78 @@ def approve_dish(request, pk):
     return redirect('approval_dashboard')
 
 
+# ===== PHÊ DUYỆT TẤT CẢ (theo từng loại) =====
+
+@login_required
+@user_passes_test(can_manage_approval)
+def approve_all_dishes(request):
+    if request.method != 'POST':
+        return redirect('approval_dashboard')
+    count = Dish.objects.filter(status=Dish.STATUS_PENDING).update(
+        status=Dish.STATUS_APPROVED,
+        approved_by=request.user,
+        approved_at=timezone.localtime(),
+    )
+    if count:
+        messages.success(request, f'Đã phê duyệt tất cả {count} món ăn.')
+    else:
+        messages.info(request, 'Không có món ăn nào chờ phê duyệt.')
+    return redirect('approval_dashboard')
+
+
+@login_required
+@user_passes_test(can_manage_approval)
+def approve_all_menus(request):
+    if request.method != 'POST':
+        return redirect('approval_dashboard')
+    count = DailyMenu.objects.filter(status=DailyMenu.STATUS_PENDING).update(
+        status=DailyMenu.STATUS_APPROVED,
+    )
+    if count:
+        messages.success(request, f'Đã phê duyệt tất cả {count} thực đơn.')
+    else:
+        messages.info(request, 'Không có thực đơn nào chờ phê duyệt.')
+    return redirect('approval_dashboard')
+
+
+@login_required
+@user_passes_test(can_manage_approval)
+def approve_all_extra_requests(request):
+    if request.method != 'POST':
+        return redirect('approval_dashboard')
+    count = ExtraPurchaseRequest.objects.filter(
+        status=ExtraPurchaseRequest.STATUS_PENDING
+    ).update(
+        status=ExtraPurchaseRequest.STATUS_APPROVED,
+        approved_by=request.user,
+        approved_at=timezone.localtime(),
+    )
+    if count:
+        messages.success(request, f'Đã phê duyệt tất cả {count} đơn mua bổ sung.')
+    else:
+        messages.info(request, 'Không có đơn mua bổ sung nào chờ phê duyệt.')
+    return redirect('approval_dashboard')
+
+
+@login_required
+@user_passes_test(can_manage_approval)
+def approve_all_purchases(request):
+    if request.method != 'POST':
+        return redirect('approval_dashboard')
+    count = DailyPurchase.objects.filter(
+        status=DailyPurchase.STATUS_PENDING
+    ).update(
+        status=DailyPurchase.STATUS_APPROVED,
+        approved_by=request.user,
+        approved_at=timezone.localtime(),
+    )
+    if count:
+        messages.success(request, f'Đã phê duyệt tất cả {count} chi phí.')
+    else:
+        messages.info(request, 'Không có chi phí nào chờ phê duyệt.')
+    return redirect('approval_dashboard')
+
+
 @login_required
 @user_passes_test(can_manage_approval)
 def reject_dish(request, pk):

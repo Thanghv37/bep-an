@@ -6,6 +6,8 @@ from .views import (
     approve_dish, reject_dish,export_ingredients_pdf, approve_extra_request, reject_extra_request,
     suggest_next_week_menu,
     apply_week_menu_draft,
+    approve_all_dishes, approve_all_menus,
+    approve_all_extra_requests, approve_all_purchases,
 )
 
 urlpatterns = [
@@ -36,6 +38,12 @@ urlpatterns = [
     
     path('approvals/extra-requests/<int:pk>/approve/', approve_extra_request, name='approve_extra_request'),
     path('approvals/extra-requests/<int:pk>/reject/', reject_extra_request, name='reject_extra_request'),
+
+    # PHÊ DUYỆT TẤT CẢ theo từng loại
+    path('approvals/dishes/approve-all/', approve_all_dishes, name='approve_all_dishes'),
+    path('approvals/menus/approve-all/', approve_all_menus, name='approve_all_menus'),
+    path('approvals/extra-requests/approve-all/', approve_all_extra_requests, name='approve_all_extra_requests'),
+    path('approvals/purchases/approve-all/', approve_all_purchases, name='approve_all_purchases'),
 
     path('menus/api/suggest-next-week/', suggest_next_week_menu, name='suggest_next_week_menu'),
     path('menus/api/apply-week-draft/', apply_week_menu_draft, name='apply_week_menu_draft'),
