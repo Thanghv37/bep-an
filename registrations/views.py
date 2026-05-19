@@ -400,10 +400,15 @@ def delete_all_registrations(request):
     return redirect('registration_list')
 
 
+# Nguồn dữ liệu cho MealRegistration tạo từ nút "Đăng ký bổ sung" ở trang Tham gia
+# (người quên đăng ký, lên điểm danh rồi xin ăn + nộp tiền bổ sung).
+SUPPLEMENTARY_SOURCE = 'supplementary'
+
 _PARTICIPATION_STATUS_LABELS = {
     'valid': ('Đã điểm danh', 'success'),
     'not_registered': ('Chưa đăng ký', 'warning'),
     'not_attended': ('Chưa điểm danh', 'danger'),
+    'supplementary': ('Đã đăng ký bổ sung', 'info'),
 }
 
 
@@ -414,10 +419,15 @@ def _build_participation_rows(target_date):
 
     registrations = MealRegistration.objects.filter(date=target_date)
     registered_name_map = {}
+    supplementary_codes = set()
     for r in registrations:
         code = (r.employee_code or '').strip()
-        if code and code not in registered_name_map:
+        if not code:
+            continue
+        if code not in registered_name_map:
             registered_name_map[code] = (r.full_name or '').strip()
+        if r.source == SUPPLEMENTARY_SOURCE:
+            supplementary_codes.add(code)
 
     all_codes = scanned_codes | set(registered_name_map.keys())
     profile_map = {
@@ -439,6 +449,10 @@ def _build_participation_rows(target_date):
         profile = profile_map.get(emp_code)
         display_name = _resolve_name(emp_code, profile, (log.full_name or '').strip())
         status_code = log.status
+        # Người quét thẻ nhưng "chưa đăng ký" — nếu đã được đăng ký bổ sung
+        # thì đổi trạng thái sang 'supplementary'.
+        if status_code == 'not_registered' and emp_code in supplementary_codes:
+            status_code = 'supplementary'
         label, css = _PARTICIPATION_STATUS_LABELS.get(status_code, (status_code, 'warning'))
         rows.append({
             'employee_code': emp_code,
@@ -468,6 +482,64 @@ def _build_participation_rows(target_date):
         })
 
     return rows
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+def participation_add_supplementary(request):
+    """Đăng ký bổ sung: tạo 1 suất ăn cho người đã quét thẻ nhưng chưa đăng ký.
+
+    Lưu dưới dạng MealRegistration source='supplementary' → tự được tính vào
+    số suất / doanh thu (Thu) như đăng ký thường.
+    """
+    employee_code = (request.POST.get('employee_code') or '').strip()
+    date_str = (request.POST.get('date') or '').strip()
+    if not employee_code or not date_str:
+        return JsonResponse({'success': False, 'message': 'Thiếu dữ liệu.'}, status=400)
+    try:
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return JsonResponse({'success': False, 'message': 'Ngày không hợp lệ.'}, status=400)
+
+    profile = UserProfile.objects.filter(employee_code=employee_code).first()
+    full_name = (profile.full_name if profile and profile.full_name else '') or ''
+
+    MealRegistration.objects.get_or_create(
+        employee_code=employee_code,
+        date=target_date,
+        meal_name='',
+        kitchen_name='',
+        defaults={
+            'full_name': full_name,
+            'quantity': 1,
+            'status': 'Đặt thành công',
+            'source': SUPPLEMENTARY_SOURCE,
+        },
+    )
+    return JsonResponse({'success': True})
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+def participation_remove_supplementary(request):
+    """Hủy đăng ký bổ sung (lỡ bấm nhầm) — xóa bản ghi supplementary."""
+    employee_code = (request.POST.get('employee_code') or '').strip()
+    date_str = (request.POST.get('date') or '').strip()
+    if not employee_code or not date_str:
+        return JsonResponse({'success': False, 'message': 'Thiếu dữ liệu.'}, status=400)
+    try:
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return JsonResponse({'success': False, 'message': 'Ngày không hợp lệ.'}, status=400)
+
+    MealRegistration.objects.filter(
+        employee_code=employee_code,
+        date=target_date,
+        source=SUPPLEMENTARY_SOURCE,
+    ).delete()
+    return JsonResponse({'success': True})
 
 
 @login_required

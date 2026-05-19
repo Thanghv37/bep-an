@@ -55,6 +55,7 @@
                         <option value="valid" {% if q_status == "valid" %}selected{% endif %}>Đã điểm danh</option>
                         <option value="not_registered" {% if q_status == "not_registered" %}selected{% endif %}>Chưa đăng ký</option>
                         <option value="not_attended" {% if q_status == "not_attended" %}selected{% endif %}>Chưa điểm danh</option>
+                        <option value="supplementary" {% if q_status == "supplementary" %}selected{% endif %}>Đã đăng ký bổ sung</option>
                     </select>
                 </div>
 
@@ -137,8 +138,15 @@
                             </td>
                             <td>
                                 <span class="status-pill status-{{ row.status_class }}">
-                                    <span class="status-dot dot-{{ row.status_class }}"></span> {{ row.status_label }}
+                                    <span class="status-dot dot-{{ row.status_class }}"></span>
+                                    <span class="status-text">{{ row.status_label }}</span>
                                 </span>
+                                {% if row.status == 'not_registered' or row.status == 'supplementary' %}
+                                <span class="supp-actions" data-code="{{ row.employee_code }}">
+                                    <button type="button" class="supp-btn supp-add" title="Đăng ký bổ sung"><i class="bi bi-plus-lg"></i></button>
+                                    <button type="button" class="supp-btn supp-remove" title="Hủy đăng ký bổ sung"><i class="bi bi-x-lg"></i></button>
+                                </span>
+                                {% endif %}
                             </td>
                             <td><span class="type-badge">{{ row.type }}</span></td>
                         </tr>
@@ -186,6 +194,19 @@ img.user-list-avatar { object-fit: cover; }
 .dot-success { background: #10b981; }
 .dot-warning { background: #f59e0b; }
 .dot-danger  { background: #ef4444; }
+.status-info { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+.dot-info    { background: #3b82f6; }
+.supp-btn {
+    width: 26px; height: 26px; padding: 0;
+    border-radius: 7px; border: 1px solid #e2e8f0; background: #fff;
+    font-size: 13px; line-height: 1; cursor: pointer;
+    vertical-align: middle; margin-left: 4px;
+}
+.supp-add { color: #2563eb; }
+.supp-add:hover { background: #eff6ff; border-color: #bfdbfe; }
+.supp-remove { color: #ef4444; }
+.supp-remove:hover { background: #fef2f2; border-color: #fecaca; }
+.supp-btn:disabled { opacity: .5; cursor: not-allowed; }
 .type-badge { color: #64748b; font-size: 13px; font-weight: 500; }
 .btn-export-excel {
     display: inline-flex; align-items: center; justify-content: center;
@@ -499,6 +520,51 @@ document.addEventListener('DOMContentLoaded', function () {
     searchInput.addEventListener('input', () => {
         clearTimeout(timeout);
         timeout = setTimeout(() => form.submit(), 800);
+    });
+});
+</script>
+
+<script>
+// Đăng ký bổ sung / hủy bổ sung cho người "Chưa đăng ký" ở trang Tham gia.
+document.addEventListener('DOMContentLoaded', function () {
+    const dateInput = document.getElementById('date-filter');
+
+    function setRowStatus(td, statusClass, label) {
+        const pill = td.querySelector('.status-pill');
+        const dot = td.querySelector('.status-dot');
+        const text = td.querySelector('.status-text');
+        if (pill) pill.className = 'status-pill status-' + statusClass;
+        if (dot) dot.className = 'status-dot dot-' + statusClass;
+        if (text) text.textContent = label;
+    }
+
+    document.body.addEventListener('click', function (e) {
+        const btn = e.target.closest('.supp-add, .supp-remove');
+        if (!btn) return;
+        const isAdd = btn.classList.contains('supp-add');
+        const wrap = btn.closest('.supp-actions');
+        const code = wrap ? wrap.dataset.code : '';
+        const dateVal = dateInput ? dateInput.value : '';
+        if (!code || !dateVal) { alert('Thiếu mã nhân viên hoặc ngày.'); return; }
+
+        const url = isAdd
+            ? "{% url 'participation_add_supplementary' %}"
+            : "{% url 'participation_remove_supplementary' %}";
+        const fd = new FormData();
+        fd.append('employee_code', code);
+        fd.append('date', dateVal);
+
+        btn.disabled = true;
+        fetch(url, { method: 'POST', headers: { 'X-CSRFToken': CSRF_TOKEN }, body: fd })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                if (!data.success) { alert(data.message || 'Có lỗi xảy ra.'); return; }
+                const td = btn.closest('td');
+                if (isAdd) setRowStatus(td, 'info', 'Đã đăng ký bổ sung');
+                else setRowStatus(td, 'warning', 'Chưa đăng ký');
+            })
+            .catch(function () { btn.disabled = false; alert('Lỗi kết nối.'); });
     });
 });
 </script>

@@ -14,6 +14,8 @@ from .views import (
     participation_settings,
     send_meal_notifications,
     get_notification_logs_api,
+    participation_add_supplementary,
+    participation_remove_supplementary,
 )
 
 urlpatterns = [
@@ -32,6 +34,8 @@ urlpatterns = [
     path('participation/export/', export_participation_excel, name='export_participation_excel'),
     path('participation/send-netchat/', participation_send_netchat, name='participation_send_netchat'),
     path('participation/settings/', participation_settings, name='participation_settings'),
+    path('participation/add-supplementary/', participation_add_supplementary, name='participation_add_supplementary'),
+    path('participation/remove-supplementary/', participation_remove_supplementary, name='participation_remove_supplementary'),
     path('api/send-notifications/', send_meal_notifications, name='send_meal_notifications'),
     path('api/notification-logs/', get_notification_logs_api, name='get_notification_logs_api'),
 ]

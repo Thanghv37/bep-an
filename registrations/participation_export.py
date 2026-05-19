@@ -107,7 +107,7 @@ def set_channel_id(value):
 
 def build_excel_bytes(target_date, rows):
     """Tạo file Excel binary từ rows. `rows` đến từ `_build_participation_rows`."""
-    status_order = {'valid': 0, 'not_attended': 1, 'not_registered': 2}
+    status_order = {'valid': 0, 'supplementary': 1, 'not_attended': 2, 'not_registered': 3}
     rows = sorted(rows, key=lambda r: (
         status_order.get(r['status'], 99),
         r['scan_time'] or 0,
@@ -133,6 +133,7 @@ def build_excel_bytes(target_date, rows):
 
     fills = {
         'valid': PatternFill('solid', fgColor='ECFDF5'),
+        'supplementary': PatternFill('solid', fgColor='DBEAFE'),
         'not_attended': PatternFill('solid', fgColor='FEF2F2'),
         'not_registered': PatternFill('solid', fgColor='FFF7ED'),
     }
@@ -157,13 +158,15 @@ def build_excel_bytes(target_date, rows):
     summary_row = len(rows) + 5
     counts = {
         'valid': sum(1 for r in rows if r['status'] == 'valid'),
+        'supplementary': sum(1 for r in rows if r['status'] == 'supplementary'),
         'not_attended': sum(1 for r in rows if r['status'] == 'not_attended'),
         'not_registered': sum(1 for r in rows if r['status'] == 'not_registered'),
     }
     ws.cell(row=summary_row, column=1, value='Tổng:').font = Font(bold=True)
     ws.cell(row=summary_row, column=2, value=f"Đã điểm danh: {counts['valid']}")
-    ws.cell(row=summary_row, column=3, value=f"Chưa điểm danh: {counts['not_attended']}")
-    ws.cell(row=summary_row, column=4, value=f"Chưa đăng ký: {counts['not_registered']}")
+    ws.cell(row=summary_row, column=3, value=f"Đăng ký bổ sung: {counts['supplementary']}")
+    ws.cell(row=summary_row, column=4, value=f"Chưa điểm danh: {counts['not_attended']}")
+    ws.cell(row=summary_row, column=5, value=f"Chưa đăng ký: {counts['not_registered']}")
 
     buffer = io.BytesIO()
     wb.save(buffer)
