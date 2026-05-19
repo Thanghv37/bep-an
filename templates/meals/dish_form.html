@@ -36,6 +36,18 @@
                         {{ form.dish_type }}
                     </div>
                 </div>
+
+                <div class="mb-3 mt-3">
+                    <label class="form-label fw-semibold">Giới thiệu món ăn</label>
+                    {{ form.description }}
+                    <div class="text-muted small mt-1">
+                        Nội dung hấp dẫn về món (đặc điểm, nguồn gốc, lợi ích...) — sẽ chạy trên màn hình showcase ở Dashboard.
+                    </div>
+                    {% if form.description.errors %}
+                        <div class="text-danger small mt-1">{{ form.description.errors }}</div>
+                    {% endif %}
+                </div>
+
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Ảnh món ăn</label>
                     {{ form.image }}

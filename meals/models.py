@@ -112,7 +112,13 @@ class Dish(models.Model):
         blank=True,
         verbose_name='Ảnh món ăn'
     )
-    
+
+    description = models.TextField(
+        blank=True,
+        verbose_name='Giới thiệu món ăn',
+        help_text='Nội dung hấp dẫn về món (đặc điểm, nguồn gốc, lợi ích...) — hiển thị ở màn hình bếp ăn.'
+    )
+
     class Meta:
         ordering = ['name']
 

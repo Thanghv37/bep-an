@@ -354,7 +354,7 @@
         </div>
     </div>
     <div class="col-lg-4">
-        <div class="dashboard-card h-100">
+        <div class="dashboard-card h-100 d-flex flex-column">
             <div class="d-flex justify-content-between align-items-start mb-2">
                 <div>
                     <div class="section-title">Thực đơn ngày hôm nay</div>
@@ -366,30 +366,56 @@
             </div>
 
             {% if menu %}
-                <div class="today-menu-list">
-                    {% for item in ordered_menu_items %}
-                        <div class="today-menu-item">
-                            {% if item.dish.image %}
-                                <img src="{{ item.dish.image.url }}" class="today-menu-img">
-                            {% else %}
-                                <div class="today-menu-img today-menu-placeholder">Không có ảnh</div>
-                            {% endif %}
+                {# Showcase tự chiếu: slide tổng quan → zoom từng món → lặp lại #}
+                <div class="menu-showcase" id="menuShowcase">
 
-                            <div class="today-menu-info">
-                                <div class="today-menu-name">{{ item.dish.name }}</div>
-
-                                {% if item.dish.dish_type == 'main' %}
-                                    <span class="dish-badge dish-main">Món chính</span>
-                                {% elif item.dish.dish_type == 'side' %}
-                                    <span class="dish-badge dish-side">Món phụ</span>
-                                {% elif item.dish.dish_type == 'soup' %}
-                                    <span class="dish-badge dish-soup">Món canh</span>
-                                {% elif item.dish.dish_type == 'dessert' %}
-                                    <span class="dish-badge dish-dessert">Tráng miệng</span>
-                                {% endif %}
-                            </div>
+                    <div class="showcase-slide showcase-overview is-active">
+                        <div class="showcase-ov-head">
+                            <span class="showcase-ov-emoji">🍽️</span>
+                            <div class="showcase-ov-title">Hôm nay có {{ menu_item_count }} món</div>
                         </div>
+                        <div class="showcase-ov-grid">
+                            {% for item in ordered_menu_items %}
+                            <div class="showcase-ov-item">
+                                {% if item.dish.image %}
+                                    <img src="{{ item.dish.image.url }}" alt="{{ item.dish.name }}">
+                                {% else %}
+                                    <div class="showcase-ov-noimg">🍴</div>
+                                {% endif %}
+                                <div class="showcase-ov-name">{{ item.dish.name }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    {% for item in ordered_menu_items %}
+                    <div class="showcase-slide showcase-dish">
+                        <div class="showcase-dish-stage">
+                            {% if item.dish.image %}
+                                <img class="showcase-dish-img" src="{{ item.dish.image.url }}" alt="{{ item.dish.name }}">
+                            {% else %}
+                                <div class="showcase-dish-img showcase-dish-noimg">🍴</div>
+                            {% endif %}
+                            {% if item.dish.dish_type == 'main' %}
+                                <span class="dish-badge dish-main showcase-dish-badge">Món chính</span>
+                            {% elif item.dish.dish_type == 'side' %}
+                                <span class="dish-badge dish-side showcase-dish-badge">Món phụ</span>
+                            {% elif item.dish.dish_type == 'soup' %}
+                                <span class="dish-badge dish-soup showcase-dish-badge">Món canh</span>
+                            {% elif item.dish.dish_type == 'dessert' %}
+                                <span class="dish-badge dish-dessert showcase-dish-badge">Tráng miệng</span>
+                            {% endif %}
+                        </div>
+                        <div class="showcase-dish-body">
+                            <div class="showcase-dish-name">{{ item.dish.name }}</div>
+                            {% if item.dish.description %}
+                                <div class="showcase-dish-desc">{{ item.dish.description|linebreaksbr }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
                     {% endfor %}
+
+                    <div class="showcase-dots" id="showcaseDots"></div>
                 </div>
             {% else %}
                 <div class="empty-state">Chưa có thực đơn cho ngày này.</div>
@@ -620,16 +646,6 @@
         padding-top: 4px;
     }
 
-    .today-menu-list {
-        display: grid !important;
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-        gap: 12px !important;
-    }
-
-    .today-menu-item {
-        min-width: 0;
-    }
-
     .dish-gallery-side {
         grid-template-columns: repeat(2, minmax(120px, 1fr)) !important;
     }
@@ -638,35 +654,181 @@
         height: 110px !important;
     }
 
-    .today-menu-item {
-        display: flex;
-        gap: 12px;
-        align-items: center;
+    /* ===== Showcase thực đơn hôm nay (tự động chiếu, lặp vô hạn) ===== */
+    .menu-showcase {
+        position: relative;
+        flex: 1 1 auto;
+        min-height: 440px;
+        border-radius: 16px;
+        overflow: hidden;
+        background: linear-gradient(160deg, #eef5ff 0%, #ffffff 55%, #eefcf2 100%);
+        border: 1px solid #e6edf6;
     }
 
-    .today-menu-img {
-        width: 90px;       /* cố định */
-        height: 70px;      /* cố định */
+    .showcase-slide {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity .45s ease;
+    }
+    .showcase-slide.is-active {
+        opacity: 1;
+        visibility: visible;
+        animation: showcaseIn .7s ease both;
+    }
+    @keyframes showcaseIn {
+        from { opacity: 0; transform: scale(.93); }
+        to   { opacity: 1; transform: scale(1); }
+    }
+
+    /* --- Slide tổng quan --- */
+    .showcase-overview { padding: 18px; }
+    .showcase-ov-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+    .showcase-ov-emoji { font-size: 26px; }
+    .showcase-ov-title {
+        font-weight: 800;
+        font-size: 17px;
+        color: #0f172a;
+    }
+    .showcase-ov-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        overflow: hidden;
+    }
+    .showcase-ov-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 6px 8px;
+        min-width: 0;
+        animation: ovItemIn .5s ease both;
+    }
+    @keyframes ovItemIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .showcase-ov-item img,
+    .showcase-ov-noimg {
+        width: 46px;
+        height: 46px;
+        border-radius: 9px;
         object-fit: cover;
-        border-radius: 10px;
         flex-shrink: 0;
     }
-
-    .today-menu-info {
-        flex: 1;
-    }
-
-    .today-menu-placeholder {
+    .showcase-ov-noimg {
         display: flex;
         align-items: center;
         justify-content: center;
-        color: #64748b;
-        font-size: 12px;
+        background: #eef2f7;
+        font-size: 20px;
+    }
+    .showcase-ov-name {
+        font-weight: 700;
+        font-size: 13px;
+        color: #1e293b;
+        line-height: 1.25;
+        min-width: 0;
     }
 
-    .today-menu-name {
+    /* --- Slide từng món (zoom) --- */
+    .showcase-dish-stage {
+        position: relative;
+        height: 52%;
+        overflow: hidden;
+        background: #0f172a;
+        flex-shrink: 0;
+    }
+    .showcase-dish-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    .showcase-slide.is-active .showcase-dish-img {
+        animation: kenburns 6.5s ease-out both;
+    }
+    @keyframes kenburns {
+        from { transform: scale(1); }
+        to   { transform: scale(1.14); }
+    }
+    .showcase-dish-noimg {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 64px;
+        background: #1e293b;
+    }
+    .showcase-dish-badge {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, .3);
+    }
+    .showcase-dish-body {
+        flex: 1;
+        padding: 14px 18px 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        justify-content: center;
+        overflow: hidden;
+    }
+    .showcase-dish-name {
         font-weight: 800;
-        margin-bottom: 6px;
+        font-size: 22px;
+        color: #0f172a;
+        line-height: 1.2;
+        animation: dishTextIn .6s .15s ease both;
+    }
+    @keyframes dishTextIn {
+        from { opacity: 0; transform: translateX(-14px); }
+        to   { opacity: 1; transform: translateX(0); }
+    }
+    .showcase-dish-desc {
+        font-size: 14.5px;
+        line-height: 1.6;
+        color: #334155;
+        white-space: pre-line;
+        animation: dishTextIn .6s .3s ease both;
+        display: -webkit-box;
+        -webkit-line-clamp: 6;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    /* --- Chấm chỉ thị slide --- */
+    .showcase-dots {
+        position: absolute;
+        bottom: 10px;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+        z-index: 3;
+    }
+    .showcase-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, .22);
+        transition: all .3s ease;
+    }
+    .showcase-dot.is-active {
+        background: #2563eb;
+        width: 20px;
     }
     .chart-container {
         height: 260px;
@@ -1333,5 +1495,45 @@ async function loadNutritionAnalysis() {
 }
 
 loadNutritionAnalysis();
+</script>
+
+<script>
+/* Showcase thực đơn hôm nay — tự động chuyển slide, lặp vô hạn. */
+(function () {
+    const showcase = document.getElementById('menuShowcase');
+    if (!showcase) return;
+
+    const slides = Array.from(showcase.querySelectorAll('.showcase-slide'));
+    const dotsWrap = document.getElementById('showcaseDots');
+    if (!slides.length) return;
+
+    if (slides.length === 1) {
+        slides[0].classList.add('is-active');
+        return;
+    }
+
+    // Dựng chấm chỉ thị tương ứng số slide.
+    const dots = slides.map(function () {
+        const d = document.createElement('span');
+        d.className = 'showcase-dot';
+        dotsWrap.appendChild(d);
+        return d;
+    });
+
+    let idx = 0;
+    let timer = null;
+
+    function show(i) {
+        slides.forEach(function (s, si) { s.classList.toggle('is-active', si === i); });
+        dots.forEach(function (d, di) { d.classList.toggle('is-active', di === i); });
+        idx = i;
+        // Slide tổng quan chiếu ngắn hơn slide giới thiệu từng món.
+        const dur = slides[i].classList.contains('showcase-overview') ? 4500 : 5500;
+        clearTimeout(timer);
+        timer = setTimeout(function () { show((idx + 1) % slides.length); }, dur);
+    }
+
+    show(0);
+})();
 </script>
 {% endblock %}

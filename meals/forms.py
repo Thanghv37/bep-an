@@ -5,13 +5,18 @@ from .models import Dish, DailyMenu
 class DishForm(forms.ModelForm):
     class Meta:
         model = Dish
-        fields = ['name', 'dish_type', 'image', 'is_active']
+        fields = ['name', 'dish_type', 'description', 'image', 'is_active']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Ví dụ: Cá kho cà chua'
             }),
             'dish_type': forms.Select(attrs={'class': 'form-select'}),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Đặc điểm, nguồn gốc, lợi ích... của món ăn',
+            }),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'image': forms.ClearableFileInput(attrs={
                 'class': 'form-control',
