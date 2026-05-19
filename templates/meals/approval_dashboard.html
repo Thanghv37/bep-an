@@ -438,7 +438,7 @@
                                                             <td>{{ ing.name }}</td>
                                                             {% if purchase.purchase_type == 'extra' %}
                                                                 <td>{{ ing.quantity|floatformat:1 }} {{ ing.unit }}</td>
-                                                                <td>{% if ing.unit_price %}{{ ing.unit_price|floatformat:0 }} VNĐ{% else %}-{% endif %}</td>
+                                                                <td>{% if ing.unit_price %}{{ ing.unit_price|vnd }} VNĐ{% else %}-{% endif %}</td>
                                                             {% else %}
                                                                 <td>{{ ing.total_quantity|floatformat:1 }} {{ ing.unit }}</td>
                                                             {% endif %}
@@ -475,14 +475,14 @@
                                                             <td class="fw-semibold">{{ ai_item.ingredient_name }}</td>
                                                             <td class="text-center">{{ ai_item.quantity|floatformat:2 }}</td>
                                                             <td class="text-center">{{ ai_item.unit|default:"-" }}</td>
-                                                            <td class="text-end text-danger">{{ ai_item.unit_price|floatformat:0 }} đ</td>
+                                                            <td class="text-end text-danger">{{ ai_item.unit_price|vnd }} đ</td>
                                                         </tr>
                                                         {% endfor %}
                                                     </tbody>
                                                     <tfoot>
                                                         <tr class="table-light fw-bold">
                                                             <td colspan="3">Tổng chi phí (tự nhập)</td>
-                                                            <td class="text-end text-danger">{{ purchase.actual_cost|floatformat:0 }} đ</td>
+                                                            <td class="text-end text-danger">{{ purchase.actual_cost|vnd }} đ</td>
                                                         </tr>
                                                     </tfoot>
                                                 </table>
@@ -1174,7 +1174,7 @@
                                                 <span class="fw-semibold">{{ item.ingredient_name }}</span>:
                                                 {{ item.quantity|floatformat:1 }} {{ item.unit }}
                                                 {% if item.unit_price %}
-                                                    - {{ item.unit_price|floatformat:0 }} VNĐ
+                                                    - {{ item.unit_price|vnd }} VNĐ
                                                 {% endif %}
                                             </div>
                                         {% endfor %}

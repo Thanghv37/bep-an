@@ -146,7 +146,7 @@ def purchase_create(request):
                 
                 unit = units[i] if i < len(units) else ''
                 
-                try: price = Decimal(prices[i].replace(',', '.'))
+                try: price = Decimal((prices[i] or '').replace('.', '').replace(',', ''))
                 except: price = Decimal('0')
 
                 PurchaseExtraItem.objects.create(
@@ -231,7 +231,7 @@ def purchase_update(request, pk):
 
                 unit = units[i] if i < len(units) else ''
 
-                try: price = Decimal(prices[i].replace(',', '.'))
+                try: price = Decimal((prices[i] or '').replace('.', '').replace(',', ''))
                 except: price = Decimal('0')
 
                 PurchaseExtraItem.objects.create(

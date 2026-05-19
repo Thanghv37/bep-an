@@ -27,9 +27,10 @@ class DailyPurchaseForm(forms.ModelForm):
             # 🔥 THÊM DÒNG NÀY
             'extra_request': forms.HiddenInput(),
 
-            'actual_cost': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ví dụ: 2500000'
+            'actual_cost': forms.TextInput(attrs={
+                'class': 'form-control money-input',
+                'inputmode': 'numeric',
+                'placeholder': 'Ví dụ: 2.500.000'
             }),
 
             'bill_image': forms.ClearableFileInput(attrs={

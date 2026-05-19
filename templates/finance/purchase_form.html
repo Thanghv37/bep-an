@@ -177,7 +177,7 @@
                                                 <td><input type="text" name="ai_item_name[]" class="form-control form-control-sm" value="{{ item.ingredient_name }}"></td>
                                                 <td><input type="number" step="0.01" name="ai_item_quantity[]" class="form-control form-control-sm" value="{{ item.quantity|stringformat:'f'|slice:'0:-4' }}"></td>
                                                 <td><input type="text" name="ai_item_unit[]" class="form-control form-control-sm" value="{{ item.unit }}"></td>
-                                                <td><input type="number" name="ai_item_price[]" class="form-control form-control-sm" value="{{ item.unit_price|stringformat:'f'|slice:'0:-7' }}"></td>
+                                                <td><input type="text" inputmode="numeric" name="ai_item_price[]" class="form-control form-control-sm money-input" value="{{ item.unit_price|stringformat:'f'|slice:'0:-7' }}"></td>
                                                 <td class="ai-line-total text-end fw-semibold text-danger">0</td>
                                                 <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAiItemRow(this)"><i class="bi bi-trash"></i></button></td>
                                             </tr>
@@ -581,7 +581,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // Fill total cost
                 if (data.total_cost) {
-                    document.getElementById('id_actual_cost').value = data.total_cost;
+                    document.getElementById('id_actual_cost').value = formatMoney(data.total_cost);
                 }
 
                 // Fill items
@@ -594,7 +594,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             <td><input type="text" name="ai_item_name[]" class="form-control form-control-sm" value="${item.name || ''}"></td>
                             <td><input type="number" step="0.01" name="ai_item_quantity[]" class="form-control form-control-sm" value="${item.quantity || 0}"></td>
                             <td><input type="text" name="ai_item_unit[]" class="form-control form-control-sm" value="${item.unit || ''}"></td>
-                            <td><input type="number" name="ai_item_price[]" class="form-control form-control-sm" value="${item.unit_price || 0}"></td>
+                            <td><input type="text" inputmode="numeric" name="ai_item_price[]" class="form-control form-control-sm money-input" value="${item.unit_price || 0}"></td>
                             <td class="ai-line-total text-end fw-semibold text-danger">0</td>
                             <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAiItemRow(this)"><i class="bi bi-trash"></i></button></td>
                         `;
@@ -626,6 +626,24 @@ document.addEventListener('DOMContentLoaded', function () {
     // Lúc tải trang: chỉ điền cột thành tiền, giữ nguyên chi phí đã lưu.
     recalcAiTotals(false);
 
+    // Định dạng tiền (dấu chấm phân cách nghìn) cho ô Đơn giá + Chi phí thực tế.
+    if (formEl) {
+        formEl.addEventListener('input', function (e) {
+            if (e.target.classList && e.target.classList.contains('money-input')) {
+                e.target.value = formatMoney(e.target.value);
+            }
+        });
+        formEl.addEventListener('submit', function () {
+            // Bỏ dấu chấm trước khi gửi để server nhận số nguyên sạch.
+            formEl.querySelectorAll('.money-input').forEach(function (el) {
+                el.value = digitsOnly(el.value);
+            });
+        });
+    }
+    document.querySelectorAll('.money-input').forEach(function (el) {
+        el.value = formatMoney(el.value);
+    });
+
     loadIngredientPreview();
     checkBillRequired();
 });
@@ -648,6 +666,16 @@ function fmtVnd(n) {
     return Number(n || 0).toLocaleString('vi-VN');
 }
 
+function digitsOnly(s) {
+    return (s == null ? '' : String(s)).replace(/\D/g, '');
+}
+
+// "1620000" hoặc "1.620.000" → "1.620.000"; rỗng → ""
+function formatMoney(s) {
+    const d = digitsOnly(s);
+    return d ? Number(d).toLocaleString('vi-VN') : '';
+}
+
 // Tính "Thành tiền" từng dòng (= SL × đơn giá). updateCost=true thì cộng tổng
 // vào ô "Chi phí thực tế"; false (lúc tải trang) thì chỉ điền cột thành tiền,
 // không đụng giá trị đã lưu.
@@ -660,7 +688,7 @@ function recalcAiTotals(updateCost) {
         const qtyEl = tr.querySelector('input[name="ai_item_quantity[]"]');
         const priceEl = tr.querySelector('input[name="ai_item_price[]"]');
         const qty = parseFloat(qtyEl && qtyEl.value) || 0;
-        const price = parseFloat(priceEl && priceEl.value) || 0;
+        const price = parseFloat(digitsOnly(priceEl && priceEl.value)) || 0;
         const lineTotal = Math.round(qty * price);
         sum += lineTotal;
         const cell = tr.querySelector('.ai-line-total');
@@ -668,7 +696,7 @@ function recalcAiTotals(updateCost) {
     });
     if (updateCost) {
         const costInput = document.getElementById('id_actual_cost');
-        if (costInput) costInput.value = Math.round(sum);
+        if (costInput) costInput.value = formatMoney(Math.round(sum));
     }
 }
 
@@ -685,7 +713,7 @@ function addAiItemRow() {
         <td><input type="text" name="ai_item_name[]" class="form-control form-control-sm" value=""></td>
         <td><input type="number" step="0.01" name="ai_item_quantity[]" class="form-control form-control-sm" value="0"></td>
         <td><input type="text" name="ai_item_unit[]" class="form-control form-control-sm" value=""></td>
-        <td><input type="number" name="ai_item_price[]" class="form-control form-control-sm" value="0"></td>
+        <td><input type="text" inputmode="numeric" name="ai_item_price[]" class="form-control form-control-sm money-input" value="0"></td>
         <td class="ai-line-total text-end fw-semibold text-danger">0</td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAiItemRow(this)"><i class="bi bi-trash"></i></button></td>
     `;
