@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load currency_filters %}
+{% load unit_filters %}
 
 {% block title %}Phê duyệt{% endblock %}
 {% block page_title %}Phê duyệt{% endblock %}
@@ -437,10 +438,10 @@
                                                         <tr>
                                                             <td>{{ ing.name }}</td>
                                                             {% if purchase.purchase_type == 'extra' %}
-                                                                <td>{{ ing.quantity|floatformat:1 }} {{ ing.unit }}</td>
+                                                                <td>{{ ing.quantity|format_weight:ing.unit }}</td>
                                                                 <td>{% if ing.unit_price %}{{ ing.unit_price|vnd }} VNĐ{% else %}-{% endif %}</td>
                                                             {% else %}
-                                                                <td>{{ ing.total_quantity|floatformat:1 }} {{ ing.unit }}</td>
+                                                                <td>{{ ing.total_quantity|format_weight:ing.unit }}</td>
                                                             {% endif %}
                                                         </tr>
                                                         {% endfor %}
