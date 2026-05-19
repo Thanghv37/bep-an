@@ -200,6 +200,28 @@ img.user-list-avatar { object-fit: cover; }
 .btn-export-settings { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
 .btn-export-settings:hover { background: #475569; color: #fff; }
 .scan-time { font-weight: 600; color: #1e293b; line-height: 1.2; }
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .filter-card { padding: 14px; }
+    .user-list-card { padding: 12px; }
+    .filter-grid-participation {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+    .user-modern-table thead th {
+        padding: 10px 8px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+    .user-modern-table tbody td {
+        white-space: nowrap;
+    }
+    .registration-header .tab-btn {
+        flex: 1 1 0;
+        text-align: center;
+    }
+}
 </style>
 
 <!-- Modal cấu hình gửi báo cáo -->

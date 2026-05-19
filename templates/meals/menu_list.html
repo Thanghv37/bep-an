@@ -66,7 +66,7 @@
     </div>
 
     <div class="table-responsive">
-        <table class="table align-middle text-center mb-0" style="table-layout: fixed;">
+        <table class="table align-middle text-center mb-0 menu-calendar" style="table-layout: fixed; min-width: 640px;">
             <thead>
                 <tr>
                     <th>Thứ 2</th>
@@ -90,7 +90,7 @@
                                 <a href="{% url 'menu_create' %}?date={{ day.date_str }}" style="text-decoration: none; color: inherit;">
                             {% endif %}
                                 <div
-                                    class="p-3 rounded-4 border
+                                    class="menu-cal-day p-3 rounded-4 border
                                     {% if day.has_menu %}
                                         {% if day.status == 'rejected' %}
                                             bg-danger-subtle border-danger
@@ -136,7 +136,7 @@
                                 </div>
                             </a>
                         {% else %}
-                            <div class="p-3 rounded-4 bg-body-tertiary text-muted" style="min-height: 100px; opacity: 0.5;">
+                            <div class="menu-cal-day p-3 rounded-4 bg-body-tertiary text-muted" style="min-height: 100px; opacity: 0.5;">
                                 <div class="fw-bold mb-2">{{ day.date|date:"d" }}</div>
                             </div>
                         {% endif %}
@@ -464,6 +464,29 @@
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
+}
+
+/* Mobile: lịch tháng cuộn ngang, ô ngày thu gọn cho dễ đọc */
+@media (max-width: 768px) {
+    .menu-calendar td {
+        padding: 3px !important;
+    }
+    .menu-calendar th {
+        font-size: 11px;
+        padding: 6px 2px;
+    }
+    .menu-cal-day {
+        padding: 7px 4px !important;
+        min-height: 78px !important;
+    }
+    .menu-cal-day .fw-bold {
+        font-size: 13px;
+        margin-bottom: 4px !important;
+    }
+    .menu-cal-day .small {
+        font-size: 10px;
+        line-height: 1.25;
+    }
 }
 </style>
 

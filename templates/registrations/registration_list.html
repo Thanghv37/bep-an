@@ -98,13 +98,13 @@
 
     <div class="dashboard-card user-list-card">
 
-        <div class="d-flex justify-content-between align-items-center mb-4 px-2">
+        <div class="user-list-actions d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4 px-2">
             <div class="total-badge-container">
                 <span class="total-label">Tổng suất</span>
                 <span class="total-count">{{ total_quantity }}</span>
             </div>
 
-            <div class="d-flex gap-2 align-items-center">
+            <div class="action-btn-group d-flex gap-2 align-items-center flex-wrap">
                 <form method="post" action="{% url 'registration_import' %}" enctype="multipart/form-data" class="m-0">
                     {% csrf_token %}
                     <label class="btn btn-outline-success action-btn-custom">
@@ -502,6 +502,51 @@
     @media (max-width: 992px) {
         .filter-grid {
             grid-template-columns: 1fr 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .filter-card {
+            padding: 14px;
+        }
+        .user-list-card {
+            padding: 12px;
+        }
+
+        /* Hàng "Tổng suất" + nút chức năng: xếp dọc, nút trải full-width */
+        .user-list-actions {
+            flex-direction: column;
+            align-items: stretch !important;
+        }
+        .total-badge-container {
+            justify-content: center;
+        }
+        .action-btn-group {
+            width: 100%;
+        }
+        .action-btn-group > * {
+            flex: 1 1 100%;
+        }
+        .action-btn-group .action-btn-custom {
+            width: 100%;
+            justify-content: center;
+            height: 42px;
+        }
+
+        /* Bảng: giữ cuộn ngang gọn gàng, không bóp méo chữ */
+        .user-modern-table thead th {
+            padding: 10px 8px;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .user-modern-table tbody td {
+            white-space: nowrap;
+        }
+
+        /* 2 tab trên cùng chia đôi bề ngang màn hình */
+        .registration-header .tab-btn {
+            flex: 1 1 0;
+            text-align: center;
         }
     }
 </style>
