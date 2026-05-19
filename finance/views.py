@@ -49,55 +49,38 @@ def purchase_list(request):
     ).select_related(
         'created_by',
         'approved_by',
-        'extra_request',
     ).prefetch_related(
-        'extra_request__items',
         'extra_items'
     ).order_by('-date', '-created_at')
 
     purchase_map = {}
-    
     for p in purchases:
-        if p.purchase_type == DailyPurchase.PURCHASE_TYPE_MAIN:
-            menu = DailyMenu.objects.filter(
-                date=p.date,
-                status=DailyMenu.STATUS_APPROVED
-            ).prefetch_related(
-                'items__dish__ingredients__ingredient'
-            ).first()
-
-            ingredient_map = {}
-
-            if menu:
-                registered_count = menu.registered_count or 0
-
-                for menu_item in menu.items.all():
-                    for ing in menu_item.dish.ingredients.all():
-                        key = (ing.ingredient.name, ing.unit)
-
-                        if key not in ingredient_map:
-                            ingredient_map[key] = {
-                                'name': ing.ingredient.name,
-                                'unit': ing.unit,
-                                'quantity': 0,
-                                'total_quantity': 0,
-                            }
-
-                        q = float(ing.quantity_per_person)
-                        ingredient_map[key]['quantity'] += q
-                        ingredient_map[key]['total_quantity'] += q * registered_count
-
-            p.main_ingredients = list(ingredient_map.values())
-
-        else:
-            p.main_ingredients = []
-
-            if p.extra_request:
-                p.approved_extra_items = list(p.extra_request.items.all())
-            else:
-                p.approved_extra_items = []
-
         purchase_map.setdefault(p.date, []).append(p)
+
+    def expected_ingredients_for(target_date):
+        """Nguyên liệu dự kiến của ngày — gộp từ thực đơn đã duyệt, tính 1 lần
+        cho cả ngày (không lặp lại theo từng hóa đơn)."""
+        menu = DailyMenu.objects.filter(
+            date=target_date,
+            status=DailyMenu.STATUS_APPROVED
+        ).prefetch_related('items__dish__ingredients__ingredient').first()
+        if not menu:
+            return []
+        registered_count = menu.registered_count or 0
+        ingredient_map = {}
+        for menu_item in menu.items.all():
+            for ing in menu_item.dish.ingredients.all():
+                key = (ing.ingredient.name, ing.unit)
+                if key not in ingredient_map:
+                    ingredient_map[key] = {
+                        'name': ing.ingredient.name,
+                        'unit': ing.unit,
+                        'total_quantity': 0,
+                    }
+                ingredient_map[key]['total_quantity'] += (
+                    float(ing.quantity_per_person) * registered_count
+                )
+        return list(ingredient_map.values())
 
     purchase_days = []
 
@@ -113,6 +96,7 @@ def purchase_list(request):
             'items': items,
             'total_cost': total_cost,
             'count': len(items),
+            'expected_ingredients': expected_ingredients_for(d),
         })
 
     purchase_days = sorted(

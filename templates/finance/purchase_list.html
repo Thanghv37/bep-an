@@ -94,181 +94,101 @@
                                     Chi tiết chi phí ngày {{ day.date|date:"d/m/Y" }}
                                 </div>
 
-                                <div class="table-responsive">
-                                    <table class="table table-sm align-middle mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th>Phân loại</th>
-                                                <th>Chi phí</th>
-                                                <th>Trạng thái</th>
-                                                <th>Người nhập</th>
-                                                <th>Người duyệt</th>
-                                                <th>Ghi chú</th>
-                                                <th>Thao tác</th>
-                                            </tr>
-                                        </thead>
-
-                                        <tbody>
-                                            {% for item in day.items %}
-                                            <tr>
-                                                <td>
-                                                    {% if item.purchase_type == 'extra' %}
-                                                        <span class="badge bg-info-subtle text-info border border-info">
-                                                            {{ item.get_purchase_type_display }}
-                                                        </span>
-                                                    {% else %}
-                                                        <span class="badge bg-primary-subtle text-primary border border-primary">
-                                                            {{ item.get_purchase_type_display }}
-                                                        </span>
-                                                    {% endif %}
-                                                </td>
-
-                                                <td class="fw-bold text-danger">
-                                                    {{ item.actual_cost|vnd }} VNĐ
-                                                </td>
-
-                                                <td>
-                                                    {% if item.status == 'approved' %}
-                                                        <span class="badge bg-success-subtle text-success border border-success">Đã duyệt</span>
-                                                    {% elif item.status == 'pending' %}
-                                                        <span class="badge bg-warning-subtle text-warning border border-warning">Chờ duyệt</span>
-                                                    {% elif item.status == 'rejected' %}
-                                                        <span class="badge bg-danger-subtle text-danger border border-danger">Đã từ chối</span>
-                                                    {% else %}
-                                                        {{ item.get_status_display }}
-                                                    {% endif %}
-
-                                                    {% if item.was_edited_after_approval %}
-                                                        <button type="button"
-                                                                class="badge edited-badge"
-                                                                data-bs-toggle="modal"
-                                                                data-bs-target="#editHistoryModal-{{ item.id }}"
-                                                                title="Đã chỉnh sửa sau khi duyệt - bấm để xem lịch sử">
-                                                            <i class="bi bi-pencil-square"></i> Đã chỉnh sửa
-                                                        </button>
-                                                    {% endif %}
-                                                </td>
-
-                                                <td>
-                                                    {% if item.created_by %}
-                                                        {{ item.created_by.username }} -
-                                                        {{ item.created_by.profile.full_name|default:"Chưa có tên" }}
-                                                    {% else %}
-                                                        -
-                                                    {% endif %}
-                                                </td>
-
-                                                <td>
-                                                    {% if item.approved_by %}
-                                                        {{ item.approved_by.username }} -
-                                                        {{ item.approved_by.profile.full_name|default:"Chưa có tên" }}
-                                                    {% else %}
-                                                        -
-                                                    {% endif %}
-                                                </td>
-
-                                                <td>{{ item.note|default:"-" }}</td>
-
-                                                <td>
-                                                    <a href="{% url 'purchase_update' item.id %}" class="btn btn-sm btn-outline-primary">
-                                                        Sửa
-                                                    </a>
-                                                </td>
-                                            </tr>
-
-                                            <tr class="purchase-item-detail-row">
-                                                <td colspan="7" style="padding:0;">
-                                                    <div class="purchase-item-detail-box mt-2">
-
-                                                        <!-- CỘT 1: ẢNH BILL NHỎ -->
-                                                        <div class="purchase-bill-side">
-                                                            {% if item.bill_image %}
-                                                                <a href="{{ item.bill_image.url }}" target="_blank">
-                                                                    <img src="{{ item.bill_image.url }}" class="purchase-bill-img-sm">
-                                                                </a>
-                                                                <div class="text-center mt-1"><span class="badge bg-light text-dark border" style="font-size:10px;">Ảnh hóa đơn</span></div>
-                                                            {% else %}
-                                                                <div class="no-bill-sm">
-                                                                    <i class="bi bi-image" style="color:#cbd5e1;"></i>
-                                                                    <div style="font-size:10px;color:#94a3b8;">No Bill</div>
-                                                                </div>
-                                                            {% endif %}
-                                                        </div>
-
-                                                        <!-- CỘT 2: BẢNG DỰ KIẾN (PLAN) -->
-                                                        <div class="purchase-side-table">
-                                                            <div class="side-table-header text-primary">
-                                                                <i class="bi bi-clipboard-check"></i>
-                                                                {% if item.purchase_type == 'extra' %}Đề xuất mua{% else %}Dự kiến thực đơn{% endif %}
-                                                            </div>
-                                                            <div class="table-container">
-                                                                {% if item.purchase_type == 'extra' %}
-                                                                    {% if item.approved_extra_items %}
-                                                                        <table class="mini-compare-table">
-                                                                            <thead><tr><th>Tên hàng</th><th class="text-end">SL</th></tr></thead>
-                                                                            <tbody>
-                                                                                {% for ei in item.approved_extra_items %}
-                                                                                <tr>
-                                                                                    <td>{{ ei.ingredient_name }}</td>
-                                                                                    <td class="text-end fw-bold">{{ ei.quantity|smart_quantity:ei.unit }} <small class="text-muted">{{ ei.unit }}</small></td>
-                                                                                </tr>
-                                                                                {% endfor %}
-                                                                            </tbody>
-                                                                        </table>
-                                                                    {% else %}
-                                                                        <div class="compare-empty">Trống</div>
-                                                                    {% endif %}
-                                                                {% else %}
-                                                                    {% if item.main_ingredients %}
-                                                                        <table class="mini-compare-table">
-                                                                            <thead><tr><th>Tên hàng</th><th class="text-end">Tổng dự kiến</th></tr></thead>
-                                                                            <tbody>
-                                                                                {% for ing in item.main_ingredients %}
-                                                                                <tr>
-                                                                                    <td>{{ ing.name }}</td>
-                                                                                    <td class="text-end fw-bold text-primary">{{ ing.total_quantity|smart_quantity:ing.unit }} <small class="text-muted">{{ ing.total_quantity|smart_unit:ing.unit }}</small></td>
-                                                                                </tr>
-                                                                                {% endfor %}
-                                                                            </tbody>
-                                                                        </table>
-                                                                    {% else %}
-                                                                        <div class="compare-empty">Trống</div>
-                                                                    {% endif %}
-                                                                {% endif %}
-                                                            </div>
-                                                        </div>
-
-                                                        <!-- CỘT 3: BẢNG THỰC TẾ (BILL) -->
-                                                        <div class="purchase-side-table">
-                                                            <div class="side-table-header text-success">
-                                                                <i class="bi bi-receipt"></i> Hóa đơn thực tế
-                                                            </div>
-                                                            <div class="table-container">
-                                                                {% if item.pk and item.extra_items.all %}
-                                                                    <table class="mini-compare-table">
-                                                                        <thead><tr><th>Tên hàng</th><th class="text-center">SL</th><th class="text-end">Giá</th></tr></thead>
-                                                                        <tbody>
-                                                                            {% for ai_item in item.extra_items.all %}
-                                                                            <tr>
-                                                                                <td class="fw-semibold">{{ ai_item.ingredient_name }}</td>
-                                                                                <td class="text-center">{{ ai_item.quantity|floatformat:1 }} <small class="text-muted">{{ ai_item.unit|default:"" }}</small></td>
-                                                                                <td class="text-end text-danger">{{ ai_item.unit_price|vnd }}</td>
-                                                                            </tr>
-                                                                            {% endfor %}
-                                                                        </tbody>
-                                                                    </table>
-                                                                {% else %}
-                                                                    <div class="compare-empty"><i class="bi bi-info-circle"></i> Chưa quét AI</div>
-                                                                {% endif %}
-                                                            </div>
-                                                        </div>
-
-                                                    </div>
-                                                </td>
-                                            </tr>
+                                <!-- Thực đơn dự kiến — hiện 1 lần cho cả ngày -->
+                                <div class="expected-menu-box mb-3">
+                                    <div class="side-table-header text-primary">
+                                        <i class="bi bi-clipboard-check"></i> Dự kiến thực đơn
+                                    </div>
+                                    {% if day.expected_ingredients %}
+                                        <div class="expected-menu-grid">
+                                            {% for ing in day.expected_ingredients %}
+                                            <div class="expected-menu-item">
+                                                <span class="emi-name">{{ ing.name }}</span>
+                                                <span class="emi-qty">{{ ing.total_quantity|smart_quantity:ing.unit }} <small>{{ ing.total_quantity|smart_unit:ing.unit }}</small></span>
+                                            </div>
                                             {% endfor %}
-                                        </tbody>
-                                    </table>
+                                        </div>
+                                    {% else %}
+                                        <div class="compare-empty">Ngày này chưa có thực đơn đã duyệt.</div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Mỗi hóa đơn 1 thẻ — lưới 2 cột (1 đơn: trái; 2: hai bên; 3: 2 trái 1 phải) -->
+                                <div class="purchase-cards-grid">
+                                    {% for item in day.items %}
+                                    <div class="purchase-card">
+                                        <div class="purchase-card-head">
+                                            {% if item.purchase_type == 'extra' %}
+                                                <span class="badge bg-info-subtle text-info border border-info">{{ item.get_purchase_type_display }}</span>
+                                            {% else %}
+                                                <span class="badge bg-primary-subtle text-primary border border-primary">{{ item.get_purchase_type_display }}</span>
+                                            {% endif %}
+                                            <span class="fw-bold text-danger">{{ item.actual_cost|vnd }} VNĐ</span>
+                                            {% if item.status == 'approved' %}
+                                                <span class="badge bg-success-subtle text-success border border-success">Đã duyệt</span>
+                                            {% elif item.status == 'pending' %}
+                                                <span class="badge bg-warning-subtle text-warning border border-warning">Chờ duyệt</span>
+                                            {% elif item.status == 'rejected' %}
+                                                <span class="badge bg-danger-subtle text-danger border border-danger">Đã từ chối</span>
+                                            {% else %}
+                                                <span class="badge bg-light text-dark border">{{ item.get_status_display }}</span>
+                                            {% endif %}
+                                            {% if item.was_edited_after_approval %}
+                                                <button type="button" class="badge edited-badge"
+                                                        data-bs-toggle="modal" data-bs-target="#editHistoryModal-{{ item.id }}"
+                                                        title="Đã chỉnh sửa sau khi duyệt - bấm để xem lịch sử">
+                                                    <i class="bi bi-pencil-square"></i> Đã chỉnh sửa
+                                                </button>
+                                            {% endif %}
+                                            <a href="{% url 'purchase_update' item.id %}" class="btn btn-sm btn-outline-primary ms-auto">Sửa</a>
+                                        </div>
+
+                                        <div class="purchase-card-meta">
+                                            Người nhập:
+                                            {% if item.created_by %}{{ item.created_by.username }} - {{ item.created_by.profile.full_name|default:"Chưa có tên" }}{% else %}-{% endif %}
+                                            · Người duyệt:
+                                            {% if item.approved_by %}{{ item.approved_by.username }} - {{ item.approved_by.profile.full_name|default:"Chưa có tên" }}{% else %}-{% endif %}
+                                            · Ghi chú: {{ item.note|default:"-" }}
+                                        </div>
+
+                                        <div class="purchase-card-body">
+                                            <div class="purchase-bill-side">
+                                                {% if item.bill_image %}
+                                                    <a href="{{ item.bill_image.url }}" target="_blank">
+                                                        <img src="{{ item.bill_image.url }}" class="purchase-bill-img-sm">
+                                                    </a>
+                                                    <div class="text-center mt-1"><span class="badge bg-light text-dark border" style="font-size:10px;">Ảnh hóa đơn</span></div>
+                                                {% else %}
+                                                    <div class="no-bill-sm">
+                                                        <i class="bi bi-image" style="color:#cbd5e1;"></i>
+                                                        <div style="font-size:10px;color:#94a3b8;">No Bill</div>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="purchase-side-table">
+                                                <div class="side-table-header text-success">
+                                                    <i class="bi bi-receipt"></i> Hóa đơn thực tế
+                                                </div>
+                                                {% if item.extra_items.all %}
+                                                    <table class="mini-compare-table">
+                                                        <thead><tr><th>Tên hàng</th><th class="text-center">SL</th><th class="text-end">Giá</th></tr></thead>
+                                                        <tbody>
+                                                            {% for ai_item in item.extra_items.all %}
+                                                            <tr>
+                                                                <td class="fw-semibold">{{ ai_item.ingredient_name }}</td>
+                                                                <td class="text-center">{{ ai_item.quantity|floatformat:1 }} <small class="text-muted">{{ ai_item.unit|default:"" }}</small></td>
+                                                                <td class="text-end text-danger">{{ ai_item.unit_price|vnd }}</td>
+                                                            </tr>
+                                                            {% endfor %}
+                                                        </tbody>
+                                                    </table>
+                                                {% else %}
+                                                    <div class="compare-empty"><i class="bi bi-info-circle"></i> Chưa quét AI</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
                                 </div>
                             </div>
                         </td>
@@ -508,22 +428,87 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 <style>
-.purchase-item-detail-row td {
-    border-top: none !important;
-    padding: 0 !important;
-    background: transparent !important;
-}
-
-.purchase-item-detail-box {
-    display: grid;
-    grid-template-columns: 100px 1fr 1fr;
-    gap: 15px;
+/* Khối "Dự kiến thực đơn" — hiện 1 lần cho cả ngày */
+.expected-menu-box {
     background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
-    padding: 12px;
-    margin: 4px 12px 12px 12px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    padding: 12px 14px;
+}
+
+/* Danh sách nguyên liệu dự kiến: ô nhỏ, nhiều cột tự xuống hàng */
+.expected-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 6px 14px;
+}
+
+.expected-menu-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 12.5px;
+    padding: 5px 10px;
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    border-radius: 7px;
+}
+
+.emi-name {
+    color: #334155;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.emi-qty {
+    font-weight: 700;
+    color: #2563eb;
+    white-space: nowrap;
+}
+
+.emi-qty small {
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+/* Lưới hóa đơn: 1 đơn → trái; 2 → hai bên; 3 → 2 trái 1 phải */
+.purchase-cards-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.purchase-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 14px;
+}
+
+.purchase-card-head {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.purchase-card-meta {
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 10px;
+}
+
+.purchase-card-body {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 12px;
+}
+
+.purchase-side-table {
+    min-width: 0;
 }
 
 .purchase-bill-side {
@@ -591,7 +576,8 @@ document.addEventListener('DOMContentLoaded', function () {
 }
 
 @media (max-width: 992px) {
-    .purchase-item-detail-box {
+    .purchase-cards-grid,
+    .purchase-card-body {
         grid-template-columns: 1fr;
     }
 }

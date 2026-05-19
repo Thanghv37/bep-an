@@ -612,19 +612,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    if (formEl) {
-        formEl.addEventListener('submit', function (e) {
-            const selectedType = getSelectedType();
-
-            const currentExtraInput = document.getElementById('id_extra_request');
-
-            if (selectedType === 'extra' && (!currentExtraInput || !currentExtraInput.value)) {
-                e.preventDefault();
-                alert('Bạn phải chọn một đơn mua bổ sung đã duyệt trước khi gửi phê duyệt chi phí.');
-                return;
-            }
-        });
-    }
+    // (Đã bỏ ràng buộc: hóa đơn "Mua gia vị" không cần chọn đơn mua bổ sung đã duyệt trước.)
 
     // Cột "Thành tiền" + tổng "Chi phí thực tế" tự cập nhật khi sửa SL / đơn giá.
     const aiTbody = document.getElementById('ai-items-tbody');
