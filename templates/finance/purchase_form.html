@@ -159,13 +159,14 @@
                                 <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addAiItemRow()">+ Thêm dòng</button>
                             </div>
                             <div class="table-responsive">
-                                <table class="table table-bordered table-sm align-middle" id="ai-items-table" style="min-width: 540px;">
+                                <table class="table table-bordered table-sm align-middle" id="ai-items-table" style="min-width: 660px;">
                                     <thead class="table-light">
                                         <tr>
                                             <th>Tên hàng</th>
                                             <th style="width: 90px;">Số lượng</th>
                                             <th style="width: 90px;">Đơn vị</th>
                                             <th style="width: 120px;">Đơn giá</th>
+                                            <th style="width: 120px;">Thành tiền</th>
                                             <th style="width: 40px;"></th>
                                         </tr>
                                     </thead>
@@ -177,7 +178,8 @@
                                                 <td><input type="number" step="0.01" name="ai_item_quantity[]" class="form-control form-control-sm" value="{{ item.quantity|stringformat:'f'|slice:'0:-4' }}"></td>
                                                 <td><input type="text" name="ai_item_unit[]" class="form-control form-control-sm" value="{{ item.unit }}"></td>
                                                 <td><input type="number" name="ai_item_price[]" class="form-control form-control-sm" value="{{ item.unit_price|stringformat:'f'|slice:'0:-7' }}"></td>
-                                                <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-trash"></i></button></td>
+                                                <td class="ai-line-total text-end fw-semibold text-danger">0</td>
+                                                <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAiItemRow(this)"><i class="bi bi-trash"></i></button></td>
                                             </tr>
                                             {% endfor %}
                                         {% endif %}
@@ -593,10 +595,12 @@ document.addEventListener('DOMContentLoaded', function () {
                             <td><input type="number" step="0.01" name="ai_item_quantity[]" class="form-control form-control-sm" value="${item.quantity || 0}"></td>
                             <td><input type="text" name="ai_item_unit[]" class="form-control form-control-sm" value="${item.unit || ''}"></td>
                             <td><input type="number" name="ai_item_price[]" class="form-control form-control-sm" value="${item.unit_price || 0}"></td>
-                            <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-trash"></i></button></td>
+                            <td class="ai-line-total text-end fw-semibold text-danger">0</td>
+                            <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAiItemRow(this)"><i class="bi bi-trash"></i></button></td>
                         `;
                         tbody.appendChild(tr);
                     });
+                    recalcAiTotals();
                 }
             })
             .catch(err => {
@@ -622,6 +626,18 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Cột "Thành tiền" + tổng "Chi phí thực tế" tự cập nhật khi sửa SL / đơn giá.
+    const aiTbody = document.getElementById('ai-items-tbody');
+    if (aiTbody) {
+        aiTbody.addEventListener('input', function (e) {
+            if (e.target.matches('input[name="ai_item_quantity[]"], input[name="ai_item_price[]"]')) {
+                recalcAiTotals();
+            }
+        });
+    }
+    // Lúc tải trang: chỉ điền cột thành tiền, giữ nguyên chi phí đã lưu.
+    recalcAiTotals(false);
+
     loadIngredientPreview();
     checkBillRequired();
 });
@@ -640,6 +656,40 @@ function selectExtraRequest(id, element) {
     }
 }
 
+function fmtVnd(n) {
+    return Number(n || 0).toLocaleString('vi-VN');
+}
+
+// Tính "Thành tiền" từng dòng (= SL × đơn giá). updateCost=true thì cộng tổng
+// vào ô "Chi phí thực tế"; false (lúc tải trang) thì chỉ điền cột thành tiền,
+// không đụng giá trị đã lưu.
+function recalcAiTotals(updateCost) {
+    if (updateCost === undefined) updateCost = true;
+    const tbody = document.getElementById('ai-items-tbody');
+    if (!tbody) return;
+    let sum = 0;
+    tbody.querySelectorAll('tr').forEach(function (tr) {
+        const qtyEl = tr.querySelector('input[name="ai_item_quantity[]"]');
+        const priceEl = tr.querySelector('input[name="ai_item_price[]"]');
+        const qty = parseFloat(qtyEl && qtyEl.value) || 0;
+        const price = parseFloat(priceEl && priceEl.value) || 0;
+        const lineTotal = Math.round(qty * price);
+        sum += lineTotal;
+        const cell = tr.querySelector('.ai-line-total');
+        if (cell) cell.textContent = fmtVnd(lineTotal);
+    });
+    if (updateCost) {
+        const costInput = document.getElementById('id_actual_cost');
+        if (costInput) costInput.value = Math.round(sum);
+    }
+}
+
+function removeAiItemRow(btn) {
+    const tr = btn.closest('tr');
+    if (tr) tr.remove();
+    recalcAiTotals();
+}
+
 function addAiItemRow() {
     const tbody = document.getElementById('ai-items-tbody');
     const tr = document.createElement('tr');
@@ -648,9 +698,11 @@ function addAiItemRow() {
         <td><input type="number" step="0.01" name="ai_item_quantity[]" class="form-control form-control-sm" value="0"></td>
         <td><input type="text" name="ai_item_unit[]" class="form-control form-control-sm" value=""></td>
         <td><input type="number" name="ai_item_price[]" class="form-control form-control-sm" value="0"></td>
-        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-trash"></i></button></td>
+        <td class="ai-line-total text-end fw-semibold text-danger">0</td>
+        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAiItemRow(this)"><i class="bi bi-trash"></i></button></td>
     `;
     tbody.appendChild(tr);
+    recalcAiTotals();
 }
 </script>
 

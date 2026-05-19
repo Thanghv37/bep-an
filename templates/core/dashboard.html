@@ -227,11 +227,7 @@
                 {% for p in purchase_list %}
                 <tr>
                     <td>
-                        {% if p.purchase_type == 'extra' %}
-                            Mua bổ sung
-                        {% else %}
-                            Nguyên liệu chính
-                        {% endif %}
+                        {{ p.get_purchase_type_display }}
                     </td>
                     <td class="text-danger">{{ p.actual_cost|vnd }}</td>
                     <td>{{ p.created_by.username }}</td>

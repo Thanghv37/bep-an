@@ -43,8 +43,8 @@ class DailyPurchase(models.Model):
     PURCHASE_TYPE_EXTRA = 'extra'
 
     PURCHASE_TYPE_CHOICES = [
-        (PURCHASE_TYPE_MAIN, 'Mua nguyên liệu chính'),
-        (PURCHASE_TYPE_EXTRA, 'Mua bổ sung'),
+        (PURCHASE_TYPE_MAIN, 'Mua thực phẩm'),
+        (PURCHASE_TYPE_EXTRA, 'Mua gia vị'),
     ]
 
     # BỎ unique=True để 1 ngày có thể nhập nhiều bill

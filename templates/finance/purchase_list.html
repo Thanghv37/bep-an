@@ -114,11 +114,11 @@
                                                 <td>
                                                     {% if item.purchase_type == 'extra' %}
                                                         <span class="badge bg-info-subtle text-info border border-info">
-                                                            Mua bổ sung
+                                                            {{ item.get_purchase_type_display }}
                                                         </span>
                                                     {% else %}
                                                         <span class="badge bg-primary-subtle text-primary border border-primary">
-                                                            Nguyên liệu chính
+                                                            {{ item.get_purchase_type_display }}
                                                         </span>
                                                     {% endif %}
                                                 </td>
@@ -295,7 +295,7 @@
                             <div class="modal-body">
                                 <div class="text-muted small mb-3">
                                     Chi phí ngày <strong>{{ item.date|date:"d/m/Y" }}</strong>
-                                    ({% if item.purchase_type == 'extra' %}Mua bổ sung{% else %}Nguyên liệu chính{% endif %})
+                                    ({{ item.get_purchase_type_display }})
                                 </div>
 
                                 {% if item.edit_logs.all %}
