@@ -184,10 +184,17 @@
                             <span class="quantity-pill">{{ item.quantity }}</span>
                         </td>
                         <td>
+                            {% if item.source == 'supplementary' %}
+                            <span class="status-pill status-pill-supp">
+                                <span class="status-dot"></span>
+                                Đăng kí bổ sung
+                            </span>
+                            {% else %}
                             <span class="status-pill">
                                 <span class="status-dot"></span>
                                 {{ item.status }}
                             </span>
+                            {% endif %}
                         </td>
                         <td class="text-end">
                             <form action="{% url 'registration_delete' item.pk %}" method="post" class="d-inline"
@@ -489,6 +496,16 @@
         height: 6px;
         background: #10b981;
         border-radius: 50%;
+    }
+
+    /* Trạng thái "Đăng kí bổ sung" — xanh dương */
+    .status-pill-supp {
+        background: #eff6ff;
+        color: #2563eb;
+        border-color: #bfdbfe;
+    }
+    .status-pill-supp .status-dot {
+        background: #3b82f6;
     }
 
     .delete-btn-rounded {

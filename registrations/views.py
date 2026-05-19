@@ -159,6 +159,14 @@ def registration_import(request):
     return redirect('registration_list')
 
 
+def _default_meal_kitchen(meal_options, kitchen_options):
+    """Bữa ăn / bếp ăn đề xuất sẵn — tìm trong option đã cấu hình theo từ khóa
+    ('trưa' / 'khu vực 2') nên khớp đúng string option dù có hậu tố gì."""
+    meal = next((o for o in meal_options if 'trưa' in o.lower()), '')
+    kitchen = next((o for o in kitchen_options if 'khu vực 2' in o.lower()), '')
+    return meal, kitchen
+
+
 @login_required
 @user_passes_test(can_manage_menu)
 def registration_create(request):
@@ -297,7 +305,8 @@ def registration_create(request):
         messages.success(request, f'Đã thêm {len(rows)} đăng kí suất ăn.')
         return redirect('registration_list')
 
-    # --- GET: form trống với 1 dòng ---
+    # --- GET: form trống với 1 dòng, đề xuất sẵn bữa trưa + bếp khu vực 2 ---
+    default_meal, default_kitchen = _default_meal_kitchen(meal_options, kitchen_options)
     return render(request, 'registrations/registration_form.html', {
         'page_title': 'Thêm người đăng kí',
         'meal_options': meal_options,
@@ -305,8 +314,8 @@ def registration_create(request):
         'user_map': user_map,
         'form_errors': [],
         'sel_date': date.today().strftime('%Y-%m-%d'),
-        'sel_meal': '',
-        'sel_kitchen': '',
+        'sel_meal': default_meal,
+        'sel_kitchen': default_kitchen,
         'rows': [{'code': '', 'name': '', 'quantity': '1', 'error': ''}],
     })
 
@@ -504,17 +513,22 @@ def participation_add_supplementary(request):
 
     profile = UserProfile.objects.filter(employee_code=employee_code).first()
     full_name = (profile.full_name if profile and profile.full_name else '') or ''
+    default_meal, default_kitchen = _default_meal_kitchen(
+        get_meal_options(), get_kitchen_options()
+    )
 
+    # Lookup theo source='supplementary' → idempotent, không tạo trùng kể cả
+    # khi bản ghi bổ sung cũ có meal/kitchen để trống.
     MealRegistration.objects.get_or_create(
         employee_code=employee_code,
         date=target_date,
-        meal_name='',
-        kitchen_name='',
+        source=SUPPLEMENTARY_SOURCE,
         defaults={
+            'meal_name': default_meal,
+            'kitchen_name': default_kitchen,
             'full_name': full_name,
             'quantity': 1,
             'status': 'Đặt thành công',
-            'source': SUPPLEMENTARY_SOURCE,
         },
     )
     return JsonResponse({'success': True})
