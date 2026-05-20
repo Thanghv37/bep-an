@@ -428,15 +428,12 @@ def _build_participation_rows(target_date):
 
     registrations = MealRegistration.objects.filter(date=target_date)
     registered_name_map = {}
-    supplementary_codes = set()
     for r in registrations:
         code = (r.employee_code or '').strip()
         if not code:
             continue
         if code not in registered_name_map:
             registered_name_map[code] = (r.full_name or '').strip()
-        if r.source == SUPPLEMENTARY_SOURCE:
-            supplementary_codes.add(code)
 
     all_codes = scanned_codes | set(registered_name_map.keys())
     profile_map = {
@@ -452,15 +449,22 @@ def _build_participation_rows(target_date):
             return fallback_name
         return 'Chưa rõ tên'
 
+    # AttendanceLog.status có thể là english ('not_registered') hoặc tiếng Việt
+    # ('Chưa đăng ký') tùy nguồn data — chấp nhận cả 2 dạng.
+    NOT_REGISTERED_VALUES = {'not_registered', 'Chưa đăng ký'}
+
     rows = []
     for log in logs:
         emp_code = (log.employee_code or '').strip()
         profile = profile_map.get(emp_code)
         display_name = _resolve_name(emp_code, profile, (log.full_name or '').strip())
         status_code = log.status
-        # Người quét thẻ nhưng "chưa đăng ký" — nếu đã được đăng ký bổ sung
-        # thì đổi trạng thái sang 'supplementary'.
-        if status_code == 'not_registered' and emp_code in supplementary_codes:
+        # Người quét thẻ nhưng AttendanceLog báo "chưa đăng ký" — nếu DB Django
+        # đã có MealRegistration (bất kể source: supplementary hay excel/regular)
+        # thì coi như đã đăng ký, đổi sang 'supplementary'. Tránh trường hợp
+        # AttendanceLog và DB không khớp (vd Excel import xong nhưng external
+        # system check theo tiêu chí khác) → user bấm + lặp đi lặp lại.
+        if status_code in NOT_REGISTERED_VALUES and emp_code in registered_name_map:
             status_code = 'supplementary'
         label, css = _PARTICIPATION_STATUS_LABELS.get(status_code, (status_code, 'warning'))
         rows.append({
@@ -501,6 +505,11 @@ def participation_add_supplementary(request):
 
     Lưu dưới dạng MealRegistration source='supplementary' → tự được tính vào
     số suất / doanh thu (Thu) như đăng ký thường.
+
+    Nếu người đó đã có MealRegistration nào ở ngày này (bất kể source) thì
+    coi như đã đăng ký rồi → no-op success. Tránh vi phạm unique_together
+    `(employee_code, date, meal_name, kitchen_name)` (bug: trên trang Tham gia
+    AttendanceLog báo "Chưa đăng ký" nhưng DB lại có record từ Excel import).
     """
     employee_code = (request.POST.get('employee_code') or '').strip()
     date_str = (request.POST.get('date') or '').strip()
@@ -511,25 +520,27 @@ def participation_add_supplementary(request):
     except ValueError:
         return JsonResponse({'success': False, 'message': 'Ngày không hợp lệ.'}, status=400)
 
+    # Đã có bất kỳ bản ghi nào → no-op (tránh tính trùng suất ăn).
+    if MealRegistration.objects.filter(
+        employee_code=employee_code, date=target_date
+    ).exists():
+        return JsonResponse({'success': True, 'already_registered': True})
+
     profile = UserProfile.objects.filter(employee_code=employee_code).first()
     full_name = (profile.full_name if profile and profile.full_name else '') or ''
     default_meal, default_kitchen = _default_meal_kitchen(
         get_meal_options(), get_kitchen_options()
     )
 
-    # Lookup theo source='supplementary' → idempotent, không tạo trùng kể cả
-    # khi bản ghi bổ sung cũ có meal/kitchen để trống.
-    MealRegistration.objects.get_or_create(
+    MealRegistration.objects.create(
         employee_code=employee_code,
         date=target_date,
         source=SUPPLEMENTARY_SOURCE,
-        defaults={
-            'meal_name': default_meal,
-            'kitchen_name': default_kitchen,
-            'full_name': full_name,
-            'quantity': 1,
-            'status': 'Đặt thành công',
-        },
+        meal_name=default_meal,
+        kitchen_name=default_kitchen,
+        full_name=full_name,
+        quantity=1,
+        status='Đặt thành công',
     )
     return JsonResponse({'success': True})
 
