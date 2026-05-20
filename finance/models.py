@@ -189,6 +189,11 @@ class PurchaseExtraItem(models.Model):
     def __str__(self):
         return f"{self.date} - {self.ingredient_name}"
 
+    @property
+    def line_total(self):
+        """Thành tiền = số lượng × đơn giá (làm tròn)."""
+        return int((self.quantity or 0) * (self.unit_price or 0))
+
 
 class PurchaseRejectLog(models.Model):
     purchase = models.ForeignKey(

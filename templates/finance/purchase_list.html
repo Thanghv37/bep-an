@@ -171,13 +171,23 @@
                                                 </div>
                                                 {% if item.extra_items.all %}
                                                     <table class="mini-compare-table">
-                                                        <thead><tr><th>Tên hàng</th><th class="text-center">SL</th><th class="text-end">Giá</th></tr></thead>
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Tên hàng</th>
+                                                                <th class="text-center">SL</th>
+                                                                <th class="text-center">Đơn vị</th>
+                                                                <th class="text-end">Đơn giá</th>
+                                                                <th class="text-end">Thành tiền</th>
+                                                            </tr>
+                                                        </thead>
                                                         <tbody>
                                                             {% for ai_item in item.extra_items.all %}
                                                             <tr>
                                                                 <td class="fw-semibold">{{ ai_item.ingredient_name }}</td>
-                                                                <td class="text-center">{{ ai_item.quantity|floatformat:1 }} <small class="text-muted">{{ ai_item.unit|default:"" }}</small></td>
-                                                                <td class="text-end text-danger">{{ ai_item.unit_price|vnd }}</td>
+                                                                <td class="text-center">{{ ai_item.quantity|floatformat:"-2" }}</td>
+                                                                <td class="text-center text-muted">{{ ai_item.unit|default:"-" }}</td>
+                                                                <td class="text-end">{{ ai_item.unit_price|vnd }}</td>
+                                                                <td class="text-end text-danger fw-semibold">{{ ai_item.line_total|vnd }}</td>
                                                             </tr>
                                                             {% endfor %}
                                                         </tbody>
