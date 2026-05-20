@@ -90,6 +90,11 @@
                             <span class="badge bg-danger-subtle text-danger border border-danger rounded-pill px-2"
                                 id="log-failed-count" style="font-size: 11px;">0</span>
                         </div>
+                        <div class="d-flex justify-content-between align-items-center small">
+                            <span class="text-secondary fw-semibold">Chưa gửi:</span>
+                            <span class="badge bg-warning-subtle text-warning border border-warning rounded-pill px-2"
+                                id="log-pending-count" style="font-size: 11px;">0</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -243,6 +248,12 @@
                             Thất bại (<span id="modal-failed-count">0</span>)
                         </button>
                     </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-bold" style="border: none; background: transparent; color: #b45309;"
+                            id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending-pane" type="button" role="tab">
+                            Chưa gửi (<span id="modal-pending-count">0</span>)
+                        </button>
+                    </li>
                 </ul>
                 <div class="tab-content" id="logTabContent">
                     <div class="tab-pane fade show active p-4" id="success-pane" role="tabpanel" tabindex="0">
@@ -271,6 +282,23 @@
                                     </tr>
                                 </thead>
                                 <tbody id="log-failed-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade p-4" id="pending-pane" role="tabpanel" tabindex="0">
+                        <div class="alert alert-warning small py-2 mb-3">
+                            Danh sách người <strong>đã đăng ký</strong> nhưng <strong>chưa được gửi tin</strong>
+                            (chưa có bản ghi nào trong log). Bấm "Gửi tin nhắn" lại để gửi cho nhóm này.
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 120px;">Mã NV</th>
+                                        <th>Họ tên</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="log-pending-tbody"></tbody>
                             </table>
                         </div>
                     </div>
@@ -623,6 +651,7 @@
         const logDateInput = document.getElementById('log-date');
         const logSuccessCount = document.getElementById('log-success-count');
         const logFailedCount = document.getElementById('log-failed-count');
+        const logPendingCount = document.getElementById('log-pending-count');
 
         function fetchNotificationLogs() {
             const d = logDateInput.value;
@@ -635,10 +664,13 @@
                         // Cập nhật số lượng trên box
                         logSuccessCount.textContent = data.success_count;
                         logFailedCount.textContent = data.failed_count;
+                        if (logPendingCount) logPendingCount.textContent = data.pending_count || 0;
 
                         // Cập nhật số lượng trong modal
                         document.getElementById('modal-success-count').textContent = data.success_count;
                         document.getElementById('modal-failed-count').textContent = data.failed_count;
+                        const modalPendingCount = document.getElementById('modal-pending-count');
+                        if (modalPendingCount) modalPendingCount.textContent = data.pending_count || 0;
 
                         // Cập nhật ngày trong modal (format d/m/Y)
                         const parts = d.split('-');
@@ -681,6 +713,25 @@
                             </tr>
                         `;
                             });
+                        }
+
+                        // Render danh sách chưa gửi
+                        const pendingTbody = document.getElementById('log-pending-tbody');
+                        if (pendingTbody) {
+                            pendingTbody.innerHTML = '';
+                            const pending = data.pending || [];
+                            if (pending.length === 0) {
+                                pendingTbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted py-3">Mọi người đã được gửi.</td></tr>';
+                            } else {
+                                pending.forEach(p => {
+                                    pendingTbody.innerHTML += `
+                            <tr>
+                                <td class="fw-semibold text-secondary">${p.employee_code}</td>
+                                <td class="fw-bold">${p.full_name || '<span class="text-muted fst-italic">(chưa có tên)</span>'}</td>
+                            </tr>
+                        `;
+                                });
+                            }
                         }
                     }
                 });

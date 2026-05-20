@@ -910,7 +910,7 @@ def get_notification_logs_api(request):
         return JsonResponse({'success': False, 'message': 'Sai định dạng ngày'})
 
     logs = NotificationLog.objects.filter(target_date=target_date).order_by('-created_at')
-    
+
     # Lấy log mới nhất của mỗi người dùng trong ngày đó (nếu gửi nhiều lần, chỉ lấy lần cuối)
     # Vì SQLite không hỗ trợ DISTINCT ON, ta xử lý bằng code Python
     latest_logs = {}
@@ -919,10 +919,10 @@ def get_notification_logs_api(request):
             latest_logs[log.employee_code] = log
 
     final_logs = list(latest_logs.values())
-    
+
     success_count = sum(1 for log in final_logs if log.status == 'success')
     failed_count = sum(1 for log in final_logs if log.status == 'failed')
-    
+
     log_data = []
     for log in final_logs:
         log_data.append({
@@ -932,10 +932,32 @@ def get_notification_logs_api(request):
             'error_message': log.error_message,
             'time': log.created_at.strftime('%H:%M')
         })
-        
+
+    # Danh sách "chưa gửi" = người có trong đăng ký ngày này nhưng chưa có log nào.
+    # Lấy full_name từ MealRegistration; dedup theo employee_code.
+    registered_rows = MealRegistration.objects.filter(
+        date=target_date
+    ).values('employee_code', 'full_name')
+
+    registered_names = {}
+    for r in registered_rows:
+        code = r['employee_code']
+        if code and code not in registered_names:
+            registered_names[code] = r['full_name'] or ''
+
+    pending_data = [
+        {'employee_code': code, 'full_name': name}
+        for code, name in registered_names.items()
+        if code not in latest_logs
+    ]
+    pending_data.sort(key=lambda x: x['employee_code'])
+    pending_count = len(pending_data)
+
     return JsonResponse({
         'success': True,
         'success_count': success_count,
         'failed_count': failed_count,
-        'logs': log_data
+        'pending_count': pending_count,
+        'logs': log_data,
+        'pending': pending_data,
     })
