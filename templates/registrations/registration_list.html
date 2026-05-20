@@ -157,7 +157,7 @@
                 <tbody>
                     {% for row in rows %}
                     {% with item=row.registration profile=row.profile %}
-                    <tr>
+                    <tr {% if not profile %}class="row-no-profile" title="Chưa có hồ sơ trong danh sách nhân viên — không gửi được tin"{% endif %}>
                         <td class="text-center">
                             <input type="checkbox" class="form-check-input row-checkbox"
                                 value="{{ item.employee_code }}" data-name="{{ item.full_name }}"
@@ -168,15 +168,25 @@
                                 {% if profile.avatar %}
                                 <img src="{{ profile.avatar.url }}" class="rounded-circle"
                                     style="width: 38px; height: 38px; object-fit: cover;">
-                                {% else %}
+                                {% elif profile %}
                                 <div class="rounded-circle bg-light d-flex align-items-center justify-content-center"
                                     style="width: 38px; height: 38px;">
                                     <span class="text-muted" style="font-size: 12px;">👤</span>
                                 </div>
+                                {% else %}
+                                <div class="rounded-circle d-flex align-items-center justify-content-center"
+                                    style="width: 38px; height: 38px; background: #fef3c7; border: 1px solid #f59e0b;">
+                                    <span style="font-size: 16px;">⚠️</span>
+                                </div>
                                 {% endif %}
                                 <div>
-                                    <div class="fw-bold text-dark">{% if item.full_name %}{{ item.full_name }}{% elif profile and profile.full_name %}{{ profile.full_name }}{% else %}Chưa rõ tên{% endif %}</div>
-                                    <div class="text-muted small">{% if profile %}{{ profile.email|default:"" }}{% endif %}</div>
+                                    <div class="fw-bold text-dark">
+                                        {% if item.full_name %}{{ item.full_name }}{% elif profile and profile.full_name %}{{ profile.full_name }}{% else %}Chưa rõ tên{% endif %}
+                                        {% if not profile %}
+                                        <span class="badge ms-1" style="background:#fef3c7;color:#b45309;border:1px solid #f59e0b;font-size:10px;font-weight:700;">Chưa có hồ sơ NV</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-muted small">{% if profile %}{{ profile.email|default:"" }}{% else %}<span style="color:#b45309;">Chưa có trong danh sách nhân viên → không gửi được tin</span>{% endif %}</div>
                                 </div>
                             </div>
                         </td>
@@ -534,6 +544,18 @@
     }
     .status-pill-supp .status-dot {
         background: #3b82f6;
+    }
+
+    /* Highlight dòng nhân viên đăng ký nhưng chưa có hồ sơ trong UserProfile —
+       tức không thể gửi tin nhắn cho người này. */
+    tr.row-no-profile td {
+        background: #fffbeb !important;
+    }
+    tr.row-no-profile {
+        box-shadow: inset 3px 0 0 #f59e0b;
+    }
+    tr.row-no-profile:hover td {
+        background: #fef3c7 !important;
     }
 
     .delete-btn-rounded {
