@@ -2,6 +2,8 @@ from datetime import date
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.core.files.base import ContentFile
+from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from decimal import Decimal, InvalidOperation
@@ -121,44 +123,143 @@ def purchase_create(request):
         form = DailyPurchaseForm(request.POST, request.FILES)
 
         if form.is_valid():
-            purchase = form.save(commit=False)
-            purchase.created_by = request.user
-            purchase.status = DailyPurchase.STATUS_PENDING
-            purchase.approved_by = None
-            purchase.approved_at = None
-            purchase.reject_reason = ''
-            purchase.rejected_by = None
-            purchase.rejected_at = None
-            purchase.save()
-
-            # Process dynamic items
+            # Parse danh sách items + phân loại TP/GV cho từng dòng.
             names = request.POST.getlist('ai_item_name[]')
             quantities = request.POST.getlist('ai_item_quantity[]')
             units = request.POST.getlist('ai_item_unit[]')
             prices = request.POST.getlist('ai_item_price[]')
+            types = request.POST.getlist('ai_item_type[]')
+
+            tp_items = []
+            gv_items = []
 
             for i, raw_name in enumerate(names):
                 name = (raw_name or '').strip()
-                if not name: continue
-                
-                try: quantity = Decimal(quantities[i].replace(',', '.'))
-                except: quantity = Decimal('0')
-                
+                if not name:
+                    continue
+
+                try:
+                    quantity = Decimal(
+                        (quantities[i] if i < len(quantities) else '0').replace(',', '.')
+                    )
+                except (InvalidOperation, ValueError):
+                    quantity = Decimal('0')
+
                 unit = units[i] if i < len(units) else ''
-                
-                try: price = Decimal((prices[i] or '').replace('.', '').replace(',', ''))
-                except: price = Decimal('0')
 
-                PurchaseExtraItem.objects.create(
-                    purchase=purchase,
-                    date=purchase.date,
-                    ingredient_name=name,
-                    quantity=quantity,
-                    unit=unit,
-                    unit_price=price
-                )
+                try:
+                    price = Decimal(
+                        (prices[i] if i < len(prices) else '0')
+                        .replace('.', '').replace(',', '')
+                    )
+                except (InvalidOperation, ValueError):
+                    price = Decimal('0')
 
-            messages.success(request, 'Đã gửi chi phí, đang chờ phê duyệt.')
+                item_type = types[i] if i < len(types) else DailyPurchase.PURCHASE_TYPE_MAIN
+                target = gv_items if item_type == DailyPurchase.PURCHASE_TYPE_EXTRA else tp_items
+                target.append({
+                    'name': name,
+                    'quantity': quantity,
+                    'unit': unit,
+                    'unit_price': price,
+                    'line_total': quantity * price,
+                })
+
+            with transaction.atomic():
+                if tp_items and gv_items:
+                    # Có cả 2 loại → tạo 2 phiếu, share ảnh hóa đơn.
+                    purchase_tp = form.save(commit=False)
+                    purchase_tp.created_by = request.user
+                    purchase_tp.status = DailyPurchase.STATUS_PENDING
+                    purchase_tp.purchase_type = DailyPurchase.PURCHASE_TYPE_MAIN
+                    purchase_tp.actual_cost = int(sum(it['line_total'] for it in tp_items))
+                    purchase_tp.approved_by = None
+                    purchase_tp.approved_at = None
+                    purchase_tp.reject_reason = ''
+                    purchase_tp.rejected_by = None
+                    purchase_tp.rejected_at = None
+                    purchase_tp.save()
+
+                    for it in tp_items:
+                        PurchaseExtraItem.objects.create(
+                            purchase=purchase_tp,
+                            date=purchase_tp.date,
+                            ingredient_name=it['name'],
+                            quantity=it['quantity'],
+                            unit=it['unit'],
+                            unit_price=it['unit_price'],
+                        )
+
+                    # Phiếu GV: copy data + copy file ảnh ra file thứ 2 trên disk
+                    # (upload_to sẽ tự gen path khác vì purchase_type='extra').
+                    purchase_gv = DailyPurchase(
+                        date=purchase_tp.date,
+                        purchase_type=DailyPurchase.PURCHASE_TYPE_EXTRA,
+                        actual_cost=int(sum(it['line_total'] for it in gv_items)),
+                        note=purchase_tp.note,
+                        status=DailyPurchase.STATUS_PENDING,
+                        created_by=request.user,
+                    )
+
+                    if purchase_tp.bill_image:
+                        purchase_tp.bill_image.open('rb')
+                        content = purchase_tp.bill_image.read()
+                        purchase_tp.bill_image.close()
+                        ext = purchase_tp.bill_image.name.rsplit('.', 1)[-1] or 'jpg'
+                        purchase_gv.bill_image.save(
+                            f'split.{ext}', ContentFile(content), save=False
+                        )
+
+                    purchase_gv.save()
+
+                    for it in gv_items:
+                        PurchaseExtraItem.objects.create(
+                            purchase=purchase_gv,
+                            date=purchase_gv.date,
+                            ingredient_name=it['name'],
+                            quantity=it['quantity'],
+                            unit=it['unit'],
+                            unit_price=it['unit_price'],
+                        )
+
+                    messages.success(
+                        request,
+                        'Đã tạo 2 phiếu chi phí (Thực phẩm + Gia vị).'
+                    )
+                else:
+                    # Chỉ 1 loại (hoặc không có items) → 1 phiếu như cũ.
+                    purchase = form.save(commit=False)
+                    purchase.created_by = request.user
+                    purchase.status = DailyPurchase.STATUS_PENDING
+                    purchase.approved_by = None
+                    purchase.approved_at = None
+                    purchase.reject_reason = ''
+                    purchase.rejected_by = None
+                    purchase.rejected_at = None
+
+                    if tp_items:
+                        purchase.purchase_type = DailyPurchase.PURCHASE_TYPE_MAIN
+                        purchase.actual_cost = int(sum(it['line_total'] for it in tp_items))
+                    elif gv_items:
+                        purchase.purchase_type = DailyPurchase.PURCHASE_TYPE_EXTRA
+                        purchase.actual_cost = int(sum(it['line_total'] for it in gv_items))
+                    # else: không có items, giữ purchase_type & actual_cost từ form.
+
+                    purchase.save()
+
+                    items_to_save = tp_items or gv_items
+                    for it in items_to_save:
+                        PurchaseExtraItem.objects.create(
+                            purchase=purchase,
+                            date=purchase.date,
+                            ingredient_name=it['name'],
+                            quantity=it['quantity'],
+                            unit=it['unit'],
+                            unit_price=it['unit_price'],
+                        )
+
+                    messages.success(request, 'Đã gửi chi phí, đang chờ phê duyệt.')
+
             return redirect('purchase_list')
     else:
         form = DailyPurchaseForm(initial={
