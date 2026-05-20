@@ -34,27 +34,9 @@ class MealPriceSetting(models.Model):
         return int(self.meal_price or 0) - int(self.spice_price or 0)
 
     def clean(self):
-        from django.utils import timezone
-
-        today = timezone.localdate()
-
-        # Chỉ chặn khi NGÀY BẮT ĐẦU đang được đặt mới / thay đổi sang quá khứ.
-        # Bản ghi cũ giữ nguyên start_date (kể cả đã thuộc về quá khứ) thì bỏ qua,
-        # nếu không sẽ chặn cả luồng cập nhật end_date và luồng sửa các trường khác.
-        original_start_date = None
-        if self.pk:
-            original_start_date = (
-                type(self).objects
-                .filter(pk=self.pk)
-                .values_list('start_date', flat=True)
-                .first()
-            )
-
-        if original_start_date != self.start_date and self.start_date < today:
-            raise ValidationError({
-                'start_date': 'Không được thiết lập giá bắt đầu từ ngày trong quá khứ.'
-            })
-
+        # Cho phép cấu hình giá cho ngày trong quá khứ (vd: nhập lại giá đã thực
+        # thi nhưng quên log). Lịch năm sẽ đánh dấu vàng các ngày quá khứ bị sửa
+        # để dễ rà soát.
         if self.end_date and self.end_date < self.start_date:
             raise ValidationError({
                 'end_date': 'Đến ngày phải lớn hơn hoặc bằng Từ ngày.'

@@ -12,6 +12,8 @@
             <div class="section-title mb-1">Tổng quan giá suất ăn năm {{ selected_year }}</div>
             <div class="section-subtitle mb-0">
                 Ngày nền xanh là đã có giá. Ngày nền xám là chưa được set giá.
+                Ngày <span style="background:#fef3c7;border:1px solid #f59e0b;padding:0 6px;border-radius:4px;font-weight:700;color:#b45309;">nền vàng</span>
+                là ngày đã thuộc quá khứ nhưng cấu hình giá đã bị sửa sau đó.
             </div>
         </div>
 
@@ -42,7 +44,8 @@
 
             <div class="meal-price-days-grid">
                 {% for day in month.days %}
-                <div class="meal-price-day {% if day.has_price %}has-price{% else %}no-price{% endif %}">
+                <div class="meal-price-day {% if day.has_price %}has-price{% else %}no-price{% endif %} {% if day.is_edited %}edited-past{% endif %}"
+                     {% if day.is_edited %}title="Ngày quá khứ này đã bị sửa sau khi đã trôi qua"{% endif %}>
                     <div class="meal-price-day-number">{{ day.day }}</div>
 
                     {% if day.has_price %}
@@ -237,6 +240,15 @@
 .meal-price-day.no-price {
     background: #f8fafc;
     color: #94a3b8;
+}
+
+/* Ngày quá khứ đã được sửa sau khi đã trôi qua — đánh dấu vàng để dễ rà soát. */
+.meal-price-day.edited-past {
+    background: #fef3c7 !important;
+    border-color: #f59e0b !important;
+}
+.meal-price-day.edited-past .meal-price-day-value {
+    color: #b45309;
 }
 
 .meal-price-day-number {

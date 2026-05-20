@@ -384,6 +384,33 @@ def meal_price_list(request):
             price_map[current] = entry
             current += timedelta(days=1)
 
+    # Tô vàng ngày quá khứ đã bị "sửa hậu kỳ":
+    # với MỖI change log (cả 'create' lẫn 'update'), tính các ngày trong khoảng
+    # mà tại thời điểm log được ghi (`changed_at`) đã thuộc về quá khứ.
+    # Loại được các log set giá cho khoảng tương lai, dù thời gian sau đó trôi qua
+    # (vì ngày đó >= changed_at, không bị mark).
+    today = date.today()
+    edited_past_days = set()
+
+    for log in MealPriceChangeLog.objects.all():
+        if not log.changed_at:
+            continue
+        changed_date = log.changed_at.date()
+
+        ranges = [(log.new_start_date, log.new_end_date)]
+        if log.action == 'update' and log.old_start_date:
+            ranges.append((log.old_start_date, log.old_end_date))
+
+        for s, e in ranges:
+            if s is None:
+                continue
+            range_end = e if e else changed_date
+            d = max(s, year_start)
+            cap = min(range_end, year_end, changed_date - timedelta(days=1))
+            while d <= cap:
+                edited_past_days.add(d)
+                d += timedelta(days=1)
+
     month_overview = []
 
     for month in range(1, 13):
@@ -401,6 +428,7 @@ def meal_price_list(request):
                 'spice_price': entry['spice'] if entry else None,
                 'food_price': entry['food'] if entry else None,
                 'has_price': entry is not None,
+                'is_edited': current_date in edited_past_days,
             })
 
         month_overview.append({
