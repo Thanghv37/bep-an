@@ -160,7 +160,9 @@
                 Biểu đồ chênh lệch Thu - Chi
             </div>
             <div class="section-subtitle mb-0">
-                {% if balance_chart_type == 'daily_in_month' %}
+                {% if balance_chart_type == 'daily_in_week' %}
+                    Chênh lệch từng ngày + 3 đường lũy kế (Thực phẩm, Gia vị, Tổng) cộng dồn từ đầu tuần tới hôm nay
+                {% elif balance_chart_type == 'daily_in_month' %}
                     Chênh lệch từng ngày + 3 đường lũy kế (Thực phẩm, Gia vị, Tổng) cộng dồn từ đầu tháng tới hôm nay
                 {% else %}
                     Lũy kế chênh lệch tổng cộng dồn từng tháng (Thực phẩm + Gia vị), tính tới tháng hiện tại
@@ -172,13 +174,15 @@
               class="report-filter-inline">
             <input type="hidden" name="form_type" value="balance">
             <input type="hidden" name="view_type_state" value="{{ view_type }}">
-            <input type="hidden" name="month_state" value="{{ selected_month }}">
-            <input type="hidden" name="year_state" value="{{ selected_year }}">
-            <input type="hidden" name="selected_date_state" value="{{ selected_date }}">
 
             <div class="filter-field">
                 <label>Loại biểu đồ</label>
-                <select name="balance_chart_type" class="form-select form-select-sm">
+                <select name="balance_chart_type" id="bal-chart-type"
+                        class="form-select form-select-sm"
+                        onchange="toggleBalanceFilters()">
+                    <option value="daily_in_week" {% if balance_chart_type == 'daily_in_week' %}selected{% endif %}>
+                        Theo ngày trong tuần
+                    </option>
                     <option value="daily_in_month" {% if balance_chart_type == 'daily_in_month' %}selected{% endif %}>
                         Theo ngày trong tháng
                     </option>
@@ -188,10 +192,51 @@
                 </select>
             </div>
 
+            <div class="filter-field" id="bal-date-field">
+                <label>Ngày (xác định tuần)</label>
+                <input type="date" name="selected_date_state" value="{{ selected_date }}"
+                       class="form-control form-control-sm">
+            </div>
+
+            <div class="filter-field" id="bal-month-field">
+                <label>Tháng</label>
+                <select name="month_state" class="form-select form-select-sm">
+                    {% for m in month_choices %}
+                        <option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>{{ m }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-field" id="bal-year-field">
+                <label>Năm</label>
+                <select name="year_state" class="form-select form-select-sm">
+                    {% for y in year_choices %}
+                        <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
             <button type="submit" class="btn btn-primary btn-sm filter-btn">
                 <i class="bi bi-funnel-fill"></i> Xem
             </button>
         </form>
+        <script>
+        function toggleBalanceFilters() {
+            const ct = document.getElementById('bal-chart-type');
+            const dateF = document.getElementById('bal-date-field');
+            const monthF = document.getElementById('bal-month-field');
+            const yearF = document.getElementById('bal-year-field');
+            if (!ct) return;
+            const v = ct.value;
+            // daily_in_week: chỉ Ngày (tuần derive từ ngày)
+            // daily_in_month: Tháng + Năm
+            // monthly_in_year: chỉ Năm
+            if (dateF) dateF.style.display = (v === 'daily_in_week') ? '' : 'none';
+            if (monthF) monthF.style.display = (v === 'daily_in_month') ? '' : 'none';
+            if (yearF) yearF.style.display = (v === 'daily_in_week') ? 'none' : '';
+        }
+        document.addEventListener('DOMContentLoaded', toggleBalanceFilters);
+        </script>
     </div>
 
     <div class="chart-wrap chart-wrap-tall">
@@ -519,55 +564,55 @@
     const balanceCanvas = document.getElementById('balanceOnlyChart');
 
     new Chart(balanceCanvas, {
-        type: 'line',
         data: {
             labels: balanceOnlyLabels,
             datasets: [
                 {% if balance_chart_type != 'monthly_in_year' %}
                 {
+                    type: 'bar',
                     label: 'Chênh lệch · Thực phẩm',
                     data: balanceFoodChartData,
-                    borderColor: '#6366f1',
-                    borderWidth: 2,
-                    backgroundColor: '#6366f1',
-                    fill: false,
-                    tension: 0.4,
-                    pointBackgroundColor: '#ffffff',
-                    pointBorderColor: '#6366f1',
-                    pointBorderWidth: 2,
-                    pointRadius: 3.5,
-                    pointHoverRadius: 6
+                    backgroundColor: 'rgba(99, 102, 241, 0.78)',
+                    borderColor: 'rgba(99, 102, 241, 1)',
+                    borderWidth: 1,
+                    borderRadius: 5,
+                    borderSkipped: false,
+                    categoryPercentage: 0.75,
+                    barPercentage: 0.85,
+                    order: 2
                 },
                 {
+                    type: 'bar',
                     label: 'Chênh lệch · Gia vị',
                     data: balanceSpiceChartData,
-                    borderColor: '#10b981',
-                    borderWidth: 2,
-                    backgroundColor: '#10b981',
-                    fill: false,
-                    tension: 0.4,
-                    pointBackgroundColor: '#ffffff',
-                    pointBorderColor: '#10b981',
-                    pointBorderWidth: 2,
-                    pointRadius: 3.5,
-                    pointHoverRadius: 6
+                    backgroundColor: 'rgba(13, 148, 136, 0.78)',
+                    borderColor: 'rgba(13, 148, 136, 1)',
+                    borderWidth: 1,
+                    borderRadius: 5,
+                    borderSkipped: false,
+                    categoryPercentage: 0.75,
+                    barPercentage: 0.85,
+                    order: 2
                 },
                 {
+                    type: 'line',
                     label: 'Lũy kế · Thực phẩm',
                     data: cumulativeFoodChartData,
-                    borderColor: '#7c3aed',
+                    borderColor: '#6366f1',
                     borderWidth: 2.5,
                     borderDash: [6, 4],
-                    backgroundColor: '#7c3aed',
+                    backgroundColor: '#6366f1',
                     fill: false,
                     tension: 0.25,
                     pointBackgroundColor: '#ffffff',
-                    pointBorderColor: '#7c3aed',
+                    pointBorderColor: '#6366f1',
                     pointBorderWidth: 2,
                     pointRadius: 3,
-                    pointHoverRadius: 6
+                    pointHoverRadius: 6,
+                    order: 1
                 },
                 {
+                    type: 'line',
                     label: 'Lũy kế · Gia vị',
                     data: cumulativeSpiceChartData,
                     borderColor: '#0d9488',
@@ -580,10 +625,12 @@
                     pointBorderColor: '#0d9488',
                     pointBorderWidth: 2,
                     pointRadius: 3,
-                    pointHoverRadius: 6
+                    pointHoverRadius: 6,
+                    order: 1
                 },
                 {% endif %}
                 {
+                    type: 'line',
                     label: 'Lũy kế · Tổng',
                     data: cumulativeTotalChartData,
                     borderColor: '#dc2626',
@@ -595,7 +642,8 @@
                     pointBorderColor: '#dc2626',
                     pointBorderWidth: 2,
                     pointRadius: 3.5,
-                    pointHoverRadius: 6.5
+                    pointHoverRadius: 6.5,
+                    order: 0
                 }
             ]
         },

@@ -253,6 +253,29 @@ def report_dashboard(request):
             balance_chart_labels.append(f'T{month}')
             balance_food_chart_values.append(month_balance_food if has_any else None)
             balance_spice_chart_values.append(month_balance_spice if has_any else None)
+    elif balance_chart_type == 'daily_in_week':
+        # X-axis = 5 ngày làm việc T2 → T6 của tuần chứa selected_date (bỏ T7 & CN).
+        week_start = selected_date - timedelta(days=selected_date.weekday())
+        week_end = week_start + timedelta(days=4)
+        week_food_map, week_spice_map = build_purchase_split_map(week_start, week_end)
+
+        d = week_start
+        while d <= week_end:
+            cnt = get_registered_count(d)
+            bd = get_price_breakdown_for_date(d)
+            day_food_cost = week_food_map.get(d, 0)
+            day_spice_cost = week_spice_map.get(d, 0)
+
+            if bd:
+                bf = cnt * bd['food'] - day_food_cost
+                bs = cnt * bd['spice'] - day_spice_cost
+            else:
+                bf = bs = None
+
+            balance_chart_labels.append(d.strftime('%d/%m'))
+            balance_food_chart_values.append(bf)
+            balance_spice_chart_values.append(bs)
+            d += timedelta(days=1)
     else:
         month_start = date(selected_year, selected_month, 1)
         month_end = date(selected_year, selected_month, monthrange(selected_year, selected_month)[1])
@@ -301,6 +324,16 @@ def report_dashboard(request):
             mask_from = 12
         else:
             mask_from = today.month
+    elif balance_chart_type == 'daily_in_week':
+        # X-axis = 5 ngày làm việc T2..T6. Mask các ngày > today.
+        week_start = selected_date - timedelta(days=selected_date.weekday())
+        if week_start > today:
+            mask_from = 0
+        elif week_start + timedelta(days=4) < today:
+            mask_from = 5
+        else:
+            # today nằm trong khoảng T2..T6 (hoặc cuối tuần — clamp về 5).
+            mask_from = min((today - week_start).days + 1, 5)
     else:
         # daily_in_month — X-axis = các ngày trong selected_month/selected_year.
         if selected_year > today.year or (selected_year == today.year and selected_month > today.month):
