@@ -6,24 +6,47 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import render
 from django.db.models import Sum
 from finance.models import DailyPurchase
-from core.views import get_registered_count, get_meal_price_for_date
+from core.views import (
+    get_registered_count,
+    get_price_breakdown_for_date,
+)
 from accounts.permissions import can_view_report, can_export_report
 def staff_required(user):
     return user.is_staff or user.is_superuser
 
 
-def build_purchase_map(start_date, end_date):
+def build_purchase_split_map(start_date, end_date):
+    """Trả về (food_map, spice_map): chi phí theo ngày, tách theo phân loại hóa đơn
+    (main → thực phẩm, extra → gia vị)."""
     rows = DailyPurchase.objects.filter(
         date__range=(start_date, end_date),
         status=DailyPurchase.STATUS_APPROVED
-    ).values('date').annotate(
+    ).values('date', 'purchase_type').annotate(
         total_cost=Sum('actual_cost')
     )
 
-    return {
-        row['date']: int(row['total_cost'] or 0)
-        for row in rows
-    }
+    food_map = {}
+    spice_map = {}
+
+    for row in rows:
+        cost = int(row['total_cost'] or 0)
+        if row['purchase_type'] == DailyPurchase.PURCHASE_TYPE_EXTRA:
+            spice_map[row['date']] = spice_map.get(row['date'], 0) + cost
+        else:
+            food_map[row['date']] = food_map.get(row['date'], 0) + cost
+
+    return food_map, spice_map
+
+
+def build_purchase_map(start_date, end_date):
+    """Tổng chi phí theo ngày (gộp cả 2 phân loại). Giữ để các hàm cũ dùng."""
+    food_map, spice_map = build_purchase_split_map(start_date, end_date)
+    combined = {}
+    for d, v in food_map.items():
+        combined[d] = combined.get(d, 0) + v
+    for d, v in spice_map.items():
+        combined[d] = combined.get(d, 0) + v
+    return combined
 
 
 @login_required
@@ -98,7 +121,7 @@ def report_dashboard(request):
         end_day = monthrange(selected_year, selected_month)[1]
         end_date = date(selected_year, selected_month, end_day)
 
-    purchase_map = build_purchase_map(start_date, end_date)
+    purchase_food_map, purchase_spice_map = build_purchase_split_map(start_date, end_date)
     purchase_detail_map = {}
 
     all_purchases = DailyPurchase.objects.filter(
@@ -111,118 +134,188 @@ def report_dashboard(request):
 
     daily_rows = []
     chart_labels = []
-    income_data = []
-    expense_data = []
-    balance_data = []
+    income_food_data = []
+    income_spice_data = []
+    expense_food_data = []
+    expense_spice_data = []
+    balance_food_data = []
+    balance_spice_data = []
 
-    total_income = 0
-    total_expense = 0
-    total_balance = 0
+    total_income_food = 0
+    total_income_spice = 0
+    total_expense_food = 0
+    total_expense_spice = 0
+    total_balance_food = 0
+    total_balance_spice = 0
 
     current_date = start_date
     while current_date <= end_date:
         registered_count = get_registered_count(current_date)
-        meal_price = get_meal_price_for_date(current_date)
-        actual_cost = purchase_map.get(current_date)
+        breakdown = get_price_breakdown_for_date(current_date)
+        food_cost = purchase_food_map.get(current_date, 0)
+        spice_cost = purchase_spice_map.get(current_date, 0)
 
-        if registered_count is not None and meal_price is not None:
-            income = registered_count * meal_price
+        if breakdown:
+            meal_price = breakdown['meal']
+            food_price = breakdown['food']
+            spice_price = breakdown['spice']
+            income_food = registered_count * food_price
+            income_spice = registered_count * spice_price
+            income = income_food + income_spice
+            balance_food = income_food - food_cost
+            balance_spice = income_spice - spice_cost
         else:
-            income = None
+            meal_price = food_price = spice_price = None
+            income_food = income_spice = income = None
+            balance_food = balance_spice = None
 
-        expense = actual_cost if actual_cost is not None else None
-
-        if income is not None and expense is not None:
-            balance = income - expense
-        else:
-            balance = None
+        expense = food_cost + spice_cost
+        balance = (income - expense) if income is not None else None
 
         row = {
             'date': current_date,
             'registered_count': registered_count,
             'meal_price': meal_price,
+            'food_price': food_price,
+            'spice_price': spice_price,
             'income': income,
+            'income_food': income_food,
+            'income_spice': income_spice,
             'expense': expense,
+            'expense_food': food_cost,
+            'expense_spice': spice_cost,
             'balance': balance,
+            'balance_food': balance_food,
+            'balance_spice': balance_spice,
             'purchase_list': purchase_detail_map.get(current_date, []),
         }
         daily_rows.append(row)
 
         chart_labels.append(current_date.strftime('%d/%m'))
-        income_data.append(income)
-        expense_data.append(expense)
-        balance_data.append(balance)
+        income_food_data.append(income_food)
+        income_spice_data.append(income_spice)
+        expense_food_data.append(food_cost)
+        expense_spice_data.append(spice_cost)
+        balance_food_data.append(balance_food)
+        balance_spice_data.append(balance_spice)
 
-        if income is not None:
-            total_income += income
+        if income_food is not None:
+            total_income_food += income_food
+            total_income_spice += income_spice
 
-        if expense is not None:
-            total_expense += expense
+        total_expense_food += food_cost
+        total_expense_spice += spice_cost
 
-        if balance is not None:
-            total_balance += balance
+        if balance_food is not None:
+            total_balance_food += balance_food
+            total_balance_spice += balance_spice
 
         current_date += timedelta(days=1)
 
+    total_income = total_income_food + total_income_spice
+    total_expense = total_expense_food + total_expense_spice
+    total_balance = total_balance_food + total_balance_spice
+
     # =========================
-    # BIỂU ĐỒ CHÊNH LỆCH RIÊNG
+    # BIỂU ĐỒ CHÊNH LỆCH RIÊNG — tách theo Thực phẩm & Gia vị
     # =========================
     balance_chart_labels = []
-    balance_chart_values = []
+    balance_food_chart_values = []
+    balance_spice_chart_values = []
 
     if balance_chart_type == 'monthly_in_year':
         year_start = date(selected_year, 1, 1)
         year_end = date(selected_year, 12, 31)
-        year_purchase_map = build_purchase_map(year_start, year_end)
+        year_food_map, year_spice_map = build_purchase_split_map(year_start, year_end)
 
         for month in range(1, 13):
             month_start = date(selected_year, month, 1)
             month_end = date(selected_year, month, monthrange(selected_year, month)[1])
 
-            month_balance = 0
+            month_balance_food = 0
+            month_balance_spice = 0
+            has_any = False
+
             d = month_start
             while d <= month_end:
-                registered_count = get_registered_count(d)
-                meal_price = get_meal_price_for_date(d)
-                actual_cost = year_purchase_map.get(d)
+                cnt = get_registered_count(d)
+                bd = get_price_breakdown_for_date(d)
+                day_food_cost = year_food_map.get(d, 0)
+                day_spice_cost = year_spice_map.get(d, 0)
 
-                if registered_count is not None and meal_price is not None:
-                    income = registered_count * meal_price
-                else:
-                    income = None
-
-                if income is not None and actual_cost is not None:
-                    day_balance = income - actual_cost
-                    month_balance += day_balance
+                if bd:
+                    month_balance_food += cnt * bd['food'] - day_food_cost
+                    month_balance_spice += cnt * bd['spice'] - day_spice_cost
+                    has_any = True
 
                 d += timedelta(days=1)
 
             balance_chart_labels.append(f'T{month}')
-            balance_chart_values.append(month_balance)
+            balance_food_chart_values.append(month_balance_food if has_any else None)
+            balance_spice_chart_values.append(month_balance_spice if has_any else None)
     else:
         month_start = date(selected_year, selected_month, 1)
         month_end = date(selected_year, selected_month, monthrange(selected_year, selected_month)[1])
-        month_purchase_map = build_purchase_map(month_start, month_end)
+        month_food_map, month_spice_map = build_purchase_split_map(month_start, month_end)
 
         d = month_start
         while d <= month_end:
-            registered_count = get_registered_count(d)
-            meal_price = get_meal_price_for_date(d)
-            actual_cost = month_purchase_map.get(d)
+            cnt = get_registered_count(d)
+            bd = get_price_breakdown_for_date(d)
+            day_food_cost = month_food_map.get(d, 0)
+            day_spice_cost = month_spice_map.get(d, 0)
 
-            if registered_count is not None and meal_price is not None:
-                income = registered_count * meal_price
+            if bd:
+                bf = cnt * bd['food'] - day_food_cost
+                bs = cnt * bd['spice'] - day_spice_cost
             else:
-                income = None
-
-            if income is not None and actual_cost is not None:
-                balance = income - actual_cost
-            else:
-                balance = None
+                bf = bs = None
 
             balance_chart_labels.append(d.strftime('%d/%m'))
-            balance_chart_values.append(balance)
+            balance_food_chart_values.append(bf)
+            balance_spice_chart_values.append(bs)
             d += timedelta(days=1)
+
+    # Lũy kế chênh lệch (cộng dồn từ đầu kỳ tới điểm hiện tại).
+    # None coi như 0 — không break đường lũy kế khi vài ngày chưa cấu hình giá.
+    cumulative_food_chart_values = []
+    cumulative_spice_chart_values = []
+    cumulative_total_chart_values = []
+    acc_food = 0
+    acc_spice = 0
+    for bf, bs in zip(balance_food_chart_values, balance_spice_chart_values):
+        if bf is not None:
+            acc_food += bf
+        if bs is not None:
+            acc_spice += bs
+        cumulative_food_chart_values.append(acc_food)
+        cumulative_spice_chart_values.append(acc_spice)
+        cumulative_total_chart_values.append(acc_food + acc_spice)
+
+    # Che các điểm tương lai (chưa tới) — tránh hiển thị 0 vô nghĩa.
+    if balance_chart_type == 'monthly_in_year':
+        # X-axis = 12 tháng; index 0=T1 ... index 11=T12. Giữ index < today.month nếu selected_year == today.year.
+        if selected_year > today.year:
+            mask_from = 0
+        elif selected_year < today.year:
+            mask_from = 12
+        else:
+            mask_from = today.month
+    else:
+        # daily_in_month — X-axis = các ngày trong selected_month/selected_year.
+        if selected_year > today.year or (selected_year == today.year and selected_month > today.month):
+            mask_from = 0
+        elif selected_year < today.year or (selected_year == today.year and selected_month < today.month):
+            mask_from = len(balance_chart_labels)
+        else:
+            mask_from = today.day
+
+    for i in range(mask_from, len(balance_chart_labels)):
+        balance_food_chart_values[i] = None
+        balance_spice_chart_values[i] = None
+        cumulative_food_chart_values[i] = None
+        cumulative_spice_chart_values[i] = None
+        cumulative_total_chart_values[i] = None
 
     month_choices = list(range(1, 13))
     year_choices = list(range(today.year - 2, today.year + 3))
@@ -238,14 +331,27 @@ def report_dashboard(request):
         'year_choices': year_choices,
         'daily_rows': daily_rows,
         'total_income': total_income,
+        'total_income_food': total_income_food,
+        'total_income_spice': total_income_spice,
         'total_expense': total_expense,
+        'total_expense_food': total_expense_food,
+        'total_expense_spice': total_expense_spice,
         'total_balance': total_balance,
+        'total_balance_food': total_balance_food,
+        'total_balance_spice': total_balance_spice,
         'chart_labels': chart_labels,
-        'income_data': income_data,
-        'expense_data': expense_data,
-        'balance_data': balance_data,
+        'income_food_data': income_food_data,
+        'income_spice_data': income_spice_data,
+        'expense_food_data': expense_food_data,
+        'expense_spice_data': expense_spice_data,
+        'balance_food_data': balance_food_data,
+        'balance_spice_data': balance_spice_data,
         'balance_chart_labels': balance_chart_labels,
-        'balance_chart_values': balance_chart_values,
+        'balance_food_chart_values': balance_food_chart_values,
+        'balance_spice_chart_values': balance_spice_chart_values,
+        'cumulative_food_chart_values': cumulative_food_chart_values,
+        'cumulative_spice_chart_values': cumulative_spice_chart_values,
+        'cumulative_total_chart_values': cumulative_total_chart_values,
         'start_date': start_date,
         'end_date': end_date,
         'can_export_report': can_export_report(request.user),
@@ -349,111 +455,196 @@ def export_revenue_report(request):
     ws.title = "Thu - Chi"
 
     title_text = f"BÁO CÁO THU – CHI  ({start_date.strftime('%d/%m/%Y')} – {end_date.strftime('%d/%m/%Y')})"
-    ws.merge_cells("A1:F1")
-    t = ws["A1"]
-    t.value = title_text
-    t.font = Font(bold=True, size=13, color="1E40AF")
-    t.alignment = CENTER
-    ws.row_dimensions[1].height = 28
 
     if period == "year":
-        # Xuất theo tháng
-        cols = ["Tháng", "Tổng người ĐK", "Tổng thu (VNĐ)", "Tổng chi (VNĐ)", "Chênh lệch (VNĐ)"]
-        _header_row(ws, cols, row=2)
-        ws.row_dimensions[2].height = 20
+        # Xuất theo tháng: 8 cột tách Thực phẩm / Gia vị
+        ws.merge_cells("A1:H1")
+        t = ws["A1"]
+        t.value = title_text
+        t.font = Font(bold=True, size=13, color="1E40AF")
+        t.alignment = CENTER
+        ws.row_dimensions[1].height = 28
 
-        grand_income = grand_expense = grand_balance = 0
+        cols = [
+            "Tháng", "Tổng suất ĐK",
+            "Thu Thực phẩm (VNĐ)", "Thu Gia vị (VNĐ)",
+            "Chi Thực phẩm (VNĐ)", "Chi Gia vị (VNĐ)",
+            "Chênh Thực phẩm (VNĐ)", "Chênh Gia vị (VNĐ)",
+        ]
+        _header_row(ws, cols, row=2)
+        ws.row_dimensions[2].height = 32
+
+        grand_in_food = grand_in_spice = 0
+        grand_ex_food = grand_ex_spice = 0
+        grand_bal_food = grand_bal_spice = 0
         row_idx = 3
+
         for m in range(1, 13):
             ms = date(sel_year, m, 1)
             me = date(sel_year, m, monthrange(sel_year, m)[1])
-            m_income = m_expense = m_people = 0
+
+            m_in_food = m_in_spice = 0
+            m_bal_food = m_bal_spice = 0
+            m_people = 0
+
+            food_map_m, spice_map_m = build_purchase_split_map(ms, me)
+
             d = ms
             while d <= me:
                 cnt = get_registered_count(d)
-                price = get_meal_price_for_date(d)
-                if cnt and price:
-                    m_income += cnt * price
+                bd = get_price_breakdown_for_date(d)
+                day_fc = food_map_m.get(d, 0)
+                day_sc = spice_map_m.get(d, 0)
+
+                if bd and cnt:
+                    m_in_food += cnt * bd['food']
+                    m_in_spice += cnt * bd['spice']
+                    m_bal_food += cnt * bd['food'] - day_fc
+                    m_bal_spice += cnt * bd['spice'] - day_sc
                     m_people += cnt
+
                 d += timedelta(days=1)
 
-            cost_agg = DailyPurchase.objects.filter(
-                date__range=(ms, me), status=DailyPurchase.STATUS_APPROVED
-            ).aggregate(s=Sum('actual_cost'))['s'] or 0
-            m_expense = int(cost_agg)
-            m_balance = m_income - m_expense
+            m_ex_food = sum(food_map_m.values())
+            m_ex_spice = sum(spice_map_m.values())
 
-            grand_income  += m_income
-            grand_expense += m_expense
-            grand_balance += m_balance
+            grand_in_food += m_in_food
+            grand_in_spice += m_in_spice
+            grand_ex_food += m_ex_food
+            grand_ex_spice += m_ex_spice
+            grand_bal_food += m_bal_food
+            grand_bal_spice += m_bal_spice
 
-            row_data = [f"Tháng {m}/{sel_year}", m_people, _fmt_vnd(m_income), _fmt_vnd(m_expense), _fmt_vnd(m_balance)]
+            row_data = [
+                f"Tháng {m}/{sel_year}", m_people,
+                _fmt_vnd(m_in_food), _fmt_vnd(m_in_spice),
+                _fmt_vnd(m_ex_food), _fmt_vnd(m_ex_spice),
+                _fmt_vnd(m_bal_food), _fmt_vnd(m_bal_spice),
+            ]
             for c, v in enumerate(row_data, 1):
                 cell = ws.cell(row=row_idx, column=c, value=v)
                 cell.border = BORDER
                 cell.alignment = CENTER if c != 1 else Alignment(horizontal="left", vertical="center")
-                if m_balance < 0:
+                if c == 7 and m_bal_food < 0:
+                    cell.font = Font(color="DC2626")
+                if c == 8 and m_bal_spice < 0:
                     cell.font = Font(color="DC2626")
             row_idx += 1
 
-        # Dòng tổng kết
-        for c, v in enumerate(["TỔNG KẾT", "", _fmt_vnd(grand_income), _fmt_vnd(grand_expense), _fmt_vnd(grand_balance)], 1):
+        for c, v in enumerate([
+            "TỔNG KẾT", "",
+            _fmt_vnd(grand_in_food), _fmt_vnd(grand_in_spice),
+            _fmt_vnd(grand_ex_food), _fmt_vnd(grand_ex_spice),
+            _fmt_vnd(grand_bal_food), _fmt_vnd(grand_bal_spice),
+        ], 1):
             cell = ws.cell(row=row_idx, column=c, value=v)
             cell.fill = TOTAL_FILL
             cell.font = TOTAL_FONT
             cell.border = BORDER
             cell.alignment = CENTER
 
+        # Ô cuối: tổng chênh lệch = Chênh TP + Chênh GV (đặt sau cột Chênh GV)
+        total_diff = grand_bal_food + grand_bal_spice
+        sum_cell = ws.cell(row=row_idx, column=9, value=f"Tổng chênh lệch: {_fmt_vnd(total_diff)}")
+        sum_cell.fill = PatternFill("solid", fgColor="1E40AF")
+        sum_cell.font = Font(bold=True, size=11, color="FFFFFF")
+        sum_cell.border = BORDER
+        sum_cell.alignment = CENTER
+
     else:
-        # Xuất theo ngày (tuần/tháng)
-        cols = ["Ngày", "Thứ", "Số người ĐK", "Giá suất (VNĐ)", "Thu (VNĐ)", "Chi (VNĐ)", "Chênh lệch (VNĐ)"]
+        # Xuất theo ngày (tuần/tháng): 11 cột tách Thực phẩm / Gia vị
+        ws.merge_cells("A1:K1")
+        t = ws["A1"]
+        t.value = title_text
+        t.font = Font(bold=True, size=13, color="1E40AF")
+        t.alignment = CENTER
+        ws.row_dimensions[1].height = 28
+
+        cols = [
+            "Ngày", "Thứ", "Số người ĐK",
+            "Giá TP (VNĐ)", "Giá GV (VNĐ)",
+            "Thu TP (VNĐ)", "Thu GV (VNĐ)",
+            "Chi TP (VNĐ)", "Chi GV (VNĐ)",
+            "Chênh TP (VNĐ)", "Chênh GV (VNĐ)",
+        ]
         _header_row(ws, cols, row=2)
-        ws.row_dimensions[2].height = 20
+        ws.row_dimensions[2].height = 32
 
         WEEKDAYS = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"]
-        grand_income = grand_expense = grand_balance = 0
+        food_map_p, spice_map_p = build_purchase_split_map(start_date, end_date)
+
+        grand_in_food = grand_in_spice = 0
+        grand_ex_food = grand_ex_spice = 0
+        grand_bal_food = grand_bal_spice = 0
         row_idx = 3
         d = start_date
         while d <= end_date:
-            cnt   = get_registered_count(d)
-            price = get_meal_price_for_date(d)
-            cost_agg = DailyPurchase.objects.filter(
-                date=d, status=DailyPurchase.STATUS_APPROVED
-            ).aggregate(s=Sum('actual_cost'))['s']
-            cost = int(cost_agg or 0) if cost_agg else None
+            cnt = get_registered_count(d)
+            bd = get_price_breakdown_for_date(d)
+            food_cost = food_map_p.get(d, 0)
+            spice_cost = spice_map_p.get(d, 0)
 
-            income  = (cnt * price) if (cnt and price) else None
-            balance = (income - cost) if (income is not None and cost is not None) else None
+            if bd:
+                food_price = bd['food']
+                spice_price = bd['spice']
+                in_food = cnt * food_price
+                in_spice = cnt * spice_price
+                bal_food = in_food - food_cost
+                bal_spice = in_spice - spice_cost
+            else:
+                food_price = spice_price = None
+                in_food = in_spice = None
+                bal_food = bal_spice = None
 
-            if income:  grand_income  += income
-            if cost:    grand_expense += cost
-            if balance: grand_balance += balance
+            if in_food is not None:
+                grand_in_food += in_food
+                grand_in_spice += in_spice
+            grand_ex_food += food_cost
+            grand_ex_spice += spice_cost
+            if bal_food is not None:
+                grand_bal_food += bal_food
+                grand_bal_spice += bal_spice
 
             row_data = [
                 d.strftime("%d/%m/%Y"),
                 WEEKDAYS[d.weekday()],
                 cnt or "",
-                _fmt_vnd(price),
-                _fmt_vnd(income),
-                _fmt_vnd(cost),
-                _fmt_vnd(balance),
+                _fmt_vnd(food_price), _fmt_vnd(spice_price),
+                _fmt_vnd(in_food), _fmt_vnd(in_spice),
+                _fmt_vnd(food_cost), _fmt_vnd(spice_cost),
+                _fmt_vnd(bal_food), _fmt_vnd(bal_spice),
             ]
             for c, v in enumerate(row_data, 1):
                 cell = ws.cell(row=row_idx, column=c, value=v)
                 cell.border = BORDER
                 cell.alignment = CENTER if c > 1 else Alignment(horizontal="left", vertical="center")
-                if balance is not None and balance < 0:
+                if c == 10 and bal_food is not None and bal_food < 0:
+                    cell.font = Font(color="DC2626")
+                if c == 11 and bal_spice is not None and bal_spice < 0:
                     cell.font = Font(color="DC2626")
             row_idx += 1
             d += timedelta(days=1)
 
-        # Tổng kết
-        for c, v in enumerate(["TỔNG KẾT", "", "", "", _fmt_vnd(grand_income), _fmt_vnd(grand_expense), _fmt_vnd(grand_balance)], 1):
+        for c, v in enumerate([
+            "TỔNG KẾT", "", "",
+            "", "",
+            _fmt_vnd(grand_in_food), _fmt_vnd(grand_in_spice),
+            _fmt_vnd(grand_ex_food), _fmt_vnd(grand_ex_spice),
+            _fmt_vnd(grand_bal_food), _fmt_vnd(grand_bal_spice),
+        ], 1):
             cell = ws.cell(row=row_idx, column=c, value=v)
             cell.fill = TOTAL_FILL
             cell.font = TOTAL_FONT
             cell.border = BORDER
             cell.alignment = CENTER
+
+        # Ô cuối: tổng chênh lệch = Chênh TP + Chênh GV (đặt sau cột Chênh GV)
+        total_diff = grand_bal_food + grand_bal_spice
+        sum_cell = ws.cell(row=row_idx, column=12, value=f"Tổng chênh lệch: {_fmt_vnd(total_diff)}")
+        sum_cell.fill = PatternFill("solid", fgColor="1E40AF")
+        sum_cell.font = Font(bold=True, size=11, color="FFFFFF")
+        sum_cell.border = BORDER
+        sum_cell.alignment = CENTER
 
     _auto_width(ws)
     buf = io.BytesIO()
@@ -539,47 +730,94 @@ def export_cost_report(request):
             cell.alignment = CENTER
 
     else:
-        # Tháng/Năm: tổng hợp
+        # Tháng/Năm: tổng hợp, tách theo Thực phẩm / Gia vị
+        def _agg_by_type(start, end):
+            """Trả về (cnt_tp, total_tp, cnt_gv, total_gv) trong khoảng [start, end]."""
+            rows = DailyPurchase.objects.filter(
+                date__range=(start, end), status=DailyPurchase.STATUS_APPROVED
+            ).values('purchase_type').annotate(total=Sum('actual_cost'), cnt=Count('id'))
+            cnt_tp = cnt_gv = 0
+            tot_tp = tot_gv = 0
+            for r in rows:
+                if r['purchase_type'] == DailyPurchase.PURCHASE_TYPE_EXTRA:
+                    cnt_gv += r['cnt'] or 0
+                    tot_gv += int(r['total'] or 0)
+                else:
+                    cnt_tp += r['cnt'] or 0
+                    tot_tp += int(r['total'] or 0)
+            return cnt_tp, tot_tp, cnt_gv, tot_gv
+
         if period == "year":
-            cols = ["Tháng", "Số phiếu chi", "Tổng chi phí (VNĐ)"]
+            cols = [
+                "Tháng",
+                "TP - Số phiếu", "TP - Tổng chi (VNĐ)",
+                "GV - Số phiếu", "GV - Tổng chi (VNĐ)",
+                "Tổng phiếu", "Tổng chi (VNĐ)",
+            ]
             _header_row(ws, cols, row=2)
+            ws.row_dimensions[2].height = 32
             row_idx = 3
-            grand = 0
+            g_cnt_tp = g_tot_tp = g_cnt_gv = g_tot_gv = 0
             for m in range(1, 13):
                 ms = date(sel_year, m, 1)
                 me = date(sel_year, m, monthrange(sel_year, m)[1])
-                agg = DailyPurchase.objects.filter(date__range=(ms, me), status=DailyPurchase.STATUS_APPROVED).aggregate(
-                    total=Sum('actual_cost'), cnt=Count('id'))
-                total = int(agg['total'] or 0)
-                cnt   = agg['cnt'] or 0
-                grand += total
-                for c, v in enumerate([f"Tháng {m}/{sel_year}", cnt, _fmt_vnd(total)], 1):
+                cnt_tp, tot_tp, cnt_gv, tot_gv = _agg_by_type(ms, me)
+                g_cnt_tp += cnt_tp; g_tot_tp += tot_tp
+                g_cnt_gv += cnt_gv; g_tot_gv += tot_gv
+                row_data = [
+                    f"Tháng {m}/{sel_year}",
+                    cnt_tp, _fmt_vnd(tot_tp),
+                    cnt_gv, _fmt_vnd(tot_gv),
+                    cnt_tp + cnt_gv, _fmt_vnd(tot_tp + tot_gv),
+                ]
+                for c, v in enumerate(row_data, 1):
                     cell = ws.cell(row=row_idx, column=c, value=v)
                     cell.border = BORDER
                     cell.alignment = CENTER
                 row_idx += 1
-            for c, v in enumerate(["TỔNG KẾT", "", _fmt_vnd(grand)], 1):
+            for c, v in enumerate([
+                "TỔNG KẾT",
+                g_cnt_tp, _fmt_vnd(g_tot_tp),
+                g_cnt_gv, _fmt_vnd(g_tot_gv),
+                g_cnt_tp + g_cnt_gv, _fmt_vnd(g_tot_tp + g_tot_gv),
+            ], 1):
                 cell = ws.cell(row=row_idx, column=c, value=v)
                 cell.fill = TOTAL_FILL; cell.font = TOTAL_FONT; cell.border = BORDER; cell.alignment = CENTER
         else:
             # month
-            cols = ["Ngày", "Loại mua", "Số phiếu", "Tổng chi (VNĐ)"]
+            cols = [
+                "Ngày",
+                "TP - Số phiếu", "TP - Tổng chi (VNĐ)",
+                "GV - Số phiếu", "GV - Tổng chi (VNĐ)",
+                "Tổng chi (VNĐ)",
+            ]
             _header_row(ws, cols, row=2)
+            ws.row_dimensions[2].height = 32
             row_idx = 3
-            grand = 0
+            g_cnt_tp = g_tot_tp = g_cnt_gv = g_tot_gv = 0
             d = start_date
             while d <= end_date:
-                agg = DailyPurchase.objects.filter(date=d, status=DailyPurchase.STATUS_APPROVED).aggregate(
-                    total=Sum('actual_cost'), cnt=Count('id'))
-                if agg['cnt']:
-                    total = int(agg['total'] or 0)
-                    grand += total
-                    for c, v in enumerate([d.strftime("%d/%m/%Y"), "Tất cả", agg['cnt'], _fmt_vnd(total)], 1):
+                cnt_tp, tot_tp, cnt_gv, tot_gv = _agg_by_type(d, d)
+                if cnt_tp or cnt_gv:
+                    g_cnt_tp += cnt_tp; g_tot_tp += tot_tp
+                    g_cnt_gv += cnt_gv; g_tot_gv += tot_gv
+                    row_data = [
+                        d.strftime("%d/%m/%Y"),
+                        cnt_tp, _fmt_vnd(tot_tp),
+                        cnt_gv, _fmt_vnd(tot_gv),
+                        _fmt_vnd(tot_tp + tot_gv),
+                    ]
+                    for c, v in enumerate(row_data, 1):
                         cell = ws.cell(row=row_idx, column=c, value=v)
                         cell.border = BORDER; cell.alignment = CENTER
                     row_idx += 1
                 d += timedelta(days=1)
-            for c, v in enumerate(["TỔNG KẾT", "", "", _fmt_vnd(grand)], 1):
+            for c, v in enumerate([
+                "TỔNG KẾT",
+                g_cnt_tp, _fmt_vnd(g_tot_tp),
+                g_cnt_gv, _fmt_vnd(g_tot_gv),
+                _fmt_vnd(g_tot_tp + g_tot_gv),
+            ], 1):
                 cell = ws.cell(row=row_idx, column=c, value=v)
                 cell.fill = TOTAL_FILL; cell.font = TOTAL_FONT; cell.border = BORDER; cell.alignment = CENTER
 

@@ -8,7 +8,7 @@
 
 
 <div class="row g-3 mb-3 kpi-row">
-    <div class="col-12 col-md-6 col-lg-3">
+    <div class="col-12 col-md-6 col-lg-2">
         <div class="kpi-card kpi-people">
             <div class="kpi-icon">👥</div>
             <div class="kpi-body">
@@ -25,59 +25,105 @@
         </div>
     </div>
 
-    <div class="col-12 col-md-6 col-lg-3">
-        <div class="kpi-card kpi-income">
-            <div class="kpi-icon">💰</div>
-            <div class="kpi-body">
+    <div class="col-12 col-md-6 col-lg">
+        <div class="kpi-card kpi-income kpi-card-split">
+            <div class="kpi-icon-col">
                 <div class="kpi-label">Thu</div>
-                <div class="kpi-value">
-                    {% if total_income != None %}
-                        {{ total_income|vnd }}<span class="kpi-unit">đ</span>
-                    {% else %}
-                        <span class="kpi-empty">Chưa có dữ liệu</span>
-                    {% endif %}
+                <div class="kpi-icon">💰</div>
+            </div>
+            <div class="kpi-split">
+                <div class="kpi-split-row">
+                    <div class="kpi-split-head">🍖 Thực phẩm</div>
+                    <div class="kpi-split-val kpi-val-income">
+                        {% if income_food != None %}
+                            {{ income_food|vnd }}<span class="kpi-unit">đ</span>
+                        {% else %}
+                            <span class="kpi-empty">Chưa có giá</span>
+                        {% endif %}
+                    </div>
+                    <div class="kpi-split-note">
+                        {% if income_food != None %}
+                            {{ registered_count }} người × {{ food_price|vnd }}
+                        {% else %}
+                            Chưa cấu hình giá
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="kpi-meta">
-                    {% if registered_count != None and meal_price != None %}
-                        {{ registered_count }} × {{ meal_price|vnd }}
-                    {% else %}
-                        Chưa có dữ liệu
-                    {% endif %}
+                <div class="kpi-split-row">
+                    <div class="kpi-split-head">🧂 Gia vị</div>
+                    <div class="kpi-split-val kpi-val-income">
+                        {% if income_spice != None %}
+                            {{ income_spice|vnd }}<span class="kpi-unit">đ</span>
+                        {% else %}
+                            <span class="kpi-empty">Chưa có giá</span>
+                        {% endif %}
+                    </div>
+                    <div class="kpi-split-note">
+                        {% if income_spice != None %}
+                            {{ registered_count }} người × {{ spice_price|vnd }}
+                        {% else %}
+                            Chưa cấu hình giá
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="col-12 col-md-6 col-lg-3">
-        <div class="kpi-card kpi-expense kpi-clickable" onclick="toggleExpenseDetail()">
-            <div class="kpi-icon">🧾</div>
-            <div class="kpi-body">
+    <div class="col-12 col-md-6 col-lg">
+        <div class="kpi-card kpi-expense kpi-card-split kpi-clickable" onclick="toggleExpenseDetail()">
+            <div class="kpi-icon-col">
                 <div class="kpi-label">Chi <i class="bi bi-chevron-down kpi-label-icon"></i></div>
-                <div class="kpi-value">
-                    {% if total_expense != None %}
-                        {{ total_expense|vnd }}<span class="kpi-unit">đ</span>
-                    {% else %}
-                        <span class="kpi-empty">Chưa có dữ liệu</span>
-                    {% endif %}
+                <div class="kpi-icon">🧾</div>
+            </div>
+            <div class="kpi-split">
+                <div class="kpi-split-row">
+                    <div class="kpi-split-head">🍖 Thực phẩm</div>
+                    <div class="kpi-split-val kpi-val-expense">
+                        {{ expense_food|vnd }}<span class="kpi-unit">đ</span>
+                    </div>
+                    <div class="kpi-split-note">Hóa đơn mua thực phẩm</div>
                 </div>
-                <div class="kpi-meta">Chi phí thực tế · bấm để xem chi tiết</div>
+                <div class="kpi-split-row">
+                    <div class="kpi-split-head">🧂 Gia vị</div>
+                    <div class="kpi-split-val kpi-val-expense">
+                        {{ expense_spice|vnd }}<span class="kpi-unit">đ</span>
+                    </div>
+                    <div class="kpi-split-note">Hóa đơn mua gia vị</div>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="col-12 col-md-6 col-lg-3">
-        <div class="kpi-card {% if balance != None %}{% if balance >= 0 %}kpi-positive{% else %}kpi-negative{% endif %}{% else %}kpi-people{% endif %}">
-            <div class="kpi-icon">{% if balance != None and balance < 0 %}⚠️{% else %}📊{% endif %}</div>
-            <div class="kpi-body">
+    <div class="col-12 col-md-6 col-lg">
+        <div class="kpi-card kpi-card-split {% if balance != None %}{% if balance >= 0 %}kpi-positive{% else %}kpi-negative{% endif %}{% else %}kpi-people{% endif %}">
+            <div class="kpi-icon-col">
                 <div class="kpi-label">Chênh lệch</div>
-                <div class="kpi-value">
-                    {% if balance != None %}
-                        {{ balance|vnd }}<span class="kpi-unit">đ</span>
-                    {% else %}
-                        <span class="kpi-empty">Chưa có dữ liệu</span>
-                    {% endif %}
+                <div class="kpi-icon">{% if balance != None and balance < 0 %}⚠️{% else %}📊{% endif %}</div>
+            </div>
+            <div class="kpi-split">
+                <div class="kpi-split-row">
+                    <div class="kpi-split-head">🍖 Thực phẩm</div>
+                    <div class="kpi-split-val {% if balance_food != None %}{% if balance_food >= 0 %}kpi-val-pos{% else %}kpi-val-neg{% endif %}{% endif %}">
+                        {% if balance_food != None %}
+                            {{ balance_food|vnd }}<span class="kpi-unit">đ</span>
+                        {% else %}
+                            <span class="kpi-empty">Chưa có giá</span>
+                        {% endif %}
+                    </div>
+                    <div class="kpi-split-note">Thu − Chi thực phẩm</div>
                 </div>
-                <div class="kpi-meta">Thu - Chi</div>
+                <div class="kpi-split-row">
+                    <div class="kpi-split-head">🧂 Gia vị</div>
+                    <div class="kpi-split-val {% if balance_spice != None %}{% if balance_spice >= 0 %}kpi-val-pos{% else %}kpi-val-neg{% endif %}{% endif %}">
+                        {% if balance_spice != None %}
+                            {{ balance_spice|vnd }}<span class="kpi-unit">đ</span>
+                        {% else %}
+                            <span class="kpi-empty">Chưa có giá</span>
+                        {% endif %}
+                    </div>
+                    <div class="kpi-split-note">Thu − Chi gia vị</div>
+                </div>
             </div>
         </div>
     </div>
@@ -210,6 +256,78 @@
     background: linear-gradient(135deg, #fed7aa 0%, #fb923c 100%);
 }
 .kpi-negative .kpi-value { color: #c2410c; }
+
+/* ===== Thẻ KPI tách Thực phẩm / Gia vị =====
+   Layout: cột trái (nhãn ở trên, icon ở dưới) + 2 ô Thực phẩm / Gia vị bên phải.
+   Cắt bớt khoảng trắng dọc bằng padding thấp hơn .kpi-card thường. */
+.kpi-card-split {
+    align-items: center;
+    padding: 12px 14px;
+}
+.kpi-icon-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.kpi-icon-col > .kpi-label {
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+.kpi-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+.kpi-split-row {
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    min-width: 0;
+}
+.kpi-split-head {
+    font-size: 13px;
+    font-weight: 700;
+    color: #64748b;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.kpi-split-val {
+    font-size: 32px;
+    font-weight: 900;
+    line-height: 1.15;
+    letter-spacing: -0.5px;
+    color: #1e293b;
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.kpi-split-val .kpi-unit {
+    font-size: 18px;
+    font-weight: 700;
+    opacity: 0.75;
+    margin-left: 4px;
+}
+.kpi-split-val .kpi-empty {
+    font-size: 18px;
+}
+.kpi-split-note {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 4px;
+    line-height: 1.3;
+}
+.kpi-val-income { color: #047857; }
+.kpi-val-expense { color: #be123c; }
+.kpi-val-pos { color: #047857; }
+.kpi-val-neg { color: #be123c; }
 </style>
 <div id="expense-detail-box" class="dashboard-card mt-3 d-none">
     <div class="fw-bold mb-2">Chi tiết chi phí ngày {{ selected_date|date:"d/m/Y" }}</div>
@@ -1248,31 +1366,24 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 {{ chart_labels|json_script:"chart-labels-data" }}
-{{ income_data|json_script:"chart-income-data" }}
-{{ expense_data|json_script:"chart-expense-data" }}
-{{ balance_data|json_script:"chart-balance-data" }}
+{{ income_food_data|json_script:"chart-income-food-data" }}
+{{ income_spice_data|json_script:"chart-income-spice-data" }}
+{{ expense_food_data|json_script:"chart-expense-food-data" }}
+{{ expense_spice_data|json_script:"chart-expense-spice-data" }}
+{{ balance_food_data|json_script:"chart-balance-food-data" }}
+{{ balance_spice_data|json_script:"chart-balance-spice-data" }}
 
 <script>
-    const chartLabels = JSON.parse(document.getElementById('chart-labels-data').textContent);
-    const incomeData = JSON.parse(document.getElementById('chart-income-data').textContent);
-    const expenseData = JSON.parse(document.getElementById('chart-expense-data').textContent);
-    const balanceData = JSON.parse(document.getElementById('chart-balance-data').textContent);
+    const chartLabels      = JSON.parse(document.getElementById('chart-labels-data').textContent);
+    const incomeFoodData   = JSON.parse(document.getElementById('chart-income-food-data').textContent);
+    const incomeSpiceData  = JSON.parse(document.getElementById('chart-income-spice-data').textContent);
+    const expenseFoodData  = JSON.parse(document.getElementById('chart-expense-food-data').textContent);
+    const expenseSpiceData = JSON.parse(document.getElementById('chart-expense-spice-data').textContent);
+    const balanceFoodData  = JSON.parse(document.getElementById('chart-balance-food-data').textContent);
+    const balanceSpiceData = JSON.parse(document.getElementById('chart-balance-spice-data').textContent);
 
     (function () {
         const canvas = document.getElementById('financeChart');
-        const ctx = canvas.getContext('2d');
-
-        // Gradient fills
-        function makeGradient(color1, color2) {
-            const g = ctx.createLinearGradient(0, 0, 0, 240);
-            g.addColorStop(0, color1);
-            g.addColorStop(1, color2);
-            return g;
-        }
-
-        const gradIncome  = makeGradient('rgba(16, 185, 129, 0.95)', 'rgba(16, 185, 129, 0.35)');
-        const gradExpense = makeGradient('rgba(244, 63, 94, 0.90)',  'rgba(244, 63, 94, 0.30)');
-        const gradBalance = makeGradient('rgba(99, 102, 241, 0.35)', 'rgba(99, 102, 241, 0.02)');
 
         const vndFmt = (v) => {
             if (v === null || v === undefined) return '-';
@@ -1285,43 +1396,87 @@
                 datasets: [
                     {
                         type: 'bar',
-                        label: 'Thu',
-                        data: incomeData,
-                        backgroundColor: gradIncome,
-                        borderRadius: 8,
+                        label: 'Thu · Thực phẩm',
+                        data: incomeFoodData,
+                        backgroundColor: 'rgba(16, 185, 129, 0.92)',
+                        stack: 'thu',
+                        borderRadius: 6,
                         borderSkipped: false,
-                        barPercentage: 0.6,
-                        categoryPercentage: 0.7,
-                        order: 2
+                        barPercentage: 0.7,
+                        categoryPercentage: 0.72,
+                        order: 3
                     },
                     {
                         type: 'bar',
-                        label: 'Chi',
-                        data: expenseData,
-                        backgroundColor: gradExpense,
-                        borderRadius: 8,
+                        label: 'Thu · Gia vị',
+                        data: incomeSpiceData,
+                        backgroundColor: 'rgba(110, 231, 183, 0.95)',
+                        stack: 'thu',
+                        borderRadius: 6,
                         borderSkipped: false,
-                        barPercentage: 0.6,
-                        categoryPercentage: 0.7,
-                        order: 2
+                        barPercentage: 0.7,
+                        categoryPercentage: 0.72,
+                        order: 3
+                    },
+                    {
+                        type: 'bar',
+                        label: 'Chi · Thực phẩm',
+                        data: expenseFoodData,
+                        backgroundColor: 'rgba(244, 63, 94, 0.90)',
+                        stack: 'chi',
+                        borderRadius: 6,
+                        borderSkipped: false,
+                        barPercentage: 0.7,
+                        categoryPercentage: 0.72,
+                        order: 3
+                    },
+                    {
+                        type: 'bar',
+                        label: 'Chi · Gia vị',
+                        data: expenseSpiceData,
+                        backgroundColor: 'rgba(253, 164, 175, 0.95)',
+                        stack: 'chi',
+                        borderRadius: 6,
+                        borderSkipped: false,
+                        barPercentage: 0.7,
+                        categoryPercentage: 0.72,
+                        order: 3
                     },
                     {
                         type: 'line',
-                        label: 'Chênh lệch',
-                        data: balanceData,
+                        label: 'Chênh lệch · Thực phẩm',
+                        data: balanceFoodData,
+                        stack: 'bal-food',
                         borderColor: '#6366f1',
                         borderWidth: 2.5,
-                        backgroundColor: gradBalance,
-                        fill: true,
+                        backgroundColor: '#6366f1',
+                        fill: false,
                         tension: 0.4,
+                        spanGaps: true,
                         pointBackgroundColor: '#ffffff',
                         pointBorderColor: '#6366f1',
                         pointBorderWidth: 2,
                         pointRadius: 4,
                         pointHoverRadius: 6,
-                        pointHoverBackgroundColor: '#6366f1',
-                        pointHoverBorderColor: '#ffffff',
-                        pointHoverBorderWidth: 2,
+                        order: 1
+                    },
+                    {
+                        type: 'line',
+                        label: 'Chênh lệch · Gia vị',
+                        data: balanceSpiceData,
+                        stack: 'bal-spice',
+                        borderColor: '#f59e0b',
+                        borderWidth: 2.5,
+                        borderDash: [5, 4],
+                        backgroundColor: '#f59e0b',
+                        fill: false,
+                        tension: 0.4,
+                        spanGaps: true,
+                        pointBackgroundColor: '#ffffff',
+                        pointBorderColor: '#f59e0b',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
                         order: 1
                     }
                 ]
@@ -1340,9 +1495,9 @@
                         labels: {
                             usePointStyle: true,
                             pointStyle: 'circle',
-                            padding: 14,
+                            padding: 12,
                             color: '#475569',
-                            font: { size: 12, weight: '600' },
+                            font: { size: 11.5, weight: '600' },
                             boxWidth: 8,
                             boxHeight: 8
                         }
@@ -1366,6 +1521,7 @@
                 },
                 scales: {
                     x: {
+                        stacked: true,
                         grid: { display: false },
                         ticks: {
                             color: '#64748b',
@@ -1374,6 +1530,7 @@
                         border: { color: '#e2e8f0' }
                     },
                     y: {
+                        stacked: true,
                         beginAtZero: true,
                         grid: {
                             color: 'rgba(226, 232, 240, 0.6)',
@@ -1383,8 +1540,8 @@
                             color: '#94a3b8',
                             font: { size: 10 },
                             callback: function (v) {
-                                if (v >= 1000000) return (v / 1000000).toFixed(1) + 'tr';
-                                if (v >= 1000) return (v / 1000).toFixed(0) + 'k';
+                                if (Math.abs(v) >= 1000000) return (v / 1000000).toFixed(1) + 'tr';
+                                if (Math.abs(v) >= 1000) return (v / 1000).toFixed(0) + 'k';
                                 return v;
                             }
                         },

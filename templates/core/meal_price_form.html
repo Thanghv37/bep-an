@@ -41,9 +41,30 @@
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Giá suất ăn</label>
                     {{ form.meal_price }}
+                    <div class="form-text">Tổng số tiền mỗi suất nhân viên nộp (ví dụ: 30.000đ).</div>
                     {% if form.meal_price.errors %}
                         <div class="text-danger small mt-1">{{ form.meal_price.errors }}</div>
                     {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Giá gia vị / mỗi suất</label>
+                    {{ form.spice_price }}
+                    <div class="form-text">
+                        Phần dành cho gia vị dùng chung (mắm, muối, dầu ăn, hành, tỏi, ớt...).
+                        Để trống hoặc 0 nếu không tách riêng.
+                    </div>
+                    {% if form.spice_price.errors %}
+                        <div class="text-danger small mt-1">{{ form.spice_price.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Giá thực phẩm / mỗi suất</label>
+                    <div class="form-control bg-light fw-bold text-primary" id="food-price-display">—</div>
+                    <div class="form-text">
+                        Hệ thống tự tính = Giá suất ăn − Giá gia vị. Không cần nhập.
+                    </div>
                 </div>
 
                 <div class="mb-4">
@@ -62,5 +83,39 @@
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    const mealInput = document.getElementById('id_meal_price');
+    const spiceInput = document.getElementById('id_spice_price');
+    const display = document.getElementById('food-price-display');
+
+    if (!mealInput || !spiceInput || !display) return;
+
+    function fmt(n) {
+        return new Intl.NumberFormat('vi-VN').format(n);
+    }
+
+    function update() {
+        if (mealInput.value === '') {
+            display.textContent = '—';
+            display.classList.remove('text-danger');
+            display.classList.add('text-primary');
+            return;
+        }
+        const meal = parseInt(mealInput.value, 10) || 0;
+        const spice = parseInt(spiceInput.value, 10) || 0;
+        const food = meal - spice;
+        display.textContent = fmt(food) + ' đ';
+        const negative = food < 0;
+        display.classList.toggle('text-danger', negative);
+        display.classList.toggle('text-primary', !negative);
+    }
+
+    mealInput.addEventListener('input', update);
+    spiceInput.addEventListener('input', update);
+    update();
+})();
+</script>
 
 {% endblock %}

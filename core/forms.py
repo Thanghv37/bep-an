@@ -15,7 +15,7 @@ class MealPriceSettingForm(forms.ModelForm):
 
     class Meta:
         model = MealPriceSetting
-        fields = ['start_date', 'end_date', 'meal_price']
+        fields = ['start_date', 'end_date', 'meal_price', 'spice_price']
         widgets = {
             'start_date': forms.DateInput(attrs={
                 'type': 'date',
@@ -27,6 +27,12 @@ class MealPriceSettingForm(forms.ModelForm):
             }),
             'meal_price': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Ví dụ: 30000'
+                'placeholder': 'Ví dụ: 30000',
+                'min': 0,
+            }),
+            'spice_price': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ví dụ: 7000',
+                'min': 0,
             }),
         }

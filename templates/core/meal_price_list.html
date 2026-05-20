@@ -47,6 +47,7 @@
 
                     {% if day.has_price %}
                         <div class="meal-price-day-value">{{ day.price|vnd }}</div>
+                        <div class="meal-price-day-spice">🧂 {{ day.spice_price|vnd }}</div>
                     {% else %}
                         <div class="meal-price-day-empty">Chưa set</div>
                     {% endif %}
@@ -69,6 +70,8 @@
                         <th>Từ ngày</th>
                         <th>Đến ngày</th>
                         <th>Giá suất ăn</th>
+                        <th>Giá thực phẩm</th>
+                        <th>Giá gia vị</th>
                         <th>Cập nhật lúc</th>
                         <th style="width: 140px;">Thao tác</th>
                     </tr>
@@ -85,6 +88,8 @@
                             {% endif %}
                         </td>
                         <td class="fw-bold text-primary">{{ item.meal_price|vnd }} VNĐ</td>
+                        <td class="fw-bold text-success">{{ item.food_price|vnd }} VNĐ</td>
+                        <td class="fw-bold" style="color:#b45309;">{{ item.spice_price|vnd }} VNĐ</td>
                         <td>{{ item.updated_at|date:"d/m/Y H:i" }}</td>
                         <td>
                             <a href="{% url 'meal_price_update' item.id %}" class="btn btn-sm btn-outline-primary">Sửa</a>
@@ -139,6 +144,7 @@
                                 {{ log.old_start_date }} →
                                 {% if log.old_end_date %}{{ log.old_end_date }}{% else %}∞{% endif %}
                                 : {{ log.old_meal_price|vnd }} VNĐ
+                                <div class="small text-muted">Gia vị: {{ log.old_spice_price|default:0|vnd }} đ</div>
                             {% else %}
                                 -
                             {% endif %}
@@ -147,6 +153,7 @@
                             {{ log.new_start_date }} →
                             {% if log.new_end_date %}{{ log.new_end_date }}{% else %}∞{% endif %}
                             : {{ log.new_meal_price|vnd }} VNĐ
+                            <div class="small text-muted">Gia vị: {{ log.new_spice_price|default:0|vnd }} đ</div>
                         </td>
                         <td>{{ log.reason|default:"-" }}</td>
                     </tr>
@@ -215,7 +222,7 @@
 }
 
 .meal-price-day {
-    min-height: 42px;
+    min-height: 56px;
     border-radius: 9px;
     padding: 4px;
     text-align: center;
@@ -243,6 +250,14 @@
     color: #047857;
     font-weight: 700;
     margin-top: 3px;
+}
+
+.meal-price-day-spice {
+    font-size: 8.5px;
+    color: #b45309;
+    font-weight: 700;
+    margin-top: 1px;
+    line-height: 1.1;
 }
 
 .meal-price-day-empty {

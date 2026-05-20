@@ -12,6 +12,12 @@ class MealPriceSetting(models.Model):
         decimal_places=0,
         verbose_name='Giá suất ăn'
     )
+    spice_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=0,
+        default=0,
+        verbose_name='Giá gia vị mỗi suất'
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -22,12 +28,29 @@ class MealPriceSetting(models.Model):
     def __str__(self):
         return f"{self.start_date} - {self.end_date or '∞'} : {self.meal_price}"
 
+    @property
+    def food_price(self):
+        """Giá thực phẩm mỗi suất = giá suất ăn - giá gia vị."""
+        return int(self.meal_price or 0) - int(self.spice_price or 0)
+
     def clean(self):
         from django.utils import timezone
 
         today = timezone.localdate()
 
-        if self.start_date < today:
+        # Chỉ chặn khi NGÀY BẮT ĐẦU đang được đặt mới / thay đổi sang quá khứ.
+        # Bản ghi cũ giữ nguyên start_date (kể cả đã thuộc về quá khứ) thì bỏ qua,
+        # nếu không sẽ chặn cả luồng cập nhật end_date và luồng sửa các trường khác.
+        original_start_date = None
+        if self.pk:
+            original_start_date = (
+                type(self).objects
+                .filter(pk=self.pk)
+                .values_list('start_date', flat=True)
+                .first()
+            )
+
+        if original_start_date != self.start_date and self.start_date < today:
             raise ValidationError({
                 'start_date': 'Không được thiết lập giá bắt đầu từ ngày trong quá khứ.'
             })
@@ -35,6 +58,17 @@ class MealPriceSetting(models.Model):
         if self.end_date and self.end_date < self.start_date:
             raise ValidationError({
                 'end_date': 'Đến ngày phải lớn hơn hoặc bằng Từ ngày.'
+            })
+
+        if self.spice_price is not None and self.spice_price < 0:
+            raise ValidationError({
+                'spice_price': 'Giá gia vị không được là số âm.'
+            })
+
+        if (self.meal_price is not None and self.spice_price is not None
+                and self.spice_price > self.meal_price):
+            raise ValidationError({
+                'spice_price': 'Giá gia vị không được lớn hơn giá suất ăn.'
             })
 
     def save(self, *args, **kwargs):
@@ -89,9 +123,11 @@ class MealPriceChangeLog(models.Model):
     old_start_date = models.DateField(null=True, blank=True, verbose_name='Từ ngày cũ')
     old_end_date = models.DateField(null=True, blank=True, verbose_name='Đến ngày cũ')
     old_meal_price = models.DecimalField(max_digits=12, decimal_places=0, null=True, blank=True, verbose_name='Giá cũ')
+    old_spice_price = models.DecimalField(max_digits=12, decimal_places=0, null=True, blank=True, verbose_name='Giá gia vị cũ')
     new_start_date = models.DateField(verbose_name='Từ ngày mới')
     new_end_date = models.DateField(null=True, blank=True, verbose_name='Đến ngày mới')
     new_meal_price = models.DecimalField(max_digits=12, decimal_places=0, verbose_name='Giá mới')
+    new_spice_price = models.DecimalField(max_digits=12, decimal_places=0, default=0, verbose_name='Giá gia vị mới')
     reason = models.TextField(blank=True, verbose_name='Lý do thay đổi')
     changed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

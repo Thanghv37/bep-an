@@ -37,7 +37,7 @@ def get_registered_count(target_date):
     return total or 0
 
 
-def get_meal_price_for_date(target_date):
+def get_price_setting_for_date(target_date):
     price_setting = MealPriceSetting.objects.filter(
         start_date__lte=target_date
     ).order_by('-start_date').first()
@@ -46,12 +46,39 @@ def get_meal_price_for_date(target_date):
         return None
 
     if price_setting.end_date is None:
-        return int(price_setting.meal_price)
+        return price_setting
 
     if price_setting.start_date <= target_date <= price_setting.end_date:
-        return int(price_setting.meal_price)
+        return price_setting
 
     return None
+
+
+def get_price_breakdown_for_date(target_date):
+    """Trả về dict {'meal', 'food', 'spice'} cho ngày, hoặc None nếu chưa set giá."""
+    price_setting = get_price_setting_for_date(target_date)
+
+    if not price_setting:
+        return None
+
+    meal = int(price_setting.meal_price or 0)
+    spice = int(price_setting.spice_price or 0)
+
+    return {
+        'meal': meal,
+        'spice': spice,
+        'food': meal - spice,
+    }
+
+
+def get_meal_price_for_date(target_date):
+    """Giá suất ăn tổng cho 1 ngày (giữ tương thích cho module báo cáo)."""
+    breakdown = get_price_breakdown_for_date(target_date)
+
+    if breakdown is None:
+        return None
+
+    return breakdown['meal']
 
 
 def staff_required(user):
@@ -71,8 +98,15 @@ def dashboard(request):
     else:
         selected_date = date.today()
 
-    meal_price = get_meal_price_for_date(selected_date)
+    price_breakdown = get_price_breakdown_for_date(selected_date)
     registered_count = get_registered_count(selected_date)
+
+    if price_breakdown:
+        meal_price = price_breakdown['meal']
+        food_price = price_breakdown['food']
+        spice_price = price_breakdown['spice']
+    else:
+        meal_price = food_price = spice_price = None
 
     menu = DailyMenu.objects.filter(date=selected_date,status=DailyMenu.STATUS_APPROVED).prefetch_related('items__dish').first()
 
@@ -111,24 +145,34 @@ def dashboard(request):
         status=DailyPurchase.STATUS_APPROVED
     ).select_related('created_by').prefetch_related('extra_items')
 
-    actual_cost = purchases_today.aggregate(total=Sum('actual_cost'))['total']
+    # Chi phí trong ngày tách theo phân loại hóa đơn: thực phẩm vs gia vị
+    expense_food = int(purchases_today.filter(
+        purchase_type=DailyPurchase.PURCHASE_TYPE_MAIN
+    ).aggregate(total=Sum('actual_cost'))['total'] or 0)
+    expense_spice = int(purchases_today.filter(
+        purchase_type=DailyPurchase.PURCHASE_TYPE_EXTRA
+    ).aggregate(total=Sum('actual_cost'))['total'] or 0)
+    total_expense = expense_food + expense_spice
 
-    if registered_count is not None and meal_price is not None:
-        total_income = registered_count * meal_price
-    else:
-        total_income = None
+    if price_breakdown:
+        income_food = registered_count * food_price
+        income_spice = registered_count * spice_price
+        total_income = income_food + income_spice
 
-    total_expense = actual_cost
-
-    if total_income is not None and total_expense is not None:
+        balance_food = income_food - expense_food
+        balance_spice = income_spice - expense_spice
         balance = total_income - total_expense
     else:
-        balance = None
+        income_food = income_spice = total_income = None
+        balance_food = balance_spice = balance = None
 
     chart_labels = []
-    income_data = []
-    expense_data = []
-    balance_data = []
+    income_food_data = []
+    income_spice_data = []
+    expense_food_data = []
+    expense_spice_data = []
+    balance_food_data = []
+    balance_spice_data = []
 
     # Xác định thứ 2 của tuần chứa selected_date
     start_of_week = selected_date - timedelta(days=selected_date.weekday())
@@ -136,14 +180,19 @@ def dashboard(request):
     # Chỉ hiển thị 5 ngày làm việc: thứ 2 -> thứ 6
     week_days = [start_of_week + timedelta(days=i) for i in range(5)]
 
-    purchases = DailyPurchase.objects.filter(date__range=(week_days[0], week_days[-1]),status=DailyPurchase.STATUS_APPROVED)
-    purchase_map = {
-        item['date']: int(item['total_cost'] or 0)
-        for item in DailyPurchase.objects.filter(
-            date__range=(week_days[0], week_days[-1]),
-            status=DailyPurchase.STATUS_APPROVED
-        ).values('date').annotate(total_cost=Sum('actual_cost'))
-    }
+    # Chi phí cả tuần, tách theo phân loại để vẽ chart
+    purchase_food_map = {}
+    purchase_spice_map = {}
+
+    for item in DailyPurchase.objects.filter(
+        date__range=(week_days[0], week_days[-1]),
+        status=DailyPurchase.STATUS_APPROVED
+    ).values('date', 'purchase_type').annotate(total_cost=Sum('actual_cost')):
+        cost = int(item['total_cost'] or 0)
+        if item['purchase_type'] == DailyPurchase.PURCHASE_TYPE_EXTRA:
+            purchase_spice_map[item['date']] = purchase_spice_map.get(item['date'], 0) + cost
+        else:
+            purchase_food_map[item['date']] = purchase_food_map.get(item['date'], 0) + cost
 
     week_menus_queryset = DailyMenu.objects.filter(
         date__range=(week_days[0], week_days[-1]),status=DailyMenu.STATUS_APPROVED
@@ -223,24 +272,31 @@ def dashboard(request):
     
     for d in week_days:
         count = get_registered_count(d)
-        price = get_meal_price_for_date(d)
-        cost = purchase_map.get(d)
+        day_price = get_price_breakdown_for_date(d)
         day_menu = week_menu_map.get(d)
 
-        if count is not None and price is not None:
-            income = count * price
-        else:
-            income = None
+        day_expense_food = purchase_food_map.get(d, 0)
+        day_expense_spice = purchase_spice_map.get(d, 0)
 
-        if income is not None and cost is not None:
-            diff = income - cost
+        if day_price:
+            day_income_food = count * day_price['food']
+            day_income_spice = count * day_price['spice']
         else:
-            diff = None
+            day_income_food = None
+            day_income_spice = None
 
         chart_labels.append(d.strftime('%d/%m'))
-        income_data.append(income)
-        expense_data.append(cost)
-        balance_data.append(diff)
+        income_food_data.append(day_income_food)
+        income_spice_data.append(day_income_spice)
+        expense_food_data.append(day_expense_food)
+        expense_spice_data.append(day_expense_spice)
+
+        if day_income_food is not None:
+            balance_food_data.append(day_income_food - day_expense_food)
+            balance_spice_data.append(day_income_spice - day_expense_spice)
+        else:
+            balance_food_data.append(None)
+            balance_spice_data.append(None)
 
         week_menu_cards.append({
             'date': d,
@@ -264,10 +320,21 @@ def dashboard(request):
         'total_expense': total_expense,
         'balance': balance,
         'meal_price': meal_price,
+        'food_price': food_price,
+        'spice_price': spice_price,
+        'income_food': income_food,
+        'income_spice': income_spice,
+        'expense_food': expense_food,
+        'expense_spice': expense_spice,
+        'balance_food': balance_food,
+        'balance_spice': balance_spice,
         'chart_labels': chart_labels,
-        'income_data': income_data,
-        'expense_data': expense_data,
-        'balance_data': balance_data,
+        'income_food_data': income_food_data,
+        'income_spice_data': income_spice_data,
+        'expense_food_data': expense_food_data,
+        'expense_spice_data': expense_spice_data,
+        'balance_food_data': balance_food_data,
+        'balance_spice_data': balance_spice_data,
         'week_menu_cards': week_menu_cards,
         'purchase_list': purchases_today,
         'week_data': week_data,
@@ -308,9 +375,13 @@ def meal_price_list(request):
         else:
             end = year_end
 
+        meal = int(setting.meal_price)
+        spice = int(setting.spice_price or 0)
+        entry = {'meal': meal, 'spice': spice, 'food': meal - spice}
+
         current = start
         while current <= end:
-            price_map[current] = int(setting.meal_price)
+            price_map[current] = entry
             current += timedelta(days=1)
 
     month_overview = []
@@ -321,13 +392,15 @@ def meal_price_list(request):
 
         for day in range(1, days_in_month + 1):
             current_date = date(selected_year, month, day)
-            price = price_map.get(current_date)
+            entry = price_map.get(current_date)
 
             days.append({
                 'date': current_date,
                 'day': day,
-                'price': price,
-                'has_price': price is not None,
+                'price': entry['meal'] if entry else None,
+                'spice_price': entry['spice'] if entry else None,
+                'food_price': entry['food'] if entry else None,
+                'has_price': entry is not None,
             })
 
         month_overview.append({
@@ -359,6 +432,7 @@ def meal_price_create(request):
                 new_start_date=price_setting.start_date,
                 new_end_date=price_setting.end_date,
                 new_meal_price=price_setting.meal_price,
+                new_spice_price=price_setting.spice_price,
                 reason=form.cleaned_data['reason'],
                 changed_by=request.user,
             )
@@ -383,6 +457,7 @@ def meal_price_update(request, pk):
     old_start_date = price_setting.start_date
     old_end_date = price_setting.end_date
     old_meal_price = price_setting.meal_price
+    old_spice_price = price_setting.spice_price
 
     if request.method == 'POST':
         form = MealPriceSettingForm(request.POST, instance=price_setting)
@@ -395,9 +470,11 @@ def meal_price_update(request, pk):
                 old_start_date=old_start_date,
                 old_end_date=old_end_date,
                 old_meal_price=old_meal_price,
+                old_spice_price=old_spice_price,
                 new_start_date=updated_setting.start_date,
                 new_end_date=updated_setting.end_date,
                 new_meal_price=updated_setting.meal_price,
+                new_spice_price=updated_setting.spice_price,
                 reason=form.cleaned_data['reason'],
                 changed_by=request.user,
             )
