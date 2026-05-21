@@ -28,8 +28,8 @@
     <div class="col-12 col-md-6 col-lg">
         <div class="kpi-card kpi-income kpi-card-split">
             <div class="kpi-icon-col">
-                <div class="kpi-label">Thu</div>
                 <div class="kpi-icon">💰</div>
+                <div class="kpi-label">Thu</div>
             </div>
             <div class="kpi-split">
                 <div class="kpi-split-row">
@@ -73,8 +73,8 @@
     <div class="col-12 col-md-6 col-lg">
         <div class="kpi-card kpi-expense kpi-card-split kpi-clickable" onclick="toggleExpenseDetail()">
             <div class="kpi-icon-col">
-                <div class="kpi-label">Chi <i class="bi bi-chevron-down kpi-label-icon"></i></div>
                 <div class="kpi-icon">🧾</div>
+                <div class="kpi-label">Chi <i class="bi bi-chevron-down kpi-label-icon"></i></div>
             </div>
             <div class="kpi-split">
                 <div class="kpi-split-row">
@@ -98,8 +98,8 @@
     <div class="col-12 col-md-6 col-lg">
         <div class="kpi-card kpi-card-split {% if balance != None %}{% if balance >= 0 %}kpi-positive{% else %}kpi-negative{% endif %}{% else %}kpi-people{% endif %}">
             <div class="kpi-icon-col">
-                <div class="kpi-label">Chênh lệch</div>
                 <div class="kpi-icon">{% if balance != None and balance < 0 %}⚠️{% else %}📊{% endif %}</div>
+                <div class="kpi-label">Chênh lệch</div>
             </div>
             <div class="kpi-split">
                 <div class="kpi-split-row">
@@ -258,20 +258,32 @@
 .kpi-negative .kpi-value { color: #c2410c; }
 
 /* ===== Thẻ KPI tách Thực phẩm / Gia vị =====
-   Layout: cột trái (nhãn ở trên, icon ở dưới) + 2 ô Thực phẩm / Gia vị bên phải.
-   Cắt bớt khoảng trắng dọc bằng padding thấp hơn .kpi-card thường. */
+   Layout dọc tối giản: chỉ chữ "THU / CHI / CHÊNH LỆCH" sát viền trên
+   card, 2 ô con TP / GV chiếm phần còn lại — bỏ icon trang trí
+   ở header để tiết kiệm chiều cao. */
 .kpi-card-split {
-    align-items: center;
-    padding: 12px 14px;
-}
-.kpi-icon-col {
-    display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+    justify-content: flex-start;
     gap: 6px;
-    flex-shrink: 0;
+    padding: 6px 14px 12px;
 }
-.kpi-icon-col > .kpi-label {
+.kpi-card-split .kpi-icon-col {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    flex: 0 0 auto;
+    align-self: center;
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+.kpi-card-split .kpi-icon-col > .kpi-icon {
+    display: none;
+}
+.kpi-card-split .kpi-icon-col > .kpi-label {
     margin-bottom: 0;
     white-space: nowrap;
 }
@@ -279,8 +291,9 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
-    flex: 1;
+    flex: 1 1 auto;
     min-width: 0;
+    width: 100%;
 }
 .kpi-split-row {
     padding: 10px 12px;

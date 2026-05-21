@@ -710,10 +710,82 @@ def participation_settings(request):
 
 
 # --- HÀM CHẠY NGẦM GỬI TIN NHẮN (BACKGROUND THREAD) ---
+# Số lượt thử tối đa cho mỗi người (bao gồm lượt đầu). Sau lượt đầu, gom lại
+# những người gặp lỗi tạm thời (mạng / 5xx / 429 / timeout) rồi thử lại — lỗi
+# vĩnh viễn (không có account NetChat, 401/403) bỏ qua luôn.
+MAX_NOTIFICATION_PASSES = 3
+# Nghỉ giữa các lượt retry để rate limit / network kịp hồi.
+RETRY_PASS_SLEEP_SECONDS = 30
+
+
+def _send_one_notification(emp_code, username, full_name, reg,
+                           netchat_url, headers, bot_id, formatted_date):
+    """Gửi tin cho 1 người.
+
+    Trả về tuple ``(result, error)`` với ``result`` ∈ {'success', 'permanent',
+    'retryable'}. ``permanent`` = không nên retry (account không tồn tại,
+    401/403). ``retryable`` = nên thử lại lượt sau (timeout, 5xx, 429, mạng).
+    """
+    try:
+        # Bước A: Tìm Mattermost ID theo Username
+        r_user = requests.get(
+            f"{netchat_url}/api/v4/users/username/{username}",
+            headers=headers, timeout=10,
+        )
+        if r_user.status_code == 404:
+            return ('permanent', 'Không tìm thấy tài khoản trên NetChat')
+        if r_user.status_code in (401, 403):
+            return ('permanent', f'Lỗi xác thực khi tra cứu user (HTTP {r_user.status_code})')
+        if r_user.status_code != 200:
+            return ('retryable', f'Tra cứu user lỗi HTTP {r_user.status_code}: {r_user.text[:200]}')
+        mm_user_id = r_user.json().get('id')
+        if not mm_user_id:
+            return ('permanent', 'Phản hồi NetChat thiếu user id')
+
+        # Bước B: Mở Direct Message (DM)
+        r_channel = requests.post(
+            f"{netchat_url}/api/v4/channels/direct",
+            headers=headers, json=[bot_id, mm_user_id], timeout=10,
+        )
+        if r_channel.status_code in (401, 403):
+            return ('permanent', f'Lỗi xác thực khi mở DM (HTTP {r_channel.status_code})')
+        if r_channel.status_code not in (200, 201):
+            return ('retryable', f'Lỗi mở kênh chat HTTP {r_channel.status_code}: {r_channel.text[:200]}')
+        channel_id = r_channel.json().get('id')
+        if not channel_id:
+            return ('retryable', 'Phản hồi mở kênh thiếu channel id')
+
+        # Bước C: Gửi tin nhắn (template lấy từ SystemConfig)
+        from core.message_templates import get_meal_template, render_template
+        message = render_template(
+            get_meal_template(),
+            full_name=full_name,
+            employee_code=emp_code,
+            meal_name=reg.meal_name,
+            meal_count=f"{reg.quantity:02d}",
+            target_date=formatted_date,
+            kitchen_name=reg.kitchen_name,
+        )
+        r_post = requests.post(
+            f"{netchat_url}/api/v4/posts",
+            headers=headers, json={"channel_id": channel_id, "message": message}, timeout=10,
+        )
+        if r_post.status_code in (200, 201):
+            return ('success', None)
+        if r_post.status_code in (401, 403):
+            return ('permanent', f'Lỗi xác thực khi gửi tin (HTTP {r_post.status_code})')
+        return ('retryable', f'Lỗi gửi tin HTTP {r_post.status_code}: {r_post.text[:200]}')
+
+    except requests.exceptions.RequestException as e:
+        return ('retryable', f'Lỗi mạng: {str(e)[:200]}')
+    except Exception as e:
+        return ('retryable', f'Lỗi không xác định: {str(e)[:200]}')
+
+
 def _send_notifications_bg(employee_codes, target_date, config):
     netchat_url = config.get('netchat_url', '').strip().rstrip('/')
     netchat_token = config.get('netchat_token', '').strip()
-    
+
     if not netchat_url or not netchat_token:
         print("[NetChat] Lỗi: Chưa cấu hình Bot URL hoặc Token.")
         return
@@ -741,8 +813,6 @@ def _send_notifications_bg(employee_codes, target_date, config):
     registrations = MealRegistration.objects.filter(date=target_date, employee_code__in=employee_codes)
     reg_dict = {r.employee_code: r for r in registrations}
 
-    success_count = 0
-
     # Format ngày sang DD-MM-YYYY cho user-friendly trong tin nhắn (target_date
     # đến từ frontend dạng ISO 'YYYY-MM-DD' của <input type="date">).
     try:
@@ -750,101 +820,98 @@ def _send_notifications_bg(employee_codes, target_date, config):
     except (ValueError, TypeError):
         formatted_date = str(target_date)
 
-    # 2. Vòng lặp gửi tin nhắn
-    for i, emp_code in enumerate(employee_codes):
-        # Logic chống Spam: Đủ 15 người thì ngủ 60s
-        if i > 0 and i % 15 == 0:
-            print(f"[NetChat] Đã gửi {i} tin. Tạm nghỉ 60s để tránh spam...")
-            time.sleep(60)
+    # State xuyên suốt các lượt — chỉ tạo NotificationLog 1 lần cho mỗi người
+    # ở cuối, sau khi đã định đoạt: success / permanent / retry exhausted.
+    pending = list(employee_codes)        # MNV cần thử ở lượt kế tiếp
+    success_set = set()                   # MNV đã gửi thành công
+    permanent_failed = {}                 # MNV -> lỗi vĩnh viễn (đã bỏ)
+    last_error = {}                       # MNV -> lỗi gần nhất (dùng cho retry exhausted)
+    full_name_map = {}                    # MNV -> tên (để ghi log)
+    attempt_counter = 0                   # tổng số tin đã gửi (throttle 60s/15 tin)
 
-        profile = profile_dict.get(emp_code)
-        reg = reg_dict.get(emp_code)
-        
-        if not profile or not profile.email or not reg:
-            print(f"[NetChat] Bỏ qua {emp_code}: Thiếu profile, email hoặc chưa đăng ký bữa ăn.")
-            continue
+    for pass_num in range(1, MAX_NOTIFICATION_PASSES + 1):
+        if not pending:
+            break
+        if pass_num > 1:
+            print(f"[NetChat] Bắt đầu lượt retry #{pass_num - 1} cho {len(pending)} người. "
+                  f"Tạm nghỉ {RETRY_PASS_SLEEP_SECONDS}s...")
+            time.sleep(RETRY_PASS_SLEEP_SECONDS)
+        else:
+            print(f"[NetChat] Lượt 1: gửi cho {len(pending)} người.")
 
-        # Trích xuất username từ email (Bỏ đuôi @viettel.com.vn)
-        username = profile.email.split('@')[0].strip().lower()
-        full_name = profile.full_name or reg.full_name
+        next_pending = []
+        for emp_code in pending:
+            profile = profile_dict.get(emp_code)
+            reg = reg_dict.get(emp_code)
 
-        try:
-            # Bước A: Tìm Mattermost ID theo Username
-            r_user = requests.get(f"{netchat_url}/api/v4/users/username/{username}", headers=headers, timeout=10)
-            if r_user.status_code != 200:
-                print(f"[NetChat] Bỏ qua {username}: Không tìm thấy tài khoản trên NetChat Viettel.")
-                NotificationLog.objects.create(
-                    target_date=target_date,
-                    employee_code=emp_code,
-                    full_name=full_name,
-                    status='failed',
-                    error_message='Không tìm thấy tài khoản trên NetChat'
-                )
-                continue # Bỏ qua nếu user chưa có trên NetChat
-            mm_user_id = r_user.json().get('id')
-
-            # Bước B: Mở Direct Message (DM)
-            r_channel = requests.post(
-                f"{netchat_url}/api/v4/channels/direct", 
-                headers=headers, json=[bot_id, mm_user_id], timeout=10
-            )
-            if r_channel.status_code not in (200, 201):
-                NotificationLog.objects.create(
-                    target_date=target_date,
-                    employee_code=emp_code,
-                    full_name=full_name,
-                    status='failed',
-                    error_message=f'Lỗi mở kênh chat: {r_channel.text}'
-                )
+            if not profile or not profile.email or not reg:
+                # Lỗi vĩnh viễn ở phía dữ liệu nội bộ — giữ behavior cũ: print + không log.
+                print(f"[NetChat] Bỏ qua {emp_code}: Thiếu profile, email hoặc chưa đăng ký bữa ăn.")
+                permanent_failed[emp_code] = None  # None = bỏ qua không log
+                if profile:
+                    full_name_map[emp_code] = profile.full_name
+                elif reg:
+                    full_name_map[emp_code] = reg.full_name
                 continue
-            channel_id = r_channel.json().get('id')
 
-            # Bước C: Gửi tin nhắn (template lấy từ SystemConfig)
-            from core.message_templates import get_meal_template, render_template
-            message = render_template(
-                get_meal_template(),
-                full_name=full_name,
-                employee_code=emp_code,
-                meal_name=reg.meal_name,
-                meal_count=f"{reg.quantity:02d}",
-                target_date=formatted_date,
-                kitchen_name=reg.kitchen_name,
+            # Throttle: cứ 15 tin thật sự gửi đi thì nghỉ 60s
+            if attempt_counter > 0 and attempt_counter % 15 == 0:
+                print(f"[NetChat] Đã gửi {attempt_counter} tin. Tạm nghỉ 60s để tránh spam...")
+                time.sleep(60)
+            attempt_counter += 1
+
+            username = profile.email.split('@')[0].strip().lower()
+            full_name = profile.full_name or reg.full_name
+            full_name_map[emp_code] = full_name
+
+            result, err = _send_one_notification(
+                emp_code, username, full_name, reg,
+                netchat_url, headers, bot_id, formatted_date,
             )
-            
-            r_post = requests.post(
-                f"{netchat_url}/api/v4/posts", 
-                headers=headers, json={"channel_id": channel_id, "message": message}, timeout=10
-            )
-            
-            if r_post.status_code in (200, 201):
-                success_count += 1
-                NotificationLog.objects.create(
-                    target_date=target_date,
-                    employee_code=emp_code,
-                    full_name=full_name,
-                    status='success'
-                )
+
+            if result == 'success':
+                success_set.add(emp_code)
+            elif result == 'permanent':
+                print(f"[NetChat] Bỏ {username}: {err}")
+                permanent_failed[emp_code] = err
+                last_error[emp_code] = err
             else:
-                NotificationLog.objects.create(
-                    target_date=target_date,
-                    employee_code=emp_code,
-                    full_name=full_name,
-                    status='failed',
-                    error_message=f'Lỗi gửi tin: {r_post.text}'
-                )
+                # retryable — để lượt sau thử lại
+                print(f"[NetChat] Tạm bỏ qua {username} (sẽ retry): {err}")
+                last_error[emp_code] = err
+                next_pending.append(emp_code)
 
-        except Exception as e:
-            print(f"[NetChat] Lỗi gửi cho {username}: {str(e)}")
+        pending = next_pending
+
+    # Ghi NotificationLog 1 lần cho mỗi MNV theo kết quả cuối cùng
+    for emp_code in employee_codes:
+        full_name = full_name_map.get(emp_code, '')
+        if emp_code in success_set:
             NotificationLog.objects.create(
-                target_date=target_date,
-                employee_code=emp_code,
-                full_name=full_name,
-                status='failed',
-                error_message=str(e)[:500]
+                target_date=target_date, employee_code=emp_code,
+                full_name=full_name, status='success',
             )
-            continue
+        elif emp_code in permanent_failed:
+            err = permanent_failed[emp_code]
+            if err is None:
+                # Bỏ qua không log (thiếu profile/email/reg) — giữ behavior cũ
+                continue
+            NotificationLog.objects.create(
+                target_date=target_date, employee_code=emp_code,
+                full_name=full_name, status='failed',
+                error_message=err[:500],
+            )
+        else:
+            # Retry exhausted — vẫn còn trong pending hoặc có last_error nhưng chưa success
+            err = last_error.get(emp_code, 'Không rõ lỗi')
+            NotificationLog.objects.create(
+                target_date=target_date, employee_code=emp_code,
+                full_name=full_name, status='failed',
+                error_message=f'[Đã thử {MAX_NOTIFICATION_PASSES} lượt] {err}'[:500],
+            )
 
-    print(f"[NetChat] Hoàn tất tiến trình. Thành công: {success_count}/{len(employee_codes)}")
+    print(f"[NetChat] Hoàn tất tiến trình. Thành công: {len(success_set)}/{len(employee_codes)} "
+          f"(còn {len(pending)} người fail sau {MAX_NOTIFICATION_PASSES} lượt).")
     # Clear state job-active để UI biết có thể bấm lại.
     SystemConfig.objects.filter(key='notification_job_active_until').update(value='')
 
