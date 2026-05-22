@@ -164,3 +164,37 @@ CSRF_COOKIE_HTTPONLY = True
 # chặn POST cross-site (chống CSRF khi user click link malicious).
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'
+
+# =========================
+# LOGGING
+# =========================
+# Mặc định Django (DEBUG=False) chỉ gửi traceback 500 qua mail_admins —
+# không có ADMINS cấu hình nên traceback bị nuốt, journalctl không thấy gì.
+# Route ERROR ra stderr → systemd/journald bắt được (journalctl -u bep-an).
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{asctime}] {levelname} {name}: {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+}
