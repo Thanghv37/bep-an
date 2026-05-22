@@ -25,7 +25,7 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
-from core.models import AttendanceLog
+from core.models import AttendanceLog, AttendanceCapture
 from django.utils.timezone import now
 import threading
 import time
@@ -441,6 +441,14 @@ def _build_participation_rows(target_date):
         for p in UserProfile.objects.filter(employee_code__in=all_codes)
     }
 
+    # Ảnh chụp lúc quét mặt — mỗi người lấy ảnh mới nhất trong ngày.
+    capture_map = {}
+    for cap in AttendanceCapture.objects.filter(
+            scan_time__date=target_date).order_by('-scan_time'):
+        code = (cap.employee_code or '').strip()
+        if code and code not in capture_map and cap.image:
+            capture_map[code] = cap.image.url
+
     def _resolve_name(emp_code, profile, fallback_name):
         profile_name = (profile.full_name.strip() if profile and profile.full_name else '')
         if profile_name:
@@ -476,6 +484,7 @@ def _build_participation_rows(target_date):
             'status_label': label,
             'status_class': css,
             'type': log.type or 'Quét thẻ',
+            'capture_image_url': capture_map.get(emp_code),
         })
 
     not_attended_codes = set(registered_name_map.keys()) - scanned_codes
@@ -492,6 +501,7 @@ def _build_participation_rows(target_date):
             'status_label': label,
             'status_class': css,
             'type': '—',
+            'capture_image_url': None,
         })
 
     return rows

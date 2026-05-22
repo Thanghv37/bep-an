@@ -174,6 +174,26 @@ class RecognitionHeartbeat(models.Model):
         return f"{self.camera_id} @ {self.last_heartbeat_at:%d/%m/%Y %H:%M:%S}"
 
 
+class AttendanceCapture(models.Model):
+    """Ảnh chụp khung hình lúc camera nhận diện được 1 nhân viên. Chỉ lưu cho
+    người nhận diện ra mã NV (không lưu 'Unknown'). Tự xóa sau 30 ngày."""
+    employee_code = models.CharField(max_length=50, db_index=True, verbose_name='Mã nhân viên')
+    camera_id = models.CharField(max_length=64, blank=True, verbose_name='Mã camera')
+    scan_time = models.DateTimeField(db_index=True, verbose_name='Thời gian quét')
+    status = models.CharField(max_length=30, blank=True, verbose_name='Trạng thái')
+    score = models.FloatField(null=True, blank=True, verbose_name='Độ khớp')
+    image = models.ImageField(upload_to='attendance_captures/%Y/%m/%d/', verbose_name='Ảnh chụp')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-scan_time']
+        verbose_name = 'Ảnh chụp nhận diện'
+        verbose_name_plural = 'Ảnh chụp nhận diện'
+
+    def __str__(self):
+        return f"{self.employee_code} @ {self.scan_time:%d/%m/%Y %H:%M:%S}"
+
+
 class CameraStatusLog(models.Model):
     """Lịch sử chuyển trạng thái online/offline của camera nhận diện —
     mỗi lần đổi trạng thái ghi 1 dòng. `changed_at` là thời điểm thực tế

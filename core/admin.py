@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import RecognitionHeartbeat, CameraStatusLog
+from .models import RecognitionHeartbeat, CameraStatusLog, AttendanceCapture
 
 
 @admin.register(RecognitionHeartbeat)
@@ -15,3 +15,11 @@ class CameraStatusLogAdmin(admin.ModelAdmin):
     list_filter = ('status', 'camera_id')
     search_fields = ('camera_id',)
     date_hierarchy = 'changed_at'
+
+
+@admin.register(AttendanceCapture)
+class AttendanceCaptureAdmin(admin.ModelAdmin):
+    list_display = ('employee_code', 'camera_id', 'status', 'score', 'scan_time')
+    list_filter = ('status', 'camera_id')
+    search_fields = ('employee_code',)
+    date_hierarchy = 'scan_time'

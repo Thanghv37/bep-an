@@ -9,6 +9,7 @@ from .views import (
     recognition_heartbeat_api,
     recognition_status_api,
     recognition_logs_api,
+    recognition_capture_api,
 )
 
 urlpatterns = [
@@ -21,4 +22,5 @@ urlpatterns = [
     path('api/recognition/heartbeat/', recognition_heartbeat_api, name='recognition_heartbeat_api'),
     path('api/recognition/status/', recognition_status_api, name='recognition_status_api'),
     path('api/recognition/logs/', recognition_logs_api, name='recognition_logs_api'),
+    path('api/recognition/capture/', recognition_capture_api, name='recognition_capture_api'),
 ]

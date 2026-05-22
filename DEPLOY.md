@@ -3,6 +3,7 @@
 Hướng dẫn deploy code từ máy dev lên server production. **Bookmark file này** để mỗi lần deploy mở ra làm theo.
 
 ---
+.\venv\Scripts\Activate.ps1
 
 ## 📍 Thông tin server
 

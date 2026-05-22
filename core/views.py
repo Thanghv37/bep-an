@@ -26,7 +26,10 @@ from .services.nutrition_ai import estimate_nutrition
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 import json
-from .models import AttendanceLog, RecognitionHeartbeat, CameraStatusLog, SystemConfig
+from .models import (
+    AttendanceLog, RecognitionHeartbeat, CameraStatusLog, SystemConfig,
+    AttendanceCapture,
+)
 from django.utils.dateparse import parse_datetime
 
 def get_registered_count(target_date):
@@ -712,6 +715,63 @@ def recognition_logs_api(request):
         'changed_at': timezone.localtime(lg.changed_at).strftime('%H:%M  %d/%m/%Y'),
     } for lg in logs]
     return JsonResponse({"success": True, "logs": items})
+
+
+CAPTURE_RETENTION_DAYS = 30
+
+
+def _purge_old_captures_if_due():
+    """Xóa ảnh chụp nhận diện cũ hơn CAPTURE_RETENTION_DAYS — chạy tối đa
+    1 lần/ngày, được kích bởi request capture đầu tiên trong ngày (không cần
+    cron/systemd timer riêng)."""
+    today = timezone.localdate().isoformat()
+    cfg = SystemConfig.objects.filter(key='capture_purge_date').first()
+    if cfg and cfg.value == today:
+        return
+    cutoff = timezone.now() - timedelta(days=CAPTURE_RETENTION_DAYS)
+    for cap in AttendanceCapture.objects.filter(scan_time__lt=cutoff):
+        if cap.image:
+            cap.image.delete(save=False)  # xóa file vật lý
+        cap.delete()
+    SystemConfig.objects.update_or_create(
+        key='capture_purge_date', defaults={'value': today})
+
+
+@csrf_exempt
+def recognition_capture_api(request):
+    """Nhận ảnh chụp khung hình lúc nhận diện 1 nhân viên (multipart/form-data).
+    Fields: image (file, bắt buộc), employee_code (bắt buộc), camera_id,
+    scan_time, status, score. Token qua header Authorization: Bearer."""
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "POST method required"}, status=405)
+    if not _check_recognition_auth(request):
+        return JsonResponse({"success": False, "message": "Unauthorized"}, status=401)
+
+    image = request.FILES.get('image')
+    employee_code = (request.POST.get('employee_code') or '').strip()
+    if not image or not employee_code:
+        return JsonResponse(
+            {"success": False, "message": "image và employee_code là bắt buộc"}, status=400)
+
+    scan_time = parse_datetime(request.POST.get('scan_time') or '') or timezone.now()
+
+    score_raw = (request.POST.get('score') or '').strip()
+    try:
+        score = float(score_raw) if score_raw else None
+    except ValueError:
+        score = None
+
+    AttendanceCapture.objects.create(
+        employee_code=employee_code,
+        camera_id=(request.POST.get('camera_id') or '').strip(),
+        scan_time=scan_time,
+        status=(request.POST.get('status') or '').strip(),
+        score=score,
+        image=image,
+    )
+
+    _purge_old_captures_if_due()
+    return JsonResponse({"success": True})
 
 
 @csrf_exempt

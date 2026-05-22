@@ -132,6 +132,12 @@
                                         {{ row.scan_time|date:"H:i" }}
                                         <small class="text-muted d-block">{{ row.scan_time|date:"d/m/Y" }}</small>
                                     </div>
+                                    {% if row.capture_image_url %}
+                                        <a href="{{ row.capture_image_url }}" target="_blank"
+                                           class="capture-thumb-link" title="Xem ảnh lúc quét mặt">
+                                            <img src="{{ row.capture_image_url }}" class="capture-thumb" alt="Ảnh quét">
+                                        </a>
+                                    {% endif %}
                                 {% else %}
                                     <span class="text-muted">—</span>
                                 {% endif %}
@@ -186,6 +192,8 @@ img.user-list-avatar { object-fit: cover; }
 .user-list-name { font-weight: 700; color: #1e293b; font-size: 14px; }
 .user-list-sub { font-size: 11px; color: #94a3b8; }
 .employee-code { background: #f8fafc; color: #475569; padding: 3px 10px; border-radius: 12px; font-size: 13px; font-weight: 600; border: 1px solid #e2e8f0; }
+.capture-thumb { margin-top: 6px; width: 64px; height: 48px; object-fit: cover; border-radius: 6px; border: 1px solid #e2e8f0; display: block; cursor: pointer; transition: border-color 0.15s ease; }
+.capture-thumb:hover { border-color: #2563eb; }
 .status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
 .status-success { background: #ecfdf5; color: #059669; border: 1px solid #d1fae5; }
 .status-warning { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
