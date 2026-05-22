@@ -302,57 +302,143 @@ def purchase_update(request, pk):
 
         if form.is_valid():
             previous_status = purchase.status
+            old_type = purchase.purchase_type
 
-            purchase = form.save(commit=False)
-            purchase.created_by = request.user
-            purchase.status = DailyPurchase.STATUS_PENDING
-            purchase.approved_by = None
-            purchase.approved_at = None
-            purchase.reject_reason = ''
-            purchase.rejected_by = None
-            purchase.rejected_at = None
-            if was_previously_approved:
-                purchase.was_edited_after_approval = True
-            purchase.save()
-
-            # Update dynamic items: delete old ones, recreate new ones
-            purchase.extra_items.all().delete()
-
+            # Parse danh sách items + phân loại TP/GV cho từng dòng.
             names = request.POST.getlist('ai_item_name[]')
             quantities = request.POST.getlist('ai_item_quantity[]')
             units = request.POST.getlist('ai_item_unit[]')
             prices = request.POST.getlist('ai_item_price[]')
+            types = request.POST.getlist('ai_item_type[]')
 
+            tp_items = []
+            gv_items = []
             for i, raw_name in enumerate(names):
                 name = (raw_name or '').strip()
-                if not name: continue
+                if not name:
+                    continue
 
-                try: quantity = Decimal(quantities[i].replace(',', '.'))
-                except: quantity = Decimal('0')
+                try:
+                    quantity = Decimal(
+                        (quantities[i] if i < len(quantities) else '0').replace(',', '.')
+                    )
+                except (InvalidOperation, ValueError):
+                    quantity = Decimal('0')
 
                 unit = units[i] if i < len(units) else ''
 
-                try: price = Decimal((prices[i] or '').replace('.', '').replace(',', ''))
-                except: price = Decimal('0')
+                try:
+                    price = Decimal(
+                        (prices[i] if i < len(prices) else '0')
+                        .replace('.', '').replace(',', '')
+                    )
+                except (InvalidOperation, ValueError):
+                    price = Decimal('0')
 
-                PurchaseExtraItem.objects.create(
-                    purchase=purchase,
-                    date=purchase.date,
-                    ingredient_name=name,
-                    quantity=quantity,
-                    unit=unit,
-                    unit_price=price
+                item_type = types[i] if i < len(types) else DailyPurchase.PURCHASE_TYPE_MAIN
+                target = gv_items if item_type == DailyPurchase.PURCHASE_TYPE_EXTRA else tp_items
+                target.append({
+                    'name': name,
+                    'quantity': quantity,
+                    'unit': unit,
+                    'unit_price': price,
+                    'line_total': quantity * price,
+                })
+
+            split = bool(tp_items and gv_items)
+
+            with transaction.atomic():
+                purchase = form.save(commit=False)
+                purchase.created_by = request.user
+                purchase.status = DailyPurchase.STATUS_PENDING
+                purchase.approved_by = None
+                purchase.approved_at = None
+                purchase.reject_reason = ''
+                purchase.rejected_by = None
+                purchase.rejected_at = None
+                if was_previously_approved:
+                    purchase.was_edited_after_approval = True
+
+                if split:
+                    # Có cả 2 loại → phiếu hiện tại giữ nhóm trùng loại cũ,
+                    # tách nhóm còn lại ra phiếu mới (chờ duyệt lại).
+                    if old_type == DailyPurchase.PURCHASE_TYPE_EXTRA:
+                        keep_items, new_items = gv_items, tp_items
+                        purchase.purchase_type = DailyPurchase.PURCHASE_TYPE_EXTRA
+                        new_type = DailyPurchase.PURCHASE_TYPE_MAIN
+                    else:
+                        keep_items, new_items = tp_items, gv_items
+                        purchase.purchase_type = DailyPurchase.PURCHASE_TYPE_MAIN
+                        new_type = DailyPurchase.PURCHASE_TYPE_EXTRA
+                    purchase.actual_cost = int(sum(it['line_total'] for it in keep_items))
+                else:
+                    keep_items = tp_items or gv_items
+                    if tp_items:
+                        purchase.purchase_type = DailyPurchase.PURCHASE_TYPE_MAIN
+                        purchase.actual_cost = int(sum(it['line_total'] for it in tp_items))
+                    elif gv_items:
+                        purchase.purchase_type = DailyPurchase.PURCHASE_TYPE_EXTRA
+                        purchase.actual_cost = int(sum(it['line_total'] for it in gv_items))
+                    # else: không có items, giữ purchase_type & actual_cost từ form.
+
+                purchase.save()
+
+                # Recreate items của phiếu hiện tại.
+                purchase.extra_items.all().delete()
+                for it in keep_items:
+                    PurchaseExtraItem.objects.create(
+                        purchase=purchase,
+                        date=purchase.date,
+                        ingredient_name=it['name'],
+                        quantity=it['quantity'],
+                        unit=it['unit'],
+                        unit_price=it['unit_price'],
+                    )
+
+                if split:
+                    # Phiếu mới cho nhóm tách ra — copy ảnh hóa đơn.
+                    new_purchase = DailyPurchase(
+                        date=purchase.date,
+                        purchase_type=new_type,
+                        actual_cost=int(sum(it['line_total'] for it in new_items)),
+                        note=purchase.note,
+                        status=DailyPurchase.STATUS_PENDING,
+                        created_by=request.user,
+                    )
+                    if purchase.bill_image:
+                        purchase.bill_image.open('rb')
+                        content = purchase.bill_image.read()
+                        purchase.bill_image.close()
+                        ext = purchase.bill_image.name.rsplit('.', 1)[-1] or 'jpg'
+                        new_purchase.bill_image.save(
+                            f'split.{ext}', ContentFile(content), save=False
+                        )
+                    new_purchase.save()
+                    for it in new_items:
+                        PurchaseExtraItem.objects.create(
+                            purchase=new_purchase,
+                            date=new_purchase.date,
+                            ingredient_name=it['name'],
+                            quantity=it['quantity'],
+                            unit=it['unit'],
+                            unit_price=it['unit_price'],
+                        )
+
+                if was_previously_approved:
+                    PurchaseEditLog.objects.create(
+                        purchase=purchase,
+                        edited_by=request.user,
+                        previous_status=previous_status,
+                        reason=edit_reason,
+                    )
+
+            if split:
+                messages.success(
+                    request,
+                    'Đã cập nhật và tách thành 2 phiếu (Thực phẩm + Gia vị), chờ duyệt lại.'
                 )
-
-            if was_previously_approved:
-                PurchaseEditLog.objects.create(
-                    purchase=purchase,
-                    edited_by=request.user,
-                    previous_status=previous_status,
-                    reason=edit_reason,
-                )
-
-            messages.success(request, 'Đã cập nhật chi phí, đang chờ phê duyệt lại.')
+            else:
+                messages.success(request, 'Đã cập nhật chi phí, đang chờ phê duyệt lại.')
             return redirect('purchase_list')
     else:
         form = DailyPurchaseForm(instance=purchase)

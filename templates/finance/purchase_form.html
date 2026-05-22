@@ -169,14 +169,12 @@
                                 <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addAiItemRow()">+ Thêm dòng</button>
                             </div>
                             <div class="table-responsive">
-                                <table class="table table-bordered table-sm align-middle" id="ai-items-table" style="min-width: {% if is_create %}760px{% else %}660px{% endif %};">
+                                <table class="table table-bordered table-sm align-middle" id="ai-items-table" style="min-width: 760px;">
                                     <thead class="table-light">
                                         <tr>
                                             <th>Tên hàng</th>
-                                            {% if is_create %}
                                             <th style="width: 42px; text-align:center;" title="Thực phẩm">TP</th>
                                             <th style="width: 42px; text-align:center;" title="Gia vị">GV</th>
-                                            {% endif %}
                                             <th style="width: 90px;">Số lượng</th>
                                             <th style="width: 90px;">Đơn vị</th>
                                             <th style="width: 120px;">Đơn giá</th>
@@ -189,6 +187,13 @@
                                             {% for item in form.instance.extra_items.all %}
                                             <tr>
                                                 <td><input type="text" name="ai_item_name[]" class="form-control form-control-sm" value="{{ item.ingredient_name }}"></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" class="ai-type-tp form-check-input" {% if form.instance.purchase_type != 'extra' %}checked{% endif %} onclick="toggleItemType(this,'main')">
+                                                    <input type="hidden" name="ai_item_type[]" value="{% if form.instance.purchase_type == 'extra' %}extra{% else %}main{% endif %}">
+                                                </td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" class="ai-type-gv form-check-input" {% if form.instance.purchase_type == 'extra' %}checked{% endif %} onclick="toggleItemType(this,'extra')">
+                                                </td>
                                                 <td><input type="number" step="0.01" name="ai_item_quantity[]" class="form-control form-control-sm" value="{{ item.quantity|stringformat:'f'|slice:'0:-4' }}"></td>
                                                 <td><input type="text" name="ai_item_unit[]" class="form-control form-control-sm" value="{{ item.unit }}"></td>
                                                 <td><input type="text" inputmode="numeric" name="ai_item_price[]" class="form-control form-control-sm money-input" value="{{ item.unit_price|stringformat:'f'|slice:'0:-7' }}"></td>
@@ -200,11 +205,10 @@
                                     </tbody>
                                 </table>
                             </div>
-                            {% if is_create %}
                             <div class="d-flex justify-content-between align-items-center mt-2 small ai-totals-row">
                                 <div class="text-muted">
                                     Cột <strong>TP</strong> = Thực phẩm (mặc định), <strong>GV</strong> = Gia vị.
-                                    Nếu phiếu có cả 2 loại, hệ thống sẽ tự tách thành 2 phiếu .
+                                    Nếu phiếu có cả 2 loại, hệ thống sẽ tự tách thành 2 phiếu.
                                 </div>
                                 <div class="text-end" style="white-space:nowrap;">
                                     <span class="me-3">🍖 TP: <span id="ai-tp-total" class="fw-bold text-success">0</span> đ</span>
@@ -212,7 +216,6 @@
                                     <span>Tổng: <span id="ai-grand-total" class="fw-bold text-primary">0</span> đ</span>
                                 </div>
                             </div>
-                            {% endif %}
                             <div class="text-muted small mt-2">
                                 Sau khi tải ảnh hóa đơn lên, bấm "Quét bằng AI" để tự động điền danh sách này. Bạn có thể tự sửa lại nếu AI nhận diện sai.
                             </div>
@@ -330,13 +333,12 @@
 </style>
 
 <script>
-// Có hiển thị 2 cột TP/GV (chỉ ở mode CREATE) thì các hàm tạo dòng động cũng phải bơm thêm cell tương ứng.
-const IS_CREATE = {% if is_create %}true{% else %}false{% endif %};
+// 2 cột TP/GV hiển thị ở cả mode tạo mới lẫn sửa — các hàm tạo dòng động
+// đều phải bơm thêm cell tương ứng.
 
-// Trả về cell HTML cho 2 ô TP/GV + hidden input, default theo dropdown 'purchase_type' nếu có,
-// fallback 'main'. Chỉ render khi IS_CREATE.
+// Trả về cell HTML cho 2 ô TP/GV + hidden input, default theo dropdown
+// 'purchase_type' đang chọn, fallback 'main'.
 function aiTypeCellsHtml(defaultType) {
-    if (!IS_CREATE) return '';
     const t = defaultType || (document.querySelector('input[name="purchase_type"]:checked') || {}).value || 'main';
     const isExtra = (t === 'extra');
     return `
@@ -778,7 +780,7 @@ function recalcAiTotals(updateCost) {
         const costInput = document.getElementById('id_actual_cost');
         if (costInput) costInput.value = formatMoney(Math.round(sum));
     }
-    // Breakdown TP/GV (chỉ có khi IS_CREATE).
+    // Breakdown TP/GV.
     const tpEl = document.getElementById('ai-tp-total');
     const gvEl = document.getElementById('ai-gv-total');
     const grandEl = document.getElementById('ai-grand-total');

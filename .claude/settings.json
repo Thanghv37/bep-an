@@ -44,7 +44,8 @@
       "Bash(git checkout *)",
       "Bash(venv/Scripts/python.exe -c \"import ast; [ast.parse\\(open\\(f,encoding='utf-8'\\).read\\(\\)\\) for f in ['core/views.py','core/models.py','core/urls.py','core/admin.py','accounts/views.py','Client/Client/config.py','Client/Client/app/log_sender.py','Client/Client/app/heartbeat.py','Client/Client/app/__init__.py']]; print\\('Syntax OK het 9 file'\\)\")",
       "Bash(venv/Scripts/python.exe -c \"import ast; [ast.parse\\(open\\(f,encoding='utf-8'\\).read\\(\\)\\) for f in ['core/views.py','core/urls.py']]; print\\('Syntax OK'\\)\")",
-      "Bash(venv/Scripts/python.exe -c \"import ast; [ast.parse\\(open\\(f,encoding='utf-8'\\).read\\(\\)\\) for f in ['registrations/participation_export.py','registrations/views.py','registrations/management/commands/send_participation_report.py']]; print\\('Syntax OK'\\)\")"
+      "Bash(venv/Scripts/python.exe -c \"import ast; [ast.parse\\(open\\(f,encoding='utf-8'\\).read\\(\\)\\) for f in ['registrations/participation_export.py','registrations/views.py','registrations/management/commands/send_participation_report.py']]; print\\('Syntax OK'\\)\")",
+      "Bash(venv/Scripts/python.exe -c \"import ast; ast.parse\\(open\\('finance/views.py',encoding='utf-8'\\).read\\(\\)\\); print\\('Syntax OK'\\)\")"
     ]
   }
 }
