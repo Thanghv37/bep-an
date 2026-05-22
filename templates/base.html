@@ -291,6 +291,10 @@
             gap: 16px;
         }
         #camera-status-widget {
+            position: relative;
+            cursor: pointer;
+        }
+        #camera-pills {
             display: flex;
             align-items: center;
             gap: 8px;
@@ -307,6 +311,53 @@
             font-weight: 700;
             color: #475569;
             white-space: nowrap;
+        }
+        .camera-log-popup {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 250px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+            padding: 10px 12px;
+            z-index: 60;
+        }
+        #camera-status-widget:hover .camera-log-popup,
+        .camera-log-popup.pinned {
+            display: block;
+        }
+        .camera-log-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 8px;
+        }
+        .camera-log-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0;
+            font-size: 12px;
+            color: #334155;
+            border-top: 1px solid #f1f5f9;
+        }
+        .camera-log-row:first-of-type { border-top: none; }
+        .camera-log-row .cam-dot { width: 8px; height: 8px; box-shadow: none; }
+        .camera-log-row.is-online .cam-dot { background: #22c55e; }
+        .camera-log-row.is-offline .cam-dot { background: #ef4444; }
+        .camera-log-row .clog-label { font-weight: 700; }
+        .camera-log-row.is-online .clog-label { color: #16a34a; }
+        .camera-log-row.is-offline .clog-label { color: #dc2626; }
+        .camera-log-row .clog-time { margin-left: auto; color: #64748b; }
+        .camera-log-empty {
+            font-size: 12px;
+            color: #94a3b8;
+            padding: 4px 0;
         }
         .cam-dot {
             width: 9px;
@@ -970,7 +1021,10 @@
             <div class="topbar-right-group">
                 {% if request.user.is_superuser or request.user.profile.role == 'admin' %}
                 <div id="camera-status-widget" title="Trạng thái hệ thống nhận diện">
-                    <span class="camera-status-pill"><span class="cam-dot"></span><span>Camera</span></span>
+                    <div id="camera-pills">
+                        <span class="camera-status-pill"><span class="cam-dot"></span><span>Camera</span></span>
+                    </div>
+                    <div id="camera-log-popup" class="camera-log-popup"></div>
                 </div>
                 {% endif %}
                 <div class="page-header-right">
@@ -997,8 +1051,10 @@
             {% if request.user.is_superuser or request.user.profile.role == 'admin' %}
             <script>
                 (function () {
-                    const wrap = document.getElementById('camera-status-widget');
-                    if (!wrap) return;
+                    const widget = document.getElementById('camera-status-widget');
+                    const pillsWrap = document.getElementById('camera-pills');
+                    const popup = document.getElementById('camera-log-popup');
+                    if (!widget || !pillsWrap || !popup) return;
 
                     function makePill(label, online) {
                         const pill = document.createElement('span');
@@ -1014,29 +1070,82 @@
                         return pill;
                     }
 
-                    function render(cameras) {
-                        wrap.innerHTML = '';
+                    function renderPills(cameras) {
+                        pillsWrap.innerHTML = '';
                         if (!cameras || cameras.length === 0) {
-                            wrap.appendChild(makePill('Camera', null));
+                            pillsWrap.appendChild(makePill('Camera', null));
                             return;
                         }
                         const single = cameras.length === 1;
                         cameras.forEach(function (c) {
-                            wrap.appendChild(makePill(single ? 'Camera' : c.camera_id, c.online));
+                            pillsWrap.appendChild(makePill(single ? 'Camera' : c.camera_id, c.online));
                         });
                     }
 
-                    function poll() {
+                    function pollStatus() {
                         fetch('/api/recognition/status/', { headers: { 'Accept': 'application/json' } })
                             .then(function (r) { return r.ok ? r.json() : null; })
                             .then(function (data) {
-                                if (data && data.success) render(data.cameras);
+                                if (data && data.success) renderPills(data.cameras);
                             })
                             .catch(function () { /* giữ nguyên trạng thái cũ khi lỗi mạng */ });
                     }
 
-                    poll();
-                    setInterval(poll, 15000);
+                    function renderLogs(logs) {
+                        popup.innerHTML = '';
+                        const title = document.createElement('div');
+                        title.className = 'camera-log-title';
+                        title.textContent = 'Lịch sử bật / tắt camera';
+                        popup.appendChild(title);
+
+                        if (!logs || logs.length === 0) {
+                            const empty = document.createElement('div');
+                            empty.className = 'camera-log-empty';
+                            empty.textContent = 'Chưa có dữ liệu.';
+                            popup.appendChild(empty);
+                            return;
+                        }
+                        logs.forEach(function (lg) {
+                            const online = lg.status === 'online';
+                            const row = document.createElement('div');
+                            row.className = 'camera-log-row ' + (online ? 'is-online' : 'is-offline');
+                            const dot = document.createElement('span');
+                            dot.className = 'cam-dot';
+                            const label = document.createElement('span');
+                            label.className = 'clog-label';
+                            label.textContent = online ? 'Bật' : 'Tắt';
+                            const time = document.createElement('span');
+                            time.className = 'clog-time';
+                            time.textContent = lg.changed_at;
+                            row.appendChild(dot);
+                            row.appendChild(label);
+                            row.appendChild(time);
+                            popup.appendChild(row);
+                        });
+                    }
+
+                    function loadLogs() {
+                        fetch('/api/recognition/logs/', { headers: { 'Accept': 'application/json' } })
+                            .then(function (r) { return r.ok ? r.json() : null; })
+                            .then(function (data) {
+                                if (data && data.success) renderLogs(data.logs);
+                            })
+                            .catch(function () { /* lỗi mạng — giữ popup cũ */ });
+                    }
+
+                    // Hover hoặc click vào widget → nạp log mới nhất.
+                    widget.addEventListener('mouseenter', loadLogs);
+                    widget.addEventListener('click', function () {
+                        popup.classList.toggle('pinned');
+                        if (popup.classList.contains('pinned')) loadLogs();
+                    });
+                    // Click ra ngoài → đóng popup đang ghim.
+                    document.addEventListener('click', function (e) {
+                        if (!widget.contains(e.target)) popup.classList.remove('pinned');
+                    });
+
+                    pollStatus();
+                    setInterval(pollStatus, 15000);
                 })();
             </script>
             {% endif %}

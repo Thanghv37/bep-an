@@ -696,6 +696,24 @@ def recognition_status_api(request):
     return JsonResponse({"success": True, "cameras": cameras})
 
 
+@login_required
+def recognition_logs_api(request):
+    """Trả lịch sử bật/tắt camera nhận diện — chỉ admin. Lấy trong 5 ngày
+    gần nhất, tối đa 10 dòng mới nhất."""
+    if not _is_admin(request.user):
+        return JsonResponse({"success": False, "message": "Forbidden"}, status=403)
+
+    since = timezone.now() - timedelta(days=5)
+    logs = CameraStatusLog.objects.filter(
+        changed_at__gte=since).order_by('-changed_at')[:10]
+    items = [{
+        'camera_id': lg.camera_id,
+        'status': lg.status,
+        'changed_at': timezone.localtime(lg.changed_at).strftime('%H:%M  %d/%m/%Y'),
+    } for lg in logs]
+    return JsonResponse({"success": True, "logs": items})
+
+
 @csrf_exempt
 def attendance_log_api(request):
     if request.method != "POST":
