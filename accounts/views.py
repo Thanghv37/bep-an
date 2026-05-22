@@ -441,6 +441,14 @@ def user_profile(request):
             messages.success(request, f'Đã lưu mẫu tin nhắn {label}.')
             return redirect('user_profile')
 
+        # XỬ LÝ LƯU TOKEN HỆ THỐNG NHẬN DIỆN
+        if action == 'save_recognition_config' and is_admin:
+            token = request.POST.get('recognition_token', '').strip()
+            SystemConfig.objects.update_or_create(
+                key='recognition_token', defaults={'value': token})
+            messages.success(request, 'Đã lưu token hệ thống nhận diện.')
+            return redirect('user_profile')
+
         # 5. XỬ LÝ LƯU CẤU HÌNH AI GEMINI
         if action == 'save_ai_config' and is_admin:
             api_key = request.POST.get('gemini_api_key', '').strip()
@@ -477,11 +485,15 @@ def user_profile(request):
         'available_models': AVAILABLE_MODELS,
     }
 
+    config_recognition = SystemConfig.objects.filter(key='recognition_token').first()
+    recognition_token = config_recognition.value if config_recognition else ''
+
     return render(request, 'accounts/user_profile.html', {
         'profile': profile,
         'bot_config': bot_config,
         'msg_templates': msg_templates,
         'ai_config': ai_config,
+        'recognition_token': recognition_token,
     })
 
 

@@ -26,7 +26,7 @@ from .services.nutrition_ai import estimate_nutrition
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 import json
-from .models import AttendanceLog
+from .models import AttendanceLog, RecognitionHeartbeat, CameraStatusLog, SystemConfig
 from django.utils.dateparse import parse_datetime
 
 def get_registered_count(target_date):
@@ -588,10 +588,120 @@ def nutrition_analysis_api(request):
         })
 from django.db import models
 
+# --- Tích hợp hệ thống nhận diện (camera) ---
+# Ngưỡng coi camera là offline khi không nhận heartbeat (giây).
+RECOGNITION_OFFLINE_SECONDS = 30
+
+
+def _get_recognition_token():
+    cfg = SystemConfig.objects.filter(key='recognition_token').first()
+    return (cfg.value or '').strip() if cfg else ''
+
+
+def _check_recognition_auth(request):
+    """Xác thực request từ hệ thống nhận diện qua header
+    `Authorization: Bearer <token>`.
+
+    Nếu admin chưa cấu hình `recognition_token` (rỗng) → trả True (chưa
+    enforce) để không làm vỡ luồng điểm danh ngay sau khi deploy. Chỉ khi
+    token đã được set thì mới bắt buộc khớp."""
+    expected = _get_recognition_token()
+    if not expected:
+        return True
+    auth = request.headers.get('Authorization', '')
+    token = auth[7:].strip() if auth.startswith('Bearer ') else ''
+    return token == expected
+
+
+def _is_admin(user):
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    profile = getattr(user, 'profile', None)
+    return bool(profile) and getattr(profile, 'role', '').lower() == 'admin'
+
+
+def _log_camera_status(camera_id, status, changed_at):
+    """Ghi 1 dòng lịch sử chuyển trạng thái — chỉ ghi nếu khác trạng thái
+    gần nhất (tránh ghi trùng khi gọi nhiều lần)."""
+    last = CameraStatusLog.objects.filter(camera_id=camera_id).order_by('-changed_at').first()
+    if last and last.status == status:
+        return
+    CameraStatusLog.objects.create(camera_id=camera_id, status=status, changed_at=changed_at)
+
+
+@csrf_exempt
+def recognition_heartbeat_api(request):
+    """Nhận heartbeat từ client nhận diện. Body JSON:
+    {"camera_id": "bep_kv2", "info": {...optional...}}.
+    Token gửi qua header Authorization: Bearer <token>."""
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "POST method required"}, status=405)
+    if not _check_recognition_auth(request):
+        return JsonResponse({"success": False, "message": "Unauthorized"}, status=401)
+
+    try:
+        data = json.loads(request.body or b'{}')
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "message": "Invalid JSON"}, status=400)
+
+    camera_id = (data.get('camera_id') or '').strip()
+    if not camera_id:
+        return JsonResponse({"success": False, "message": "camera_id required"}, status=400)
+
+    now = timezone.now()
+
+    # Trạng thái trước đó để biết có phải transition offline → online không
+    hb = RecognitionHeartbeat.objects.filter(camera_id=camera_id).first()
+    was_online = bool(hb) and (now - hb.last_heartbeat_at).total_seconds() < RECOGNITION_OFFLINE_SECONDS
+
+    RecognitionHeartbeat.objects.update_or_create(
+        camera_id=camera_id,
+        defaults={'last_heartbeat_at': now, 'last_info': data.get('info')},
+    )
+
+    if not was_online:
+        _log_camera_status(camera_id, 'online', now)
+
+    return JsonResponse({"success": True})
+
+
+@login_required
+def recognition_status_api(request):
+    """Trả trạng thái online/offline các camera nhận diện — chỉ admin.
+    Đồng thời phát hiện camera vừa rớt offline (lazy) và ghi log với
+    timestamp thực tế = heartbeat cuối + ngưỡng."""
+    if not _is_admin(request.user):
+        return JsonResponse({"success": False, "message": "Forbidden"}, status=403)
+
+    now = timezone.now()
+    cameras = []
+    for hb in RecognitionHeartbeat.objects.all():
+        elapsed = (now - hb.last_heartbeat_at).total_seconds()
+        online = elapsed < RECOGNITION_OFFLINE_SECONDS
+        if not online:
+            last = CameraStatusLog.objects.filter(
+                camera_id=hb.camera_id).order_by('-changed_at').first()
+            if last and last.status == 'online':
+                offline_at = hb.last_heartbeat_at + timedelta(seconds=RECOGNITION_OFFLINE_SECONDS)
+                _log_camera_status(hb.camera_id, 'offline', offline_at)
+        cameras.append({
+            'camera_id': hb.camera_id,
+            'online': online,
+            'last_seen': hb.last_heartbeat_at.isoformat(),
+            'seconds_since': int(elapsed),
+        })
+    cameras.sort(key=lambda c: c['camera_id'])
+    return JsonResponse({"success": True, "cameras": cameras})
+
+
 @csrf_exempt
 def attendance_log_api(request):
     if request.method != "POST":
         return JsonResponse({"success": False, "message": "POST method required"}, status=405)
+    if not _check_recognition_auth(request):
+        return JsonResponse({"success": False, "message": "Unauthorized"}, status=401)
 
     try:
         data = json.loads(request.body)

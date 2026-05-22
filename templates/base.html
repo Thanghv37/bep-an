@@ -284,6 +284,46 @@
             gap: 5px;
         }
         .page-header-date i { color: #94a3b8; font-size: 12px; }
+
+        .topbar-right-group {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        #camera-status-widget {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .camera-status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            font-size: 12px;
+            font-weight: 700;
+            color: #475569;
+            white-space: nowrap;
+        }
+        .cam-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #cbd5e1;
+            flex-shrink: 0;
+        }
+        .camera-status-pill.is-online .cam-dot {
+            background: #22c55e;
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+        }
+        .camera-status-pill.is-offline .cam-dot {
+            background: #ef4444;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18);
+        }
+
         @media (max-width: 768px) {
             .page-header-right { display: none; }
             .page-title { font-size: 18px; }
@@ -927,13 +967,20 @@
                 </div>
             </div>
             {% if request.user.is_authenticated %}
-            <div class="page-header-right">
-                <div class="page-header-greeting">
-                    Xin chào, <span class="name">{{ request.user.profile.full_name|default:request.user.username|upper }}</span>
+            <div class="topbar-right-group">
+                {% if request.user.is_superuser or request.user.profile.role == 'admin' %}
+                <div id="camera-status-widget" title="Trạng thái hệ thống nhận diện">
+                    <span class="camera-status-pill"><span class="cam-dot"></span><span>Camera</span></span>
                 </div>
-                <div class="page-header-date">
-                    <i class="bi bi-calendar3"></i>
-                    <span id="topbar-date"></span>
+                {% endif %}
+                <div class="page-header-right">
+                    <div class="page-header-greeting">
+                        Xin chào, <span class="name">{{ request.user.profile.full_name|default:request.user.username|upper }}</span>
+                    </div>
+                    <div class="page-header-date">
+                        <i class="bi bi-calendar3"></i>
+                        <span id="topbar-date"></span>
+                    </div>
                 </div>
             </div>
             <script>
@@ -947,6 +994,52 @@
                     el.textContent = `${days[d.getDay()]}, ${dd}/${mm}/${d.getFullYear()}`;
                 })();
             </script>
+            {% if request.user.is_superuser or request.user.profile.role == 'admin' %}
+            <script>
+                (function () {
+                    const wrap = document.getElementById('camera-status-widget');
+                    if (!wrap) return;
+
+                    function makePill(label, online) {
+                        const pill = document.createElement('span');
+                        pill.className = 'camera-status-pill';
+                        if (online === true) pill.classList.add('is-online');
+                        else if (online === false) pill.classList.add('is-offline');
+                        const dot = document.createElement('span');
+                        dot.className = 'cam-dot';
+                        const txt = document.createElement('span');
+                        txt.textContent = label;
+                        pill.appendChild(dot);
+                        pill.appendChild(txt);
+                        return pill;
+                    }
+
+                    function render(cameras) {
+                        wrap.innerHTML = '';
+                        if (!cameras || cameras.length === 0) {
+                            wrap.appendChild(makePill('Camera', null));
+                            return;
+                        }
+                        const single = cameras.length === 1;
+                        cameras.forEach(function (c) {
+                            wrap.appendChild(makePill(single ? 'Camera' : c.camera_id, c.online));
+                        });
+                    }
+
+                    function poll() {
+                        fetch('/api/recognition/status/', { headers: { 'Accept': 'application/json' } })
+                            .then(function (r) { return r.ok ? r.json() : null; })
+                            .then(function (data) {
+                                if (data && data.success) render(data.cameras);
+                            })
+                            .catch(function () { /* giữ nguyên trạng thái cũ khi lỗi mạng */ });
+                    }
+
+                    poll();
+                    setInterval(poll, 15000);
+                })();
+            </script>
+            {% endif %}
             {% endif %}
         </div>
 

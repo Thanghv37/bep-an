@@ -157,3 +157,39 @@ class SystemConfig(models.Model):
 
     def __str__(self):
         return self.key
+
+
+class RecognitionHeartbeat(models.Model):
+    """Trạng thái sống của 1 camera nhận diện. Client gửi heartbeat định kỳ,
+    server chỉ giữ 1 row mỗi camera (camera_id là khóa chính)."""
+    camera_id = models.CharField(max_length=64, primary_key=True, verbose_name='Mã camera')
+    last_heartbeat_at = models.DateTimeField(verbose_name='Heartbeat gần nhất')
+    last_info = models.JSONField(null=True, blank=True, verbose_name='Thông tin kèm theo')
+
+    class Meta:
+        verbose_name = 'Heartbeat camera nhận diện'
+        verbose_name_plural = 'Heartbeat camera nhận diện'
+
+    def __str__(self):
+        return f"{self.camera_id} @ {self.last_heartbeat_at:%d/%m/%Y %H:%M:%S}"
+
+
+class CameraStatusLog(models.Model):
+    """Lịch sử chuyển trạng thái online/offline của camera nhận diện —
+    mỗi lần đổi trạng thái ghi 1 dòng. `changed_at` là thời điểm thực tế
+    của sự kiện (vd offline = last_heartbeat + ngưỡng), không phải lúc ghi."""
+    STATUS_CHOICES = [
+        ('online', 'Online'),
+        ('offline', 'Offline'),
+    ]
+    camera_id = models.CharField(max_length=64, db_index=True, verbose_name='Mã camera')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, verbose_name='Trạng thái')
+    changed_at = models.DateTimeField(db_index=True, verbose_name='Thời điểm chuyển')
+
+    class Meta:
+        ordering = ['-changed_at']
+        verbose_name = 'Log trạng thái camera'
+        verbose_name_plural = 'Log trạng thái camera'
+
+    def __str__(self):
+        return f"{self.camera_id} → {self.status} @ {self.changed_at:%d/%m/%Y %H:%M:%S}"

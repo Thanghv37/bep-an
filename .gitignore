@@ -35,3 +35,6 @@ Thumbs.db
 
 # Folder test dư
 check/
+
+# Code client nhận diện (chạy local trên máy client, không thuộc repo web)
+Client/

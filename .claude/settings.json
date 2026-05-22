@@ -40,7 +40,9 @@
       "Bash(venv/Scripts/python.exe -W ignore -X utf8 manage.py shell -c ' *)",
       "Bash(venv/Scripts/python.exe -W ignore -c \"import django; print\\(django.VERSION, django.__file__\\)\")",
       "Bash(git reset *)",
-      "PowerShell(python -c \"import ast; ast.parse\\(open\\(r'registrations\\\\views.py', encoding='utf-8'\\).read\\(\\)\\); print\\('OK'\\)\")"
+      "PowerShell(python -c \"import ast; ast.parse\\(open\\(r'registrations\\\\views.py', encoding='utf-8'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(git checkout *)",
+      "Bash(venv/Scripts/python.exe -c \"import ast; [ast.parse\\(open\\(f,encoding='utf-8'\\).read\\(\\)\\) for f in ['core/views.py','core/models.py','core/urls.py','core/admin.py','accounts/views.py','Client/Client/config.py','Client/Client/app/log_sender.py','Client/Client/app/heartbeat.py','Client/Client/app/__init__.py']]; print\\('Syntax OK het 9 file'\\)\")"
     ]
   }
 }

@@ -5,7 +5,9 @@ from .views import (
     meal_price_create,
     meal_price_update,
     nutrition_analysis_api,
-    attendance_log_api
+    attendance_log_api,
+    recognition_heartbeat_api,
+    recognition_status_api,
 )
 
 urlpatterns = [
@@ -15,4 +17,6 @@ urlpatterns = [
     path('meal-prices/<int:pk>/edit/', meal_price_update, name='meal_price_update'),
     path('nutrition-analysis/', nutrition_analysis_api, name='nutrition_analysis_api'),
     path('api/attendance-log/', attendance_log_api, name='attendance_log_api'),
+    path('api/recognition/heartbeat/', recognition_heartbeat_api, name='recognition_heartbeat_api'),
+    path('api/recognition/status/', recognition_status_api, name='recognition_status_api'),
 ]

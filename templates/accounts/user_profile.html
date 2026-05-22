@@ -235,6 +235,32 @@
         </div>
     </form>
 </div>
+
+<!-- CẤU HÌNH TOKEN HỆ THỐNG NHẬN DIỆN -->
+<div class="profile-card mt-4 p-4">
+    <div class="d-flex align-items-center gap-2 mb-2">
+        <h5 class="fw-bold mb-0">📷 Token hệ thống nhận diện</h5>
+    </div>
+    <div class="form-text mb-3" style="font-size: 13px;">
+        Token dùng để xác thực client camera nhận diện khi gửi điểm danh /
+        heartbeat lên server. Dán cùng giá trị này vào file <code>.env</code>
+        của client (biến <code>RECOGNITION_TOKEN</code>). Để trống = chưa bắt
+        buộc xác thực.
+    </div>
+    <form method="post" id="recognitionConfigForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_recognition_config">
+        <input type="text" id="recognition_token" name="recognition_token"
+               class="form-control recognition-input"
+               placeholder="Chuỗi token bí mật" value="{{ recognition_token|default:'' }}"
+               autocomplete="off" disabled>
+        <div class="d-flex gap-2 mt-3 justify-content-end">
+            <button type="button" class="btn btn-secondary fw-bold" id="btnEditRecognition">Sửa</button>
+            <button type="button" class="btn btn-outline-secondary fw-bold" id="btnCancelRecognition" disabled>Hủy</button>
+            <button type="submit" class="btn btn-primary fw-bold" id="btnSaveRecognition" disabled>Lưu</button>
+        </div>
+    </form>
+</div>
 {% endif %}
 
 <style>
@@ -357,14 +383,16 @@
 
     /* Khi ô bị khóa (Disabled) - Cho màu xám nhẹ để phân biệt */
     .bot-input:disabled,
-    .ai-input:disabled {
+    .ai-input:disabled,
+    .recognition-input:disabled {
         background-color: #f1f5f9 !important;
         border-color: #e2e8f0 !important;
         color: #64748b !important;
         cursor: not-allowed;
         opacity: 0.8;
     }
-    .ai-input.editing {
+    .ai-input.editing,
+    .recognition-input.editing {
         border: 1.5px solid #f87171 !important;
         background-color: #fef2f2 !important;
         box-shadow: 0 0 0 0.2rem rgba(248, 113, 113, 0.1) !important;
@@ -526,6 +554,34 @@ document.addEventListener('DOMContentLoaded', function() {
     btnCancel.addEventListener('click', () => {
         modelSelect.value = originalModel;
         apiKeyInput.value = originalKey;
+        setEditing(false);
+    });
+});
+</script>
+<script>
+// === TOKEN HỆ THỐNG NHẬN DIỆN: Edit / Cancel / Save ===
+document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('recognition_token');
+    const btnEdit = document.getElementById('btnEditRecognition');
+    const btnCancel = document.getElementById('btnCancelRecognition');
+    const btnSave = document.getElementById('btnSaveRecognition');
+
+    if (!input) return; // chỉ admin mới có form này
+
+    const originalValue = input.value;
+
+    function setEditing(editing) {
+        input.disabled = !editing;
+        btnCancel.disabled = !editing;
+        btnSave.disabled = !editing;
+        btnEdit.disabled = editing;
+        input.classList.toggle('editing', editing);
+        if (editing) input.focus();
+    }
+
+    btnEdit.addEventListener('click', () => setEditing(true));
+    btnCancel.addEventListener('click', () => {
+        input.value = originalValue;
         setEditing(false);
     });
 });
