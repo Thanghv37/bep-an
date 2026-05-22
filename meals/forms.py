@@ -1,5 +1,5 @@
 from django import forms
-from .models import Dish, DailyMenu
+from .models import Dish, DailyMenu, normalize_vietnamese_name
 
 
 class DishForm(forms.ModelForm):
@@ -23,6 +23,12 @@ class DishForm(forms.ModelForm):
                 'accept': 'image/*'
             }),
         }
+
+    def clean_name(self):
+        # Chuẩn hóa tên trước khi ModelForm chạy validate_unique — nếu không,
+        # tên gõ khác kiểu hoa/thường ("CÁ KHO" vs "Cá kho") lọt qua check
+        # trùng của form rồi vỡ IntegrityError lúc Dish.save() chuẩn hóa lại.
+        return normalize_vietnamese_name(self.cleaned_data.get('name', ''))
 
 
 class DishIngredientForm(forms.Form):
