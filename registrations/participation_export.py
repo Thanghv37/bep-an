@@ -10,6 +10,8 @@ import re
 
 import requests
 
+from django.utils import timezone
+
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 
@@ -103,6 +105,34 @@ def set_channel_id(value):
     return val
 
 
+# ---------- Thống kê & caption ----------
+
+def count_statuses(rows):
+    """Đếm số dòng theo từng trạng thái tham gia."""
+    return {
+        'valid': sum(1 for r in rows if r['status'] == 'valid'),
+        'supplementary': sum(1 for r in rows if r['status'] == 'supplementary'),
+        'not_attended': sum(1 for r in rows if r['status'] == 'not_attended'),
+        'not_registered': sum(1 for r in rows if r['status'] == 'not_registered'),
+    }
+
+
+def build_report_caption(target_date, rows=None):
+    """Caption tin nhắn NetChat. Nếu có `rows` thì kèm số liệu tổng hợp để
+    người nhận nắm nhanh, không cần mở file."""
+    caption = f'📊 Báo cáo Tham gia ngày {target_date.strftime("%d-%m-%Y")}'
+    if rows is None:
+        return caption
+    c = count_statuses(rows)
+    caption += (
+        f'\n- Đã điểm danh: {c["valid"]}'
+        f'\n- Đăng ký bổ sung: {c["supplementary"]}'
+        f'\n- Chưa điểm danh: {c["not_attended"]}'
+        f'\n- Chưa đăng ký: {c["not_registered"]}'
+    )
+    return caption
+
+
 # ---------- Build Excel ----------
 
 def build_excel_bytes(target_date, rows):
@@ -143,7 +173,8 @@ def build_excel_bytes(target_date, rows):
         profile = r.get('profile')
         unit = (profile.unit if profile else '') or ''
         dept = (profile.department if profile else '') or ''
-        scan_str = r['scan_time'].strftime('%H:%M:%S') if r['scan_time'] else '—'
+        # scan_time lưu UTC (USE_TZ=True) — convert sang giờ VN trước khi format.
+        scan_str = timezone.localtime(r['scan_time']).strftime('%H:%M:%S') if r['scan_time'] else '—'
         values = [idx, r['display_name'], r['employee_code'], unit, dept, scan_str, r['status_label'], r['type']]
         fill = fills.get(r['status'])
         for col_idx, v in enumerate(values, start=1):
@@ -156,12 +187,7 @@ def build_excel_bytes(target_date, rows):
         ws.column_dimensions[chr(ord('A') + col_idx - 1)].width = w
 
     summary_row = len(rows) + 5
-    counts = {
-        'valid': sum(1 for r in rows if r['status'] == 'valid'),
-        'supplementary': sum(1 for r in rows if r['status'] == 'supplementary'),
-        'not_attended': sum(1 for r in rows if r['status'] == 'not_attended'),
-        'not_registered': sum(1 for r in rows if r['status'] == 'not_registered'),
-    }
+    counts = count_statuses(rows)
     ws.cell(row=summary_row, column=1, value='Tổng:').font = Font(bold=True)
     ws.cell(row=summary_row, column=2, value=f"Đã điểm danh: {counts['valid']}")
     ws.cell(row=summary_row, column=3, value=f"Đăng ký bổ sung: {counts['supplementary']}")
@@ -186,11 +212,13 @@ def _get_netchat_config():
     }
 
 
-def send_excel_to_recipients(target_date, file_bytes, recipient_codes):
+def send_excel_to_recipients(target_date, file_bytes, recipient_codes, message=None):
     """Gửi file Excel qua DM NetChat cho danh sách MNV.
 
     Trả về dict {success: [...], failed: [(code, reason), ...]}.
     """
+    if message is None:
+        message = build_report_caption(target_date)
     cfg = _get_netchat_config()
     if not cfg:
         return {
@@ -269,7 +297,6 @@ def send_excel_to_recipients(target_date, file_bytes, recipient_codes):
             file_id = file_infos[0].get('id')
 
             # Tạo post kèm file.
-            message = f'📊 Báo cáo Tham gia ngày {target_date.strftime("%d-%m-%Y")}'
             r_post = requests.post(
                 f"{cfg['url']}/api/v4/posts",
                 headers={**headers, 'Content-Type': 'application/json'},
@@ -287,11 +314,13 @@ def send_excel_to_recipients(target_date, file_bytes, recipient_codes):
     return {'success': success, 'failed': failed}
 
 
-def send_excel_to_channel(target_date, file_bytes, channel_id):
+def send_excel_to_channel(target_date, file_bytes, channel_id, message=None):
     """Đăng file Excel báo cáo trực tiếp vào 1 channel NetChat theo channel_id.
 
     Bot phải là thành viên của channel đó. Trả về {'ok': bool, 'message': str}.
     """
+    if message is None:
+        message = build_report_caption(target_date)
     cfg = _get_netchat_config()
     if not cfg:
         return {'ok': False, 'message': 'Bot chưa được cấu hình URL/Token (vào Profile admin để thiết lập).'}
@@ -329,7 +358,6 @@ def send_excel_to_channel(target_date, file_bytes, channel_id):
         file_id = file_infos[0].get('id')
 
         # 2. Tạo post kèm file trong channel.
-        message = f'📊 Báo cáo Tham gia ngày {target_date.strftime("%d-%m-%Y")}'
         r_post = requests.post(
             f"{cfg['url']}/api/v4/posts",
             headers={**headers, 'Content-Type': 'application/json'},
@@ -346,26 +374,28 @@ def send_excel_to_channel(target_date, file_bytes, channel_id):
         return {'ok': False, 'message': f'Lỗi kết nối NetChat: {e}'}
 
 
-def send_participation_excel(target_date, file_bytes):
+def send_participation_excel(target_date, file_bytes, rows=None):
     """Gửi báo cáo Tham gia qua NetChat theo hình thức đã cấu hình (dm | channel).
 
-    Dùng chung cho view gửi tay và management command auto-send.
+    Dùng chung cho view gửi tay và management command auto-send. Nếu truyền
+    `rows` thì caption tin nhắn kèm số liệu tổng hợp.
     Trả về {'ok': bool, 'message': str}.
     """
+    caption = build_report_caption(target_date, rows)
     mode = get_send_mode()
 
     if mode == 'channel':
         channel_id = get_channel_id()
         if not channel_id:
             return {'ok': False, 'message': 'Chưa cấu hình Channel ID. Vào Cài đặt để nhập.'}
-        return send_excel_to_channel(target_date, file_bytes, channel_id)
+        return send_excel_to_channel(target_date, file_bytes, channel_id, caption)
 
     # mode == 'dm'
     recipients = get_recipients()
     if not recipients:
         return {'ok': False, 'message': 'Chưa cấu hình người nhận. Vào Cài đặt để thêm mã NV.'}
 
-    result = send_excel_to_recipients(target_date, file_bytes, recipients)
+    result = send_excel_to_recipients(target_date, file_bytes, recipients, caption)
     sent = len(result['success'])
     total = len(recipients)
     if sent == 0:

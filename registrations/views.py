@@ -653,7 +653,7 @@ def participation_send_netchat(request):
     target_date = _parse_date_param(request)
     rows = _build_participation_rows(target_date)
     file_bytes = build_excel_bytes(target_date, rows)
-    result = send_participation_excel(target_date, file_bytes)
+    result = send_participation_excel(target_date, file_bytes, rows)
 
     return JsonResponse({
         'success': result['ok'],

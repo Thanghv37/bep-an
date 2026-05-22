@@ -78,7 +78,7 @@ class Command(BaseCommand):
         file_bytes = build_excel_bytes(target_date, rows)
 
         self.stdout.write(f'[run] Sending report for {target_date} (mode={mode})...')
-        result = send_participation_excel(target_date, file_bytes)
+        result = send_participation_excel(target_date, file_bytes, rows)
 
         # 5. Chỉ mark last_sent nếu gửi thành công. Nếu thất bại → để lần fire
         # kế tiếp (trong cùng phút khớp giờ) thử lại.
