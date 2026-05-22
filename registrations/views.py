@@ -672,6 +672,17 @@ def participation_send_netchat(request):
 
 
 @login_required
+def participation_counts_api(request):
+    """Số liệu tham gia realtime cho ô KPI 'Người ăn' trên dashboard."""
+    from .participation_export import count_statuses
+
+    target_date = _parse_date_param(request)
+    rows = _build_participation_rows(target_date)
+    counts = count_statuses(rows)
+    return JsonResponse({'success': True, **counts})
+
+
+@login_required
 @user_passes_test(is_admin)
 def participation_settings(request):
     """GET: trả về settings hiện tại. POST: lưu settings."""

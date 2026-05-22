@@ -16,6 +16,7 @@ from .views import (
     get_notification_logs_api,
     participation_add_supplementary,
     participation_remove_supplementary,
+    participation_counts_api,
 )
 
 urlpatterns = [
@@ -38,4 +39,5 @@ urlpatterns = [
     path('participation/remove-supplementary/', participation_remove_supplementary, name='participation_remove_supplementary'),
     path('api/send-notifications/', send_meal_notifications, name='send_meal_notifications'),
     path('api/notification-logs/', get_notification_logs_api, name='get_notification_logs_api'),
+    path('participation/counts/', participation_counts_api, name='participation_counts_api'),
 ]

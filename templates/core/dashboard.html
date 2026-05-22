@@ -20,9 +20,45 @@
                         <span class="kpi-empty">Chưa có dữ liệu</span>
                     {% endif %}
                 </div>
-                <div class="kpi-meta">Số suất đăng ký trong ngày</div>
+                <div class="kpi-people-stats">
+                    <div class="pstat">
+                        <span class="ptext">Đã điểm danh</span>
+                        <span class="pnum pnum-green" id="ps-valid">—</span>
+                    </div>
+                    <div class="pstat">
+                        <span class="ptext">Chưa đăng ký</span>
+                        <span class="pnum pnum-orange" id="ps-notreg">—</span>
+                    </div>
+                    <div class="pstat">
+                        <span class="ptext">Chưa điểm danh</span>
+                        <span class="pnum pnum-red" id="ps-notatt">—</span>
+                    </div>
+                </div>
             </div>
         </div>
+        <script>
+            (function () {
+                const elValid = document.getElementById('ps-valid');
+                const elNotreg = document.getElementById('ps-notreg');
+                const elNotatt = document.getElementById('ps-notatt');
+                if (!elValid) return;
+                const dateParam = '{{ selected_date|date:"Y-m-d" }}';
+                function poll() {
+                    fetch('/registrations/participation/counts/?date=' + dateParam,
+                          { headers: { 'Accept': 'application/json' } })
+                        .then(function (r) { return r.ok ? r.json() : null; })
+                        .then(function (d) {
+                            if (!d || !d.success) return;
+                            elValid.textContent = d.valid;
+                            elNotreg.textContent = d.not_registered;
+                            elNotatt.textContent = d.not_attended;
+                        })
+                        .catch(function () { /* lỗi mạng — giữ số cũ */ });
+                }
+                poll();
+                setInterval(poll, 10000);
+            })();
+        </script>
     </div>
 
     <div class="col-12 col-md-6 col-lg">
@@ -206,6 +242,28 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+/* 3 dòng số liệu realtime trong thẻ "Người ăn" */
+.kpi-people-stats {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.kpi-people-stats .pstat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #64748b;
+}
+.kpi-people-stats .ptext { white-space: nowrap; }
+.kpi-people-stats .pnum { font-weight: 800; }
+.kpi-people-stats .pnum-green { color: #16a34a; }
+.kpi-people-stats .pnum-orange { color: #d97706; }
+.kpi-people-stats .pnum-red { color: #dc2626; }
 
 /* People / neutral - blue */
 .kpi-people {
