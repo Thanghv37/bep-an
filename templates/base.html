@@ -875,11 +875,13 @@
                     <span>Đánh giá bữa ăn</span>
                 </a>
 
-                {% if request.user.is_superuser or request.user.profile.role == 'admin' %}
+                {% if request.user.is_superuser or request.user.profile.role == 'admin' or request.user.profile.role == 'kitchen' %}
                     <a class="nav-link {% if '/users/' in request.path %}active{% endif %}" href="/users/">
                         <i class="bi bi-people-fill"></i>
                         <span>Quản lý người dùng</span>
                     </a>
+                {% endif %}
+                {% if request.user.is_superuser or request.user.profile.role == 'admin' %}
                     <a class="nav-link {% if '/registrations/' in request.path %}active{% endif %}" href="{% url 'registration_list' %}">
                         <i class="bi bi-clipboard-check"></i>
                         <span>Danh sách đăng kí</span>
