@@ -45,7 +45,12 @@
       "Bash(venv/Scripts/python.exe -c \"import ast; [ast.parse\\(open\\(f,encoding='utf-8'\\).read\\(\\)\\) for f in ['core/views.py','core/models.py','core/urls.py','core/admin.py','accounts/views.py','Client/Client/config.py','Client/Client/app/log_sender.py','Client/Client/app/heartbeat.py','Client/Client/app/__init__.py']]; print\\('Syntax OK het 9 file'\\)\")",
       "Bash(venv/Scripts/python.exe -c \"import ast; [ast.parse\\(open\\(f,encoding='utf-8'\\).read\\(\\)\\) for f in ['core/views.py','core/urls.py']]; print\\('Syntax OK'\\)\")",
       "Bash(venv/Scripts/python.exe -c \"import ast; [ast.parse\\(open\\(f,encoding='utf-8'\\).read\\(\\)\\) for f in ['registrations/participation_export.py','registrations/views.py','registrations/management/commands/send_participation_report.py']]; print\\('Syntax OK'\\)\")",
-      "Bash(venv/Scripts/python.exe -c \"import ast; ast.parse\\(open\\('finance/views.py',encoding='utf-8'\\).read\\(\\)\\); print\\('Syntax OK'\\)\")"
+      "Bash(venv/Scripts/python.exe -c \"import ast; ast.parse\\(open\\('finance/views.py',encoding='utf-8'\\).read\\(\\)\\); print\\('Syntax OK'\\)\")",
+      "Bash(./venv/Scripts/python.exe manage.py check)",
+      "Bash(git -C \"d:/Thanghv37/CDS/bếp ăn/4_5/thanghv37\" status --short)",
+      "Bash(git -C \"d:/Thanghv37/CDS/bếp ăn/4_5/thanghv37\" log --oneline -5)",
+      "Bash(git -C \"d:/Thanghv37/CDS/bếp ăn/4_5/thanghv37\" diff .claude/settings.json)",
+      "Bash(git -C \"d:/Thanghv37/CDS/bếp ăn/4_5/thanghv37\" add .claude/settings.json README.md meals/templatetags/unit_filters.py meals/views.py reports/views.py reviews/models.py reviews/views.py reviews/migrations/0008_dishreview_star_rating.py templates/core/dashboard.html templates/meals/approval_dashboard.html templates/meals/dish_form.html templates/meals/dish_list.html templates/reviews/public_review.html templates/reviews/review_dashboard.html)"
     ]
   }
 }

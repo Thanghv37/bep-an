@@ -85,6 +85,22 @@
                     {% endfor %}
                 </datalist>
 
+                <datalist id="unitSuggestions">
+                    <option value="Gram"></option>
+                    <option value="Kg"></option>
+                    <option value="Ml"></option>
+                    <option value="Lít"></option>
+                    <option value="Phần"></option>
+                    <option value="Quả"></option>
+                    <option value="Miếng"></option>
+                    <option value="Cái"></option>
+                    <option value="Con"></option>
+                    <option value="Lát"></option>
+                    <option value="Củ"></option>
+                    <option value="Gói"></option>
+                    <option value="Bó"></option>
+                </datalist>
+
                 <div id="ingredientRows" class="d-flex flex-column gap-2">
                     {% if dish_ingredients %}
                         {% for item in dish_ingredients %}
@@ -108,14 +124,12 @@
 
                             <div class="col-md-3">
                                 <label class="form-label small fw-semibold">Đơn vị</label>
-                                <select name="unit[]" class="form-select">
-                                    <option value="g" {% if item.unit == 'g' %}selected{% endif %}>Gram</option>
-                                    <option value="kg" {% if item.unit == 'kg' %}selected{% endif %}>Kg</option>
-                                    <option value="ml" {% if item.unit == 'ml' %}selected{% endif %}>Ml</option>
-                                    <option value="l" {% if item.unit == 'l' %}selected{% endif %}>Lít</option>
-                                    <option value="phần" {% if item.unit == 'phần' %}selected{% endif %}>Phần</option>
-                                    <option value="quả" {% if item.unit == 'quả' %}selected{% endif %}>Quả</option>
-                                </select>
+                                <input type="text"
+                                       name="unit[]"
+                                       class="form-control"
+                                       list="unitSuggestions"
+                                       value="{{ item.unit }}"
+                                       placeholder="g, kg, miếng, cái...">
                             </div>
 
                             <div class="col-md-1">
@@ -138,14 +152,11 @@
 
                             <div class="col-md-3">
                                 <label class="form-label small fw-semibold">Đơn vị</label>
-                                <select name="unit[]" class="form-select">
-                                    <option value="g">Gram</option>
-                                    <option value="kg">Kg</option>
-                                    <option value="ml">Ml</option>
-                                    <option value="l">Lít</option>
-                                    <option value="phần">Phần</option>
-                                    <option value="quả">Quả</option>
-                                </select>
+                                <input type="text"
+                                       name="unit[]"
+                                       class="form-control"
+                                       list="unitSuggestions"
+                                       placeholder="g, kg, miếng, cái...">
                             </div>
 
                             <div class="col-md-1">
@@ -184,14 +195,11 @@ function addIngredientRow() {
 
         <div class="col-md-3">
             <label class="form-label small fw-semibold">Đơn vị</label>
-            <select name="unit[]" class="form-select">
-                <option value="g">Gram</option>
-                <option value="kg">Kg</option>
-                <option value="ml">Ml</option>
-                <option value="l">Lít</option>
-                <option value="phần">Phần</option>
-                <option value="quả">Quả</option>
-            </select>
+            <input type="text"
+                   name="unit[]"
+                   class="form-control"
+                   list="unitSuggestions"
+                   placeholder="g, kg, miếng, cái...">
         </div>
 
         <div class="col-md-1">

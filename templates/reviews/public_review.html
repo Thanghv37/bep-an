@@ -109,13 +109,14 @@
             border-radius: 14px;
             padding: 14px;
             display: flex;
-            align-items: center;
+            flex-direction: column;
+            align-items: stretch;
             gap: 10px;
             transition: all 0.2s;
             animation: fade-up .5s ease-out backwards;
         }
-        .dish-card.voted { border-color: #a7f3d0; background: linear-gradient(135deg, #fff 60%, #ecfdf5); }
-        .dish-info { flex: 1; min-width: 0; }
+        .dish-card.voted { border-color: #fde68a; background: linear-gradient(135deg, #fff 60%, #fffbeb); }
+        .dish-info { min-width: 0; }
         .dish-type {
             font-size: 10px;
             font-weight: 700;
@@ -130,40 +131,27 @@
             color: var(--c-text);
             line-height: 1.35;
         }
-        .review-actions { display: flex; gap: 8px; flex-shrink: 0; }
-        .vote-btn {
-            width: 46px;
-            height: 46px;
-            border-radius: 50%;
-            border: 1.5px solid #e2e8f0;
-            background: #fff;
+
+        /* ===== STAR RATING ===== */
+        .star-row {
             display: flex;
-            align-items: center;
             justify-content: center;
-            font-size: 20px;
-            color: #94a3b8;
+            gap: 6px;
+        }
+        .star-btn {
+            background: none;
+            border: none;
+            padding: 4px;
+            font-size: 30px;
+            line-height: 1;
+            color: #cbd5e1;
             cursor: pointer;
-            transition: all 0.2s;
-            position: relative;
+            transition: transform 0.12s, color 0.12s;
         }
-        .vote-btn:active { transform: scale(0.92); }
-        .vote-btn.like:hover { border-color: var(--c-success); color: var(--c-success); }
-        .vote-btn.dislike:hover { border-color: var(--c-danger); color: var(--c-danger); }
-        .vote-btn.like.selected {
-            background: var(--c-success);
-            color: #fff;
-            border-color: var(--c-success);
-            box-shadow: 0 6px 14px rgba(16, 185, 129, 0.35);
-            animation: pop 0.35s ease-out;
-        }
-        .vote-btn.dislike.selected {
-            background: var(--c-danger);
-            color: #fff;
-            border-color: var(--c-danger);
-            box-shadow: 0 6px 14px rgba(244, 63, 94, 0.35);
-            animation: pop 0.35s ease-out;
-        }
-        input[type="radio"] { display: none; }
+        .star-btn:hover { transform: scale(1.12); }
+        .star-btn:active { transform: scale(0.92); }
+        .star-btn.on { color: #f59e0b; }
+        .star-btn.pop { animation: pop 0.35s ease-out; }
 
         /* ===== TOAST ===== */
         .toast-fly {
@@ -310,24 +298,20 @@
             <!-- DISH LIST -->
             <div class="d-flex flex-column gap-2">
                 {% for item in menu.items.all %}
-                <div class="dish-card {% if item.user_evaluation %}voted{% endif %}" data-dish="{{ item.dish.id }}">
+                <div class="dish-card {% if item.user_rating %}voted{% endif %}"
+                     data-dish="{{ item.dish.id }}"
+                     data-rating="{{ item.user_rating|default:0 }}">
                     <div class="dish-info">
                         <div class="dish-type">{{ item.dish.get_dish_type_display }}</div>
                         <div class="dish-name">{{ item.dish.name }}</div>
                     </div>
-                    <div class="review-actions">
-                        <label class="vote-btn like {% if item.user_evaluation == 'like' %}selected{% endif %}" data-vote="like">
-                            <input type="radio" name="dish_{{ item.dish.id }}" value="like"
-                                   class="dish-review-radio" data-dish-id="{{ item.dish.id }}"
-                                   {% if item.user_evaluation == 'like' %}checked{% endif %}>
-                            <i class="bi bi-emoji-smile-fill"></i>
-                        </label>
-                        <label class="vote-btn dislike {% if item.user_evaluation == 'dislike' %}selected{% endif %}" data-vote="dislike">
-                            <input type="radio" name="dish_{{ item.dish.id }}" value="dislike"
-                                   class="dish-review-radio" data-dish-id="{{ item.dish.id }}"
-                                   {% if item.user_evaluation == 'dislike' %}checked{% endif %}>
-                            <i class="bi bi-emoji-frown-fill"></i>
-                        </label>
+                    <div class="star-row" role="radiogroup" aria-label="Đánh giá {{ item.dish.name }}">
+                        {% for n in "12345" %}
+                        <button type="button"
+                                class="star-btn {% if item.user_rating and forloop.counter <= item.user_rating %}on{% endif %}"
+                                data-value="{{ forloop.counter }}"
+                                aria-label="{{ forloop.counter }} sao">★</button>
+                        {% endfor %}
                     </div>
                 </div>
                 {% endfor %}
@@ -386,37 +370,39 @@
         // Init progress on load
         document.addEventListener('DOMContentLoaded', updateProgress);
 
-        document.querySelectorAll('.dish-review-radio').forEach(radio => {
-            radio.addEventListener('change', function () {
-                if (!this.checked) return;
-                const dishId = this.dataset.dishId;
-                const evaluation = this.value;
-                const card = this.closest('.dish-card');
+        document.querySelectorAll('.dish-card').forEach(card => {
+            const stars = card.querySelectorAll('.star-btn');
+            const dishId = card.dataset.dish;
 
-                // Update UI ngay (optimistic)
-                card.querySelectorAll('.vote-btn').forEach(b => b.classList.remove('selected'));
-                this.parentElement.classList.add('selected');
-                card.classList.add('voted');
-                updateProgress();
+            stars.forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const value = parseInt(this.dataset.value, 10);
+                    stars.forEach(s => {
+                        const v = parseInt(s.dataset.value, 10);
+                        s.classList.toggle('on', v <= value);
+                    });
+                    this.classList.remove('pop');
+                    void this.offsetWidth;
+                    this.classList.add('pop');
+                    card.dataset.rating = String(value);
+                    card.classList.add('voted');
+                    updateProgress();
 
-                fetch("{% url 'ajax_public_review_dish' %}", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", "X-CSRFToken": csrftoken },
-                    body: JSON.stringify({
-                        dish_id: dishId,
-                        evaluation: evaluation,
-                        date: "{{ today|date:'Y-m-d' }}"
+                    fetch("{% url 'ajax_public_review_dish' %}", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "X-CSRFToken": csrftoken },
+                        body: JSON.stringify({ dish_id: dishId, rating: value })
                     })
-                })
-                .then(r => r.json())
-                .then(data => {
-                    if (!data.success) {
-                        showToast('Lỗi: ' + data.message, true);
-                    } else {
-                        showToast(evaluation === 'like' ? '💚 Cảm ơn bạn!' : '👍 Đã ghi nhận');
-                    }
-                })
-                .catch(err => showToast('Lỗi kết nối', true));
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!data.success) {
+                            showToast('Lỗi: ' + (data.message || ''), true);
+                        } else {
+                            showToast(value >= 4 ? '💛 Cảm ơn bạn!' : '✓ Đã ghi nhận');
+                        }
+                    })
+                    .catch(() => showToast('Lỗi kết nối', true));
+                });
             });
         });
     </script>

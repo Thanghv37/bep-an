@@ -79,7 +79,7 @@
                 </a>
                 {% endif %}
             </div>
-            <div class="section-subtitle mb-0">Bấm 👍 / 👎 để chấm điểm từng món</div>
+            <div class="section-subtitle mb-0">Chấm 1–5 sao cho từng món</div>
 
             {% if menu %}
                 <div class="menu-review-list mt-3">
@@ -96,36 +96,30 @@
                             <div class="menu-review-text">
                                 <div class="menu-review-name">{{ item.dish.name }}</div>
                                 <span class="menu-review-type">{{ item.dish.get_dish_type_display }}</span>
+                                <div class="menu-review-avg">
+                                    {% if item.rating_count %}
+                                        <i class="bi bi-star-fill"></i>
+                                        <strong>{{ item.avg_rating|floatformat:1 }}</strong>
+                                        <span class="text-muted">/ 5 · {{ item.rating_count }} lượt</span>
+                                    {% else %}
+                                        <span class="text-muted">Chưa có đánh giá</span>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
 
-                        {% if can_review %}
-                        <div class="vote-group">
-                            <label class="vote-pill vote-like">
-                                <input type="radio" name="dish_{{ item.dish.id }}" value="like" class="dish-review-radio" data-dish-id="{{ item.dish.id }}"
-                                    {% if item.user_evaluation == 'like' %}checked{% endif %}>
-                                <i class="bi bi-hand-thumbs-up-fill"></i>
-                                <span class="vote-count">{{ item.likes_count }}</span>
-                            </label>
-                            <label class="vote-pill vote-dislike">
-                                <input type="radio" name="dish_{{ item.dish.id }}" value="dislike" class="dish-review-radio" data-dish-id="{{ item.dish.id }}"
-                                    {% if item.user_evaluation == 'dislike' %}checked{% endif %}>
-                                <i class="bi bi-hand-thumbs-down-fill"></i>
-                                <span class="vote-count">{{ item.dislikes_count }}</span>
-                            </label>
+                        <div class="star-row {% if not can_review %}readonly{% endif %}"
+                             data-dish-id="{{ item.dish.id }}"
+                             data-rating="{{ item.user_rating|default:0 }}"
+                             {% if not can_review %}aria-disabled="true"{% endif %}>
+                            {% for n in "12345" %}
+                            <button type="button"
+                                    class="star-btn {% if item.user_rating and forloop.counter <= item.user_rating %}on{% endif %}"
+                                    data-value="{{ forloop.counter }}"
+                                    {% if not can_review %}disabled{% endif %}
+                                    aria-label="{{ forloop.counter }} sao">★</button>
+                            {% endfor %}
                         </div>
-                        {% else %}
-                        <div class="vote-group vote-group-readonly">
-                            <span class="vote-pill vote-like {% if item.user_evaluation == 'like' %}vote-mine{% endif %}">
-                                <i class="bi bi-hand-thumbs-up-fill"></i>
-                                <span class="vote-count">{{ item.likes_count }}</span>
-                            </span>
-                            <span class="vote-pill vote-dislike {% if item.user_evaluation == 'dislike' %}vote-mine{% endif %}">
-                                <i class="bi bi-hand-thumbs-down-fill"></i>
-                                <span class="vote-count">{{ item.dislikes_count }}</span>
-                            </span>
-                        </div>
-                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
@@ -810,65 +804,41 @@
 .dish-type-soup .menu-review-type    { background: #d1fae5; color: #065f46; }
 .dish-type-dessert .menu-review-type { background: #ffedd5; color: #9a3412; }
 
-/* Vote pills */
-.vote-group {
+/* Star rating row */
+.menu-review-avg {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #b45309;
+}
+.menu-review-avg i { color: #f59e0b; }
+
+.star-row {
     display: flex;
-    gap: 8px;
+    gap: 2px;
     flex-shrink: 0;
-}
-.vote-pill {
-    display: inline-flex;
     align-items: center;
-    gap: 6px;
-    margin: 0;
-    padding: 7px 12px;
-    border-radius: 999px;
-    border: 1.5px solid;
-    background: #fff;
-    font-weight: 800;
-    font-size: 13px;
+}
+.star-btn {
+    background: none;
+    border: none;
+    padding: 2px 3px;
+    font-size: 24px;
+    line-height: 1;
+    color: #cbd5e1;
     cursor: pointer;
-    transition: all 0.16s ease;
-    user-select: none;
+    transition: transform 0.12s, color 0.12s;
 }
-.vote-pill input { display: none; }
-.vote-pill i { font-size: 14px; }
-.vote-count { font-variant-numeric: tabular-nums; }
-
-.vote-like {
-    border-color: #a7f3d0;
-    color: #059669;
-}
-.vote-like:hover { background: #ecfdf5; }
-.vote-dislike {
-    border-color: #fecdd3;
-    color: #e11d48;
-}
-.vote-dislike:hover { background: #fff1f2; }
-
-/* Selected (checked) state */
-.vote-like:has(input:checked),
-.vote-like.vote-mine {
-    background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
-    border-color: #10b981;
-    color: #fff;
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-    animation: vote-pop 0.28s ease;
-}
-.vote-dislike:has(input:checked),
-.vote-dislike.vote-mine {
-    background: linear-gradient(135deg, #fb7185 0%, #f43f5e 100%);
-    border-color: #f43f5e;
-    color: #fff;
-    box-shadow: 0 4px 12px rgba(244, 63, 94, 0.3);
-    animation: vote-pop 0.28s ease;
-}
-@keyframes vote-pop {
+.star-btn:hover:not(:disabled) { transform: scale(1.15); }
+.star-btn:active:not(:disabled) { transform: scale(0.92); }
+.star-btn.on { color: #f59e0b; }
+.star-btn:disabled { cursor: default; }
+.star-btn.pop { animation: star-pop 0.32s ease-out; }
+@keyframes star-pop {
     0% { transform: scale(0.9); }
-    60% { transform: scale(1.08); }
+    60% { transform: scale(1.2); }
     100% { transform: scale(1); }
 }
-.vote-group-readonly .vote-pill { cursor: default; }
+.star-row.readonly { opacity: 0.85; }
 
 .menu-review-empty {
     text-align: center;
@@ -944,43 +914,33 @@
 </style>
 
 <script>
-document.querySelectorAll('.dish-review-radio').forEach(radio => {
-    radio.addEventListener('change', function() {
-        if(this.checked) {
-            const dishId = this.dataset.dishId;
-            const evaluation = this.value;
-            const dateStr = "{{ selected_date_str }}";
-            
+document.querySelectorAll('.star-row').forEach(row => {
+    if (row.classList.contains('readonly')) return;
+    const dishId = row.dataset.dishId;
+    const stars = row.querySelectorAll('.star-btn');
+    const dateStr = "{{ selected_date_str }}";
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    stars.forEach(btn => {
+        btn.addEventListener('click', function () {
+            const value = parseInt(this.dataset.value, 10);
+            stars.forEach(s => {
+                const v = parseInt(s.dataset.value, 10);
+                s.classList.toggle('on', v <= value);
+            });
+            this.classList.remove('pop');
+            void this.offsetWidth;
+            this.classList.add('pop');
+            row.dataset.rating = String(value);
+
             fetch("{% url 'ajax_review_dish' %}", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value
-                },
-                body: JSON.stringify({
-                    dish_id: dishId,
-                    evaluation: evaluation,
-                    date: dateStr
-                })
-            }).then(response => response.json()).then(data => {
-                if(!data.success) {
-                    alert("Lỗi: " + data.message);
-                }
+                headers: { "Content-Type": "application/json", "X-CSRFToken": csrf },
+                body: JSON.stringify({ dish_id: dishId, rating: value, date: dateStr })
+            }).then(r => r.json()).then(data => {
+                if (!data.success) alert("Lỗi: " + (data.message || ''));
             });
-        }
-    });
-});
-
-
-// Add script to toggle active styling for radios for older browsers if needed
-document.querySelectorAll('input[type="radio"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-        document.querySelectorAll(`input[name="${this.name}"]`).forEach(r => {
-            r.closest('label').classList.remove('active-radio');
         });
-        if(this.checked) {
-            this.closest('label').classList.add('active-radio');
-        }
     });
 });
 </script>

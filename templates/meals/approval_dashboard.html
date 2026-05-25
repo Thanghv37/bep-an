@@ -148,7 +148,31 @@
                                             {{ menu.created_by.profile.full_name|default:menu.created_by.username }}
                                         {% else %}-{% endif %}
                                     </span>
+                                    {% if menu.edit_kind == 'late_create' %}
+                                        <span class="menu-edit-badge badge-late" title="Thực đơn được tạo sau hạn">
+                                            <i class="bi bi-clock-history"></i> Tạo trễ
+                                        </span>
+                                    {% elif menu.edit_kind == 'edit' %}
+                                        <span class="menu-edit-badge badge-edited" title="Thực đơn đã được chỉnh sửa">
+                                            <i class="bi bi-pencil-square"></i> Đã sửa đổi
+                                        </span>
+                                    {% endif %}
                                 </div>
+
+                                {% if menu.edit_kind %}
+                                    <div class="menu-edit-reason mt-2">
+                                        <div class="menu-edit-reason-head">
+                                            <span class="menu-edit-reason-label">Lý do:</span>
+                                            {% if menu.last_edited_at %}
+                                                <span class="menu-edit-reason-time">
+                                                    <i class="bi bi-clock"></i>
+                                                    {{ menu.last_edited_at|date:"d/m/Y H:i" }}
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="menu-edit-reason-text">{{ menu.edit_reason }}</div>
+                                    </div>
+                                {% endif %}
 
                                 <div class="menu-row-compact mt-2">
                                     {% for item in menu.items.all %}
@@ -850,6 +874,60 @@
     text-align: center;
     padding: 32px 16px;
     color: #94a3b8;
+}
+
+/* Late/edited badge on pending menu cards */
+.menu-edit-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 700;
+    border: 1px solid transparent;
+}
+.menu-edit-badge.badge-late {
+    background: #fef2f2;
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+.menu-edit-badge.badge-edited {
+    background: #fff7ed;
+    color: #c2410c;
+    border-color: #fed7aa;
+}
+
+.menu-edit-reason {
+    background: linear-gradient(135deg, #fff7ed 0%, #ffffff 60%);
+    border: 1px solid #fed7aa;
+    border-radius: 10px;
+    padding: 8px 10px;
+}
+.menu-edit-reason-head {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 11.5px;
+    margin-bottom: 4px;
+    padding-bottom: 4px;
+    border-bottom: 1px dashed #fed7aa;
+}
+.menu-edit-reason-label {
+    font-weight: 700;
+    color: #c2410c;
+}
+.menu-edit-reason-time {
+    color: #64748b;
+    font-weight: 600;
+}
+.menu-edit-reason-text {
+    font-size: 12.5px;
+    color: #0f172a;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
 /* Edit-after-approval badge in approval card */

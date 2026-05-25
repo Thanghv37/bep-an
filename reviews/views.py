@@ -3,7 +3,7 @@ from datetime import date, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q
+from django.db.models import Avg, Count, Q
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
@@ -109,29 +109,23 @@ def review_dashboard(request):
     if existing_review:
         user_dish_reviews = DishReview.objects.filter(meal_review=existing_review)
         for dr in user_dish_reviews:
-            existing_dish_reviews[dr.dish_id] = dr.evaluation
-            
-    # Tính tổng số Like/Dislike của ngày đó cho mỗi món
+            existing_dish_reviews[dr.dish_id] = dr.rating
+
+    # Trung bình sao + số lượt đánh giá của ngày đó cho mỗi món
     dish_stats_for_day = DishReview.objects.filter(
         meal_review__date=selected_date
-    ).values('dish_id', 'evaluation').annotate(count=Count('id'))
+    ).values('dish_id').annotate(
+        avg_rating=Avg('rating'),
+        rating_count=Count('id'),
+    )
+    dish_avg_map = {s['dish_id']: s for s in dish_stats_for_day}
 
-    dish_counts = {}
-    for stat in dish_stats_for_day:
-        d_id = stat['dish_id']
-        if d_id not in dish_counts:
-            dish_counts[d_id] = {'likes': 0, 'dislikes': 0}
-        
-        if stat['evaluation'] == DishReview.LIKE:
-            dish_counts[d_id]['likes'] = stat['count']
-        elif stat['evaluation'] == DishReview.DISLIKE:
-            dish_counts[d_id]['dislikes'] = stat['count']
-            
     if menu:
         for item in menu.items.all():
-            item.user_evaluation = existing_dish_reviews.get(item.dish.id)
-            item.likes_count = dish_counts.get(item.dish.id, {}).get('likes', 0)
-            item.dislikes_count = dish_counts.get(item.dish.id, {}).get('dislikes', 0)
+            item.user_rating = existing_dish_reviews.get(item.dish.id)
+            stat = dish_avg_map.get(item.dish.id)
+            item.avg_rating = stat['avg_rating'] if stat else None
+            item.rating_count = stat['rating_count'] if stat else 0
 
     # Tổng hợp theo ngày / tuần / tháng
     if stats_mode == 'month':
@@ -148,16 +142,16 @@ def review_dashboard(request):
     stats = stat_reviews.aggregate(
         review_count=Count('id')
     )
-    
+
     dish_stats = DishReview.objects.filter(
         meal_review__date__range=(stats_start_date, stats_end_date)
     ).aggregate(
-        total_likes=Count('id', filter=Q(evaluation=DishReview.LIKE)),
-        total_dislikes=Count('id', filter=Q(evaluation=DishReview.DISLIKE)),
+        rating_count=Count('id'),
+        avg_rating=Avg('rating'),
     )
-    
-    stats['total_likes'] = dish_stats['total_likes'] or 0
-    stats['total_dislikes'] = dish_stats['total_dislikes'] or 0
+
+    stats['rating_count'] = dish_stats['rating_count'] or 0
+    stats['avg_rating'] = dish_stats['avg_rating']
 
     # Đánh giá từ website: filter + paginate
     web_q = request.GET.get('web_q', '').strip()
@@ -268,33 +262,43 @@ def review_delete(request, pk):
     return redirect(f'/reviews/?date={review_date.isoformat()}')
 
 
+def _parse_rating(value):
+    try:
+        rating = int(value)
+    except (TypeError, ValueError):
+        return None
+    if rating < DishReview.RATING_MIN or rating > DishReview.RATING_MAX:
+        return None
+    return rating
+
+
 @login_required
 @require_POST
 def ajax_review_dish(request):
     try:
         data = json.loads(request.body)
         dish_id = data.get('dish_id')
-        evaluation = data.get('evaluation')
+        rating = _parse_rating(data.get('rating'))
         date_str = data.get('date')
-        
-        if not dish_id or not evaluation or not date_str:
-            return JsonResponse({'success': False, 'message': 'Thiếu dữ liệu.'})
-            
+
+        if not dish_id or rating is None or not date_str:
+            return JsonResponse({'success': False, 'message': 'Thiếu dữ liệu hoặc số sao không hợp lệ (1-5).'})
+
         target_date = date.fromisoformat(date_str)
         if not can_review_date(target_date):
             return JsonResponse({'success': False, 'message': 'Hết thời gian đánh giá.'})
-            
+
         meal_review, _ = MealReview.objects.get_or_create(
             date=target_date,
             user=request.user
         )
-        
+
         DishReview.objects.update_or_create(
             meal_review=meal_review,
             dish_id=dish_id,
-            defaults={'evaluation': evaluation}
+            defaults={'rating': rating}
         )
-        return JsonResponse({'success': True})
+        return JsonResponse({'success': True, 'rating': rating})
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)})
 
@@ -322,11 +326,11 @@ def public_review_view(request):
     if existing_review:
         user_dish_reviews = DishReview.objects.filter(meal_review=existing_review)
         for dr in user_dish_reviews:
-            existing_dish_reviews[dr.dish_id] = dr.evaluation
-            
+            existing_dish_reviews[dr.dish_id] = dr.rating
+
     if menu:
         for item in menu.items.all():
-            item.user_evaluation = existing_dish_reviews.get(item.dish.id)
+            item.user_rating = existing_dish_reviews.get(item.dish.id)
             
     context = {
         'menu': menu,
@@ -341,31 +345,31 @@ def ajax_public_review_dish(request):
     try:
         data = json.loads(request.body)
         dish_id = data.get('dish_id')
-        evaluation = data.get('evaluation')
-        
-        if not dish_id or not evaluation:
-            return JsonResponse({'success': False, 'message': 'Thiếu dữ liệu.'})
-            
+        rating = _parse_rating(data.get('rating'))
+
+        if not dish_id or rating is None:
+            return JsonResponse({'success': False, 'message': 'Thiếu dữ liệu hoặc số sao không hợp lệ (1-5).'})
+
         today = date.today()
         if not can_review_date(today):
             return JsonResponse({'success': False, 'message': 'Hết thời gian đánh giá.'})
-            
+
         if not request.session.session_key:
             request.session.create()
         session_key = request.session.session_key
-            
+
         meal_review, _ = MealReview.objects.get_or_create(
             date=today,
             user=None,
             session_key=session_key
         )
-        
+
         DishReview.objects.update_or_create(
             meal_review=meal_review,
             dish_id=dish_id,
-            defaults={'evaluation': evaluation}
+            defaults={'rating': rating}
         )
-        return JsonResponse({'success': True})
+        return JsonResponse({'success': True, 'rating': rating})
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)})
 

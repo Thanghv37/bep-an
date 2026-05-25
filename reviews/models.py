@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 class MealReview(models.Model):
@@ -33,16 +34,15 @@ class MealReview(models.Model):
         return f'{self.date} - {user_display}'
 
 class DishReview(models.Model):
-    LIKE = 'like'
-    DISLIKE = 'dislike'
-    CHOICES = [
-        (LIKE, 'Thích'),
-        (DISLIKE, 'Không thích'),
-    ]
+    RATING_MIN = 1
+    RATING_MAX = 5
 
     meal_review = models.ForeignKey(MealReview, on_delete=models.CASCADE, related_name='dish_reviews')
     dish = models.ForeignKey('meals.Dish', on_delete=models.CASCADE, related_name='reviews')
-    evaluation = models.CharField(max_length=10, choices=CHOICES, verbose_name='Đánh giá')
+    rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(RATING_MIN), MaxValueValidator(RATING_MAX)],
+        verbose_name='Số sao (1-5)'
+    )
 
     class Meta:
         unique_together = ('meal_review', 'dish')
@@ -50,7 +50,7 @@ class DishReview(models.Model):
         verbose_name_plural = 'Đánh giá món ăn'
 
     def __str__(self):
-        return f'{self.dish.name} - {self.get_evaluation_display()}'
+        return f'{self.dish.name} - {self.rating}★'
 
 
 class DishSuggestion(models.Model):

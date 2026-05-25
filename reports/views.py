@@ -403,7 +403,7 @@ from openpyxl.utils import get_column_letter
 from django.http import HttpResponse
 from finance.models import PurchaseExtraItem
 from reviews.models import DishReview, MealReview
-from django.db.models import Count, Q
+from django.db.models import Avg, Count, Q
 
 
 # ---------- helpers ----------
@@ -878,36 +878,37 @@ def export_review_report(request):
     ws1.title = "Thống kê đánh giá"
 
     title_text = f"BÁO CÁO ĐÁNH GIÁ MÓN ĂN  ({start_date.strftime('%d/%m/%Y')} – {end_date.strftime('%d/%m/%Y')})"
-    ws1.merge_cells("A1:F1")
+    ws1.merge_cells("A1:E1")
     t = ws1["A1"]
     t.value = title_text
     t.font = Font(bold=True, size=13, color="1E40AF")
     t.alignment = CENTER
     ws1.row_dimensions[1].height = 28
 
-    cols = ["Tên món ăn", "Tổng lượt Like 👍", "Tổng lượt Dislike 👎", "Tổng đánh giá", "Tỉ lệ hài lòng (%)"]
+    cols = ["Tên món ăn", "Điểm TB (⭐)", "Tổng lượt đánh giá", "Số 5⭐", "Số 1⭐"]
     _header_row(ws1, cols, row=2)
 
     dish_stats = DishReview.objects.filter(
         meal_review__date__range=(start_date, end_date)
     ).values("dish__name").annotate(
-        likes    = Count("id", filter=Q(evaluation="like")),
-        dislikes = Count("id", filter=Q(evaluation="dislike")),
-        total    = Count("id"),
-    ).order_by("-likes")
+        avg_rating = Avg("rating"),
+        total      = Count("id"),
+        top_count  = Count("id", filter=Q(rating=5)),
+        low_count  = Count("id", filter=Q(rating=1)),
+    ).order_by("-avg_rating")
 
     row_idx = 3
     for stat in dish_stats:
-        pct = round(stat['likes'] / stat['total'] * 100, 1) if stat['total'] else 0
-        row_data = [stat['dish__name'], stat['likes'], stat['dislikes'], stat['total'], f"{pct}%"]
+        avg = round(stat['avg_rating'], 2) if stat['avg_rating'] is not None else 0
+        row_data = [stat['dish__name'], avg, stat['total'], stat['top_count'], stat['low_count']]
         for c, v in enumerate(row_data, 1):
             cell = ws1.cell(row=row_idx, column=c, value=v)
             cell.border = BORDER
             cell.alignment = CENTER if c > 1 else Alignment(horizontal="left", vertical="center")
-            if c == 5:
-                if pct >= 70:
+            if c == 2:
+                if avg >= 4:
                     cell.font = Font(color="16A34A", bold=True)
-                elif pct < 50:
+                elif avg and avg < 3:
                     cell.font = Font(color="DC2626", bold=True)
         row_idx += 1
 

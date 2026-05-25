@@ -9,13 +9,22 @@ def _vn_number(value, decimals=2):
     return fmt.replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+_UNIT_ALIASES = {
+    'gram': 'g',
+    'kilogram': 'kg',
+    'mililit': 'ml',
+    'lit': 'l',
+    'lít': 'l',
+}
+
+
 @register.filter
 def format_weight(value, unit='g'):
     """Format khối lượng theo đơn vị nguyên liệu.
 
-    - unit = 'g' (mặc định): tự đổi sang kg nếu >= 1000.
-    - unit = 'ml': tự đổi sang l nếu >= 1000.
-    - unit khác (quả, củ, cái, lít, kg, ...): giữ nguyên đơn vị, format 2 số thập phân.
+    - unit = 'g' / 'Gram': tự đổi sang kg nếu >= 1000.
+    - unit = 'ml' / 'Ml': tự đổi sang l nếu >= 1000.
+    - unit khác (Quả, Củ, Cái, Miếng, Kg, Lít...): giữ nguyên casing người dùng nhập.
     - unit rỗng: dùng như 'g' để tương thích code cũ.
     """
     try:
@@ -23,20 +32,22 @@ def format_weight(value, unit='g'):
     except (TypeError, ValueError):
         return value
 
-    unit = (unit or 'g').strip().lower()
+    raw = (unit or 'g').strip()
+    key = raw.lower()
+    canonical = _UNIT_ALIASES.get(key, key)
 
-    if unit in ('g', ''):
+    if canonical in ('g', ''):
         if value >= 1000:
             return _vn_number(value / 1000) + ' kg'
         return _vn_number(value) + ' g'
 
-    if unit == 'ml':
+    if canonical == 'ml':
         if value >= 1000:
             return _vn_number(value / 1000) + ' l'
         return _vn_number(value) + ' ml'
 
-    # Các đơn vị khác (quả, củ, cái, lít, kg...) — giữ nguyên đơn vị gốc.
-    # Số nguyên thì bỏ phần thập phân thừa cho gọn (vd 7.00 → "7").
+    # Các đơn vị khác — giữ nguyên casing người dùng nhập (vd "Miếng", "Lít").
+    display = raw if raw else canonical
     if value == int(value):
-        return f"{int(value):,}".replace(",", ".") + f" {unit}"
-    return _vn_number(value) + f" {unit}"
+        return f"{int(value):,}".replace(",", ".") + f" {display}"
+    return _vn_number(value) + f" {display}"

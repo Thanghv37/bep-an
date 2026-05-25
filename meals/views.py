@@ -84,12 +84,11 @@ def dish_list(request):
     dish_type = request.GET.get('type', '').strip()
     sort_param = request.GET.get('sort', '').strip()
 
-    from django.db.models import Count, Q
-    from reviews.models import DishReview
+    from django.db.models import Avg, Count
 
     dishes = Dish.objects.annotate(
-        like_count=Count('reviews', filter=Q(reviews__evaluation=DishReview.LIKE)),
-        dislike_count=Count('reviews', filter=Q(reviews__evaluation=DishReview.DISLIKE))
+        avg_rating=Avg('reviews__rating'),
+        rating_count=Count('reviews'),
     )
 
     if keyword:
@@ -98,19 +97,14 @@ def dish_list(request):
     if dish_type:
         dishes = dishes.filter(dish_type=dish_type)
 
-    if sort_param == 'like_desc':
-        dishes = dishes.order_by('-like_count', 'name')
-    elif sort_param == 'like_asc':
-        dishes = dishes.order_by('like_count', 'name')
-    elif sort_param == 'dislike_desc':
-        dishes = dishes.order_by('-dislike_count', 'name')
-    elif sort_param == 'dislike_asc':
-        dishes = dishes.order_by('dislike_count', 'name')
+    if sort_param == 'rating_desc':
+        dishes = dishes.order_by('-avg_rating', 'name')
+    elif sort_param == 'rating_asc':
+        dishes = dishes.order_by('avg_rating', 'name')
     else:
         dishes = dishes.order_by('name')
-        
-    next_like_sort = 'like_asc' if sort_param == 'like_desc' else 'like_desc'
-    next_dislike_sort = 'dislike_asc' if sort_param == 'dislike_desc' else 'dislike_desc'
+
+    next_rating_sort = 'rating_asc' if sort_param == 'rating_desc' else 'rating_desc'
 
     context = {
         'dishes': dishes,
@@ -118,8 +112,7 @@ def dish_list(request):
         'dish_type': dish_type,
         'dish_type_choices': Dish.DISH_TYPE_CHOICES,
         'sort_param': sort_param,
-        'next_like_sort': next_like_sort,
-        'next_dislike_sort': next_dislike_sort,
+        'next_rating_sort': next_rating_sort,
     }
     return render(request, 'meals/dish_list.html', context)
 
@@ -143,6 +136,8 @@ def save_dish_ingredients_from_post(dish, post_data):
 
         if not name or not quantity or not unit:
             raise ValueError('Bạn phải nhập đầy đủ tên nguyên liệu, khẩu phần và đơn vị.')
+
+        unit = unit[:1].upper() + unit[1:]
 
         normalized_name = name.lower()
 
@@ -795,6 +790,16 @@ def approval_dashboard(request):
     pending_menus = DailyMenu.objects.filter(
         status=DailyMenu.STATUS_PENDING
     ).prefetch_related('items__dish').order_by('date')
+
+    for menu in pending_menus:
+        menu.edit_kind = None
+        if menu.edit_reason:
+            if menu.last_edited_at and menu.created_at and abs(
+                (menu.last_edited_at - menu.created_at).total_seconds()
+            ) < 300:
+                menu.edit_kind = 'late_create'
+            else:
+                menu.edit_kind = 'edit'
 
     pending_purchases = DailyPurchase.objects.filter(
         status=DailyPurchase.STATUS_PENDING
