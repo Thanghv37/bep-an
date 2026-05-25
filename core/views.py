@@ -289,17 +289,28 @@ def dashboard(request):
             day_income_spice = None
 
         chart_labels.append(d.strftime('%d/%m'))
-        income_food_data.append(day_income_food)
-        income_spice_data.append(day_income_spice)
-        expense_food_data.append(day_expense_food)
-        expense_spice_data.append(day_expense_spice)
-
-        if day_income_food is not None:
-            balance_food_data.append(day_income_food - day_expense_food)
-            balance_spice_data.append(day_income_spice - day_expense_spice)
-        else:
+        # Mask các ngày trong tương lai: chart Xu hướng trong tuần chỉ vẽ tới
+        # hôm nay (vd hôm nay T4 → chỉ T2/T3/T4, T5/T6 để trống). Khung "Thực
+        # đơn trong tuần" bên dưới vẫn render đủ 5 ngày.
+        if d > date.today():
+            income_food_data.append(None)
+            income_spice_data.append(None)
+            expense_food_data.append(None)
+            expense_spice_data.append(None)
             balance_food_data.append(None)
             balance_spice_data.append(None)
+        else:
+            income_food_data.append(day_income_food)
+            income_spice_data.append(day_income_spice)
+            expense_food_data.append(day_expense_food)
+            expense_spice_data.append(day_expense_spice)
+
+            if day_income_food is not None:
+                balance_food_data.append(day_income_food - day_expense_food)
+                balance_spice_data.append(day_income_spice - day_expense_spice)
+            else:
+                balance_food_data.append(None)
+                balance_spice_data.append(None)
 
         week_menu_cards.append({
             'date': d,

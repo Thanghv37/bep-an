@@ -74,14 +74,12 @@
                     <th>Thứ 4</th>
                     <th>Thứ 5</th>
                     <th>Thứ 6</th>
-                    <th>Thứ 7</th>
-                    <th>Chủ nhật</th>
                 </tr>
             </thead>
             <tbody>
                 {% for week in calendar_weeks %}
                 <tr>
-                    {% for day in week %}
+                    {% for day in week|slice:":5" %}
                     <td style="padding: 10px;">
                         {% if day.is_current_month %}
                             {% if day.has_menu %}
