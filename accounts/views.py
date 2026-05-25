@@ -12,7 +12,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET
 
-from accounts.permissions import can_manage_user
+from accounts.permissions import can_manage_user, can_view_user_list
 from core.ai_config import (
     AVAILABLE_MODELS,
     KEY_GEMINI_API_KEY,
@@ -207,7 +207,7 @@ def verify_otp(request):
     })
 
 @login_required
-@user_passes_test(can_manage_user)
+@user_passes_test(can_view_user_list)
 def user_list(request):
     keyword = request.GET.get('q', '').strip()
     role_filter = request.GET.get('role', 'all').strip()
@@ -251,6 +251,7 @@ def user_list(request):
         'department_filter': department_filter,
         'unit_choices': unit_choices,
         'department_choices': department_choices,
+        'can_manage': can_manage_user(request.user),
     })
 
 

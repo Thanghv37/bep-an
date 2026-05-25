@@ -75,5 +75,14 @@ def can_manage_user(user):
     return is_admin(user)
 
 
+def can_view_user_list(user):
+    """Xem danh sách người dùng — admin (đầy đủ quyền) + kitchen (chỉ xem,
+    để đối chiếu mã NV / tên)."""
+    return user.is_authenticated and get_user_role(user) in [
+        UserProfile.ROLE_ADMIN,
+        UserProfile.ROLE_KITCHEN,
+    ]
+
+
 def can_manage_approval(user):
     return is_admin(user)
