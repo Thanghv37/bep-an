@@ -7,6 +7,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import render, redirect, get_object_or_404
+from django.db import transaction
 from django.utils import timezone
 from datetime import datetime
 from django.contrib import messages
@@ -171,21 +172,23 @@ def dish_create(request):
         form = DishForm(request.POST, request.FILES)
         if form.is_valid():
             try:
-                dish = form.save(commit=False)
-                dish.portion_per_person = 0
-                dish.portion_unit = 'g'
+                with transaction.atomic():
+                    dish = form.save(commit=False)
+                    dish.portion_per_person = 0
+                    dish.portion_unit = 'g'
 
-                # Mọi role tạo món đều phải qua duyệt — admin cũng cần bấm
-                # "Phê duyệt" ở trang phê duyệt để double-check.
-                dish.status = Dish.STATUS_PENDING
-                dish.approved_by = None
-                dish.approved_at = None
-                dish.reject_reason = ''
-                dish.rejected_by = None
-                dish.rejected_at = None
+                    # Mọi role tạo món đều phải qua duyệt — admin cũng cần bấm
+                    # "Phê duyệt" ở trang phê duyệt để double-check.
+                    dish.status = Dish.STATUS_PENDING
+                    dish.approved_by = None
+                    dish.approved_at = None
+                    dish.reject_reason = ''
+                    dish.rejected_by = None
+                    dish.rejected_at = None
 
-                dish.save()
-                save_dish_ingredients_from_post(dish, request.POST)
+                    dish.save()
+                    # Nếu nguyên liệu không hợp lệ -> ValueError -> rollback dish.save()
+                    save_dish_ingredients_from_post(dish, request.POST)
 
                 messages.success(request, 'Đã thêm món ăn mới. Cần phê duyệt trước khi sử dụng.')
                 return redirect('dish_list')
@@ -213,21 +216,23 @@ def dish_update(request, pk):
         form = DishForm(request.POST, request.FILES, instance=dish)
         if form.is_valid():
             try:
-                dish = form.save(commit=False)
-                dish.portion_per_person = 0
-                dish.portion_unit = 'g'
+                with transaction.atomic():
+                    dish = form.save(commit=False)
+                    dish.portion_per_person = 0
+                    dish.portion_unit = 'g'
 
-                # Mọi role cập nhật món đều coi như resubmit → reset về PENDING,
-                # admin cũng phải bấm "Phê duyệt" lại để xác nhận thay đổi.
-                dish.status = Dish.STATUS_PENDING
-                dish.approved_by = None
-                dish.approved_at = None
-                dish.reject_reason = ''
-                dish.rejected_by = None
-                dish.rejected_at = None
+                    # Mọi role cập nhật món đều coi như resubmit → reset về PENDING,
+                    # admin cũng phải bấm "Phê duyệt" lại để xác nhận thay đổi.
+                    dish.status = Dish.STATUS_PENDING
+                    dish.approved_by = None
+                    dish.approved_at = None
+                    dish.reject_reason = ''
+                    dish.rejected_by = None
+                    dish.rejected_at = None
 
-                dish.save()
-                save_dish_ingredients_from_post(dish, request.POST)
+                    dish.save()
+                    # Nếu nguyên liệu không hợp lệ -> ValueError -> rollback cả thay đổi dish
+                    save_dish_ingredients_from_post(dish, request.POST)
 
                 messages.success(request, f'Đã cập nhật món "{dish.name}". Cần phê duyệt lại.')
                 return redirect('dish_list')

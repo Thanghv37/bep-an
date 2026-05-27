@@ -3,7 +3,11 @@
     "allow": [
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git check-ignore *)"
+      "Bash(git check-ignore *)",
+      "Bash(ls venv/Scripts/ 2>nul | head -20)"
+    ],
+    "additionalDirectories": [
+      "D:\\Thanghv37\\CDS\\bếp ăn\\4_5\\thanghv37"
     ]
   }
 }
