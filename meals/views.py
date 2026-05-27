@@ -1161,6 +1161,7 @@ def reject_dish(request, pk):
     messages.success(request, f'Đã từ chối món "{dish.name}".')
     return redirect('approval_dashboard')
 @login_required
+@user_passes_test(can_manage_menu)
 def export_ingredients_pdf(request):
     font_path = os.path.join(settings.BASE_DIR, 'static', 'fonts', 'DejaVuSans.ttf')
     bold_font_path = os.path.join(settings.BASE_DIR, 'static', 'fonts', 'DejaVuSans-Bold.ttf')

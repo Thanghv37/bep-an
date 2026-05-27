@@ -7,7 +7,7 @@ from django.db.models import Q
 from django.shortcuts import render, redirect
 from django.db.models import Sum
 from accounts.models import UserProfile
-from accounts.permissions import can_manage_menu
+from accounts.permissions import can_manage_menu, is_admin
 from .forms import STATUS_FIXED
 from .import_utils import import_registrations_from_excel
 from .models import MealRegistration
@@ -38,10 +38,8 @@ from .models import MealRegistration, NotificationLog
 from core.models import SystemConfig  # Import bảng cấu hình Bot của bạn nếu có
 
 
-def is_admin(user):
-    return user.is_staff  # hoặc is_superuser
 @login_required
-#@user_passes_test(can_manage_menu)
+@user_passes_test(can_manage_menu)
 def registration_list(request):
     selected_date_str = request.GET.get('date')
     keyword = request.GET.get('q', '').strip()
@@ -87,6 +85,9 @@ def registration_list(request):
             'registration': item,
             'profile': profile_map.get(item.employee_code),
         })
+
+    # Người chưa có hồ sơ (đơn vị khác) lên đầu, sau đó MNV tăng dần trong mỗi nhóm.
+    rows.sort(key=lambda r: (r['profile'] is not None, r['registration'].employee_code or ''))
 
     status_choices = MealRegistration.objects.exclude(status='').values_list(
         'status', flat=True
@@ -156,6 +157,18 @@ def registration_import(request):
         for err in errors[:10]:
             messages.warning(request, err)
 
+    # Sau khi có data đăng ký mới, apply các yêu cầu chuyển suất đang chờ.
+    try:
+        from .meal_transfer import apply_all_pending_transfers
+        result = apply_all_pending_transfers()
+        if result['applied']:
+            messages.success(
+                request,
+                f'Đã áp dụng {result["applied"]} yêu cầu chuyển suất ăn đang chờ.'
+            )
+    except Exception as e:
+        messages.warning(request, f'Không áp dụng được yêu cầu chuyển suất: {e}')
+
     return redirect('registration_list')
 
 
@@ -180,11 +193,28 @@ def registration_create(request):
     kitchen_options = get_kitchen_options()
 
     # Dict {employee_code: full_name} cho JS auto-fill tên khi nhập mã NV.
-    user_map = {
-        p.employee_code: p.full_name
-        for p in UserProfile.objects.exclude(employee_code='')
-        if p.employee_code
-    }
+    profiles = list(UserProfile.objects.exclude(employee_code=''))
+    user_map = {p.employee_code: p.full_name for p in profiles if p.employee_code}
+
+    # Dict {email_local_lowercase: employee_code} — cho phép nhập "user"
+    # (vd `thanghv37` -> tra ra emp_code `483094`). Chỉ thêm những local part
+    # XUẤT HIỆN DUY NHẤT để tránh nhập nhằng (vd 2 user khác đơn vị nhưng cùng
+    # local part khác domain). Trùng -> không add vào alias_map -> user buộc
+    # phải nhập mã NV.
+    from collections import Counter
+    locals_count = Counter()
+    for p in profiles:
+        if p.email and '@' in p.email:
+            local = p.email.split('@')[0].strip().lower()
+            if local:
+                locals_count[local] += 1
+    user_alias_map = {}
+    for p in profiles:
+        if not p.employee_code or not p.email or '@' not in p.email:
+            continue
+        local = p.email.split('@')[0].strip().lower()
+        if local and locals_count[local] == 1:
+            user_alias_map[local] = p.employee_code
 
     if request.method == 'POST':
         date_raw = (request.POST.get('date') or '').strip()
@@ -217,11 +247,19 @@ def registration_create(request):
 
         # --- Dựng từng dòng + validate (dòng không nhập mã → bỏ qua) ---
         rows = []
-        seen_codes = set()
+        seen_codes = set()  # set theo CANONICAL emp_code (sau khi resolve user→emp_code)
         for i, raw_code in enumerate(codes):
-            code = (raw_code or '').strip()
-            if not code:
+            raw = (raw_code or '').strip()
+            if not raw:
                 continue
+
+            # Resolve raw -> canonical employee_code (chấp nhận emp_code thuần
+            # hoặc "user" = local part của email).
+            if raw in user_map:
+                canonical = raw
+            else:
+                local = raw.split('@')[0].strip().lower()
+                canonical = user_alias_map.get(local, '')
 
             qty_raw = (quantities[i] if i < len(quantities) else '').strip()
             try:
@@ -230,8 +268,9 @@ def registration_create(request):
                 qty_int = 0
 
             row = {
-                'code': code,
-                'name': user_map.get(code, ''),
+                'code': raw,            # giữ raw để hiển thị lại khi lỗi
+                'canonical': canonical,
+                'name': user_map.get(canonical, ''),
                 'quantity': qty_raw or '1',
                 'qty_int': qty_int,
                 'error': '',
@@ -239,19 +278,19 @@ def registration_create(request):
 
             if qty_int < 1:
                 row['error'] = 'Số suất phải là số nguyên ≥ 1.'
-            elif code not in user_map:
-                row['error'] = 'Mã nhân viên không tồn tại.'
-            elif code in seen_codes:
-                row['error'] = 'Mã nhân viên bị trùng trong danh sách.'
+            elif not canonical:
+                row['error'] = 'Không tìm thấy nhân viên với mã/user này.'
+            elif canonical in seen_codes:
+                row['error'] = 'Bị trùng trong danh sách (theo mã NV chuẩn).'
             else:
-                seen_codes.add(code)
+                seen_codes.add(canonical)
 
             rows.append(row)
 
         # --- Trùng với đăng kí đã có trong DB (chỉ check khi field chung OK) ---
         if (parsed_date and meal_name in meal_options
                 and kitchen_name in kitchen_options):
-            valid_codes = [r['code'] for r in rows if not r['error']]
+            valid_codes = [r['canonical'] for r in rows if not r['error']]
             if valid_codes:
                 already = set(
                     MealRegistration.objects.filter(
@@ -262,7 +301,7 @@ def registration_create(request):
                     ).values_list('employee_code', flat=True)
                 )
                 for r in rows:
-                    if not r['error'] and r['code'] in already:
+                    if not r['error'] and r['canonical'] in already:
                         r['error'] = ('Người này đã được đăng kí cho '
                                       'ngày / bữa / bếp này.')
 
@@ -281,6 +320,7 @@ def registration_create(request):
                 'meal_options': meal_options,
                 'kitchen_options': kitchen_options,
                 'user_map': user_map,
+                'user_alias_map': user_alias_map,
                 'form_errors': form_errors,
                 'sel_date': date_raw,
                 'sel_meal': meal_name,
@@ -292,8 +332,8 @@ def registration_create(request):
         with transaction.atomic():
             for r in rows:
                 MealRegistration.objects.create(
-                    employee_code=r['code'],
-                    full_name=user_map.get(r['code'], ''),
+                    employee_code=r['canonical'],
+                    full_name=user_map.get(r['canonical'], ''),
                     date=parsed_date,
                     meal_name=meal_name,
                     kitchen_name=kitchen_name,
@@ -312,6 +352,7 @@ def registration_create(request):
         'meal_options': meal_options,
         'kitchen_options': kitchen_options,
         'user_map': user_map,
+        'user_alias_map': user_alias_map,
         'form_errors': [],
         'sel_date': date.today().strftime('%Y-%m-%d'),
         'sel_meal': default_meal,
@@ -338,7 +379,7 @@ def registration_options(request):
         'kitchen_options': get_kitchen_options(),
     })
 @login_required
-@user_passes_test(is_admin)
+@user_passes_test(can_manage_menu)
 @require_POST
 def registration_delete(request, pk):
     item = get_object_or_404(MealRegistration, pk=pk)
@@ -395,7 +436,7 @@ def registrations_by_date_api(request):
 @login_required
 def delete_all_registrations(request):
 
-    if not request.user.is_superuser:
+    if not is_admin(request.user):
         return HttpResponseForbidden("Bạn không có quyền xóa dữ liệu.")
 
     if request.method == 'POST':
@@ -418,6 +459,9 @@ _PARTICIPATION_STATUS_LABELS = {
     'not_registered': ('Chưa đăng ký', 'warning'),
     'not_attended': ('Chưa điểm danh', 'danger'),
     'supplementary': ('Đã đăng ký bổ sung', 'info'),
+    # Người không có UserProfile (đơn vị khác thuộc tổng công ty) — không có
+    # dữ liệu khuôn mặt nên không điểm danh được, được bypass vào ăn.
+    'no_profile': ('Chưa có hồ sơ', 'warning'),
 }
 
 
@@ -428,12 +472,15 @@ def _build_participation_rows(target_date):
 
     registrations = MealRegistration.objects.filter(date=target_date)
     registered_name_map = {}
+    # 1 người có thể đăng ký nhiều suất (đặt giúp người khác) — cộng dồn quantity.
+    registered_quantity_map = {}
     for r in registrations:
         code = (r.employee_code or '').strip()
         if not code:
             continue
         if code not in registered_name_map:
             registered_name_map[code] = (r.full_name or '').strip()
+        registered_quantity_map[code] = registered_quantity_map.get(code, 0) + (r.quantity or 0)
 
     all_codes = scanned_codes | set(registered_name_map.keys())
     profile_map = {
@@ -474,6 +521,10 @@ def _build_participation_rows(target_date):
         # system check theo tiêu chí khác) → user bấm + lặp đi lặp lại.
         if status_code in NOT_REGISTERED_VALUES and emp_code in registered_name_map:
             status_code = 'supplementary'
+        # Người không có hồ sơ NV (đơn vị khác) — override trạng thái để giải
+        # thích lý do thay vì hiển thị mặc định (vd "chưa điểm danh" sẽ gây hiểu nhầm).
+        if not profile:
+            status_code = 'no_profile'
         label, css = _PARTICIPATION_STATUS_LABELS.get(status_code, (status_code, 'warning'))
         rows.append({
             'employee_code': emp_code,
@@ -485,30 +536,34 @@ def _build_participation_rows(target_date):
             'status_class': css,
             'type': log.type or 'Quét thẻ',
             'capture_image_url': capture_map.get(emp_code),
+            'quantity': registered_quantity_map.get(emp_code, 0),
         })
 
     not_attended_codes = set(registered_name_map.keys()) - scanned_codes
     for emp_code in sorted(not_attended_codes):
         profile = profile_map.get(emp_code)
         display_name = _resolve_name(emp_code, profile, registered_name_map.get(emp_code, ''))
-        label, css = _PARTICIPATION_STATUS_LABELS['not_attended']
+        # Người chưa có hồ sơ — bypass nhận diện, không tính là "chưa điểm danh".
+        status_code = 'no_profile' if not profile else 'not_attended'
+        label, css = _PARTICIPATION_STATUS_LABELS[status_code]
         rows.append({
             'employee_code': emp_code,
             'display_name': display_name,
             'profile': profile,
             'scan_time': None,
-            'status': 'not_attended',
+            'status': status_code,
             'status_label': label,
             'status_class': css,
             'type': '—',
             'capture_image_url': None,
+            'quantity': registered_quantity_map.get(emp_code, 0),
         })
 
     return rows
 
 
 @login_required
-@user_passes_test(is_admin)
+@user_passes_test(can_manage_menu)
 @require_POST
 def participation_add_supplementary(request):
     """Đăng ký bổ sung: tạo 1 suất ăn cho người đã quét thẻ nhưng chưa đăng ký.
@@ -556,7 +611,7 @@ def participation_add_supplementary(request):
 
 
 @login_required
-@user_passes_test(is_admin)
+@user_passes_test(can_manage_menu)
 @require_POST
 def participation_remove_supplementary(request):
     """Hủy đăng ký bổ sung (lỡ bấm nhầm) — xóa bản ghi supplementary."""
@@ -578,7 +633,7 @@ def participation_remove_supplementary(request):
 
 
 @login_required
-@user_passes_test(is_admin)
+@user_passes_test(can_manage_menu)
 def registration_participation(request):
     # Lấy ngày từ query param hoặc mặc định là hôm nay
     date_str = request.GET.get('date')
@@ -633,7 +688,7 @@ def _parse_date_param(request):
 
 
 @login_required
-@user_passes_test(is_admin)
+@user_passes_test(can_manage_menu)
 def export_participation_excel(request):
     """Tải Excel danh sách tham gia 1 ngày (3 trạng thái)."""
     from django.http import HttpResponse
@@ -653,7 +708,7 @@ def export_participation_excel(request):
 
 
 @login_required
-@user_passes_test(is_admin)
+@user_passes_test(can_manage_menu)
 @require_POST
 def participation_send_netchat(request):
     """Gửi Excel báo cáo qua NetChat — DM tới từng người hoặc đăng vào channel,
@@ -683,7 +738,7 @@ def participation_counts_api(request):
 
 
 @login_required
-@user_passes_test(is_admin)
+@user_passes_test(can_manage_menu)
 def participation_settings(request):
     """GET: trả về settings hiện tại. POST: lưu settings."""
     from .participation_export import (
@@ -1059,4 +1114,187 @@ def get_notification_logs_api(request):
         'pending_count': pending_count,
         'logs': log_data,
         'pending': pending_data,
-    })
+    })
+
+
+# ============================================================================
+# MODULE CHUYỂN SUẤT ĂN (Meal Transfer) — đặt trong trang Profile.
+# Logic trong registrations/meal_transfer.py. Views ở đây chỉ xử lý request.
+# ============================================================================
+
+from .models import MealTransfer  # noqa: E402  (đặt cuối file để tránh circular)
+
+
+@login_required
+@require_GET
+def meal_transfer_lookup(request):
+    """AJAX tra cứu user nhận theo mã NV / username / user (= local part của email).
+
+    Match-by-email-prefix: dùng `__istartswith=f'{local}@'` để khớp chính xác
+    `annt830@viettel.com.vn` mà KHÔNG khớp `annt8300@...` (vì sau prefix bắt buộc
+    là ký tự `@`). Nếu nhiều profile cùng local part (khác domain) -> báo lỗi,
+    yêu cầu dùng mã NV chính xác để tránh nhầm.
+    """
+    q = (request.GET.get('q') or '').strip()
+    if not q:
+        return JsonResponse({'success': False, 'message': 'Vui lòng nhập mã NV hoặc tên đăng nhập.'})
+
+    # Nếu user paste full email, vẫn lấy được local part.
+    local_part = q.split('@')[0].strip()
+
+    qs = UserProfile.objects.filter(
+        Q(employee_code__iexact=q)
+        | Q(user__username__iexact=q)
+        | Q(email__istartswith=f'{local_part}@')
+    ).select_related('user').distinct()
+
+    matches = list(qs[:5])
+    if not matches:
+        return JsonResponse({'success': False, 'message': f'Không tìm thấy nhân viên "{q}".'})
+    if len(matches) > 1:
+        codes = ', '.join((p.employee_code or '?') for p in matches)
+        return JsonResponse({
+            'success': False,
+            'message': f'Có {len(matches)} người khớp "{q}" ({codes}). Vui lòng nhập mã NV chính xác.',
+        })
+
+    profile = matches[0]
+    return JsonResponse({
+        'success': True,
+        'employee_code': profile.employee_code or '',
+        'full_name': profile.full_name or '',
+        'unit': profile.unit or '',
+        'department': profile.department or '',
+        'email': profile.email or '',
+        'avatar_url': profile.avatar.url if profile.avatar else '',
+    })
+
+
+@login_required
+@require_POST
+def meal_transfer_create(request):
+    """Tạo yêu cầu chuyển suất ăn. Apply ngay nếu A có data, ngược lại pending."""
+    from .meal_transfer import (
+        apply_meal_transfer, is_within_cutoff, _safe_send_netchat,
+    )
+
+    user = request.user
+    profile = getattr(user, 'profile', None)
+    if not profile or not profile.employee_code:
+        return JsonResponse(
+            {'success': False, 'message': 'Tài khoản của bạn chưa có mã NV — không thể chuyển suất ăn.'},
+            status=400,
+        )
+
+    date_str = (request.POST.get('meal_date') or '').strip()
+    to_emp = (request.POST.get('to_employee_code') or '').strip()
+    note = (request.POST.get('note') or '').strip()
+
+    if not date_str or not to_emp:
+        return JsonResponse(
+            {'success': False, 'message': 'Thiếu thông tin ngày hoặc người nhận.'},
+            status=400,
+        )
+
+    try:
+        meal_date = date.fromisoformat(date_str)
+    except ValueError:
+        return JsonResponse({'success': False, 'message': 'Ngày không hợp lệ.'}, status=400)
+
+    if not is_within_cutoff(meal_date):
+        return JsonResponse(
+            {'success': False,
+             'message': f'Đã quá 11h ngày {meal_date.strftime("%d/%m/%Y")} — không chuyển được nữa.'},
+            status=400,
+        )
+
+    if to_emp == profile.employee_code:
+        return JsonResponse({'success': False, 'message': 'Không thể chuyển cho chính mình.'}, status=400)
+
+    to_profile = UserProfile.objects.filter(
+        Q(employee_code__iexact=to_emp) | Q(user__username__iexact=to_emp)
+    ).select_related('user').first()
+    if not to_profile:
+        return JsonResponse({'success': False, 'message': f'Không tìm thấy người nhận "{to_emp}".'}, status=400)
+
+    # Chặn tạo trùng — đã có pending/applied cho cùng ngày từ A.
+    existing = MealTransfer.objects.filter(
+        from_employee_code=profile.employee_code,
+        meal_date=meal_date,
+        status__in=[MealTransfer.STATUS_PENDING, MealTransfer.STATUS_APPLIED],
+    ).first()
+    if existing:
+        return JsonResponse(
+            {'success': False,
+             'message': f'Bạn đã có yêu cầu chuyển ngày này ({existing.get_status_display()}). '
+                        f'Hủy yêu cầu cũ trước khi tạo mới.'},
+            status=400,
+        )
+
+    transfer = MealTransfer.objects.create(
+        from_user=user,
+        from_employee_code=profile.employee_code,
+        from_full_name=profile.full_name or '',
+        to_user=getattr(to_profile, 'user', None),
+        to_employee_code=to_profile.employee_code or to_emp,
+        to_full_name=to_profile.full_name or '',
+        meal_date=meal_date,
+        note=note,
+    )
+
+    status, keys = apply_meal_transfer(transfer)
+    date_str = meal_date.strftime('%d/%m/%Y')
+
+    if status == 'applied':
+        _safe_send_netchat(transfer, 'applied', transferred_keys=keys)
+        meals_disp = ', '.join(m or '?' for m, _k in keys) or 'suất ăn'
+        return JsonResponse({
+            'success': True,
+            'status': 'applied',
+            'message': f'Đã chuyển {meals_disp} ngày {date_str} cho '
+                       f'{to_profile.full_name or to_emp}.',
+        })
+
+    if status == 'b_already_registered':
+        # B đã có đăng ký trùng -> hủy luôn, báo cả 2 bên.
+        transfer.status = MealTransfer.STATUS_CANCELLED
+        transfer.cancel_reason = f'{to_profile.full_name or to_emp} đã có đăng ký trùng bữa/bếp.'
+        transfer.save(update_fields=['status', 'cancel_reason'])
+        _safe_send_netchat(transfer, 'failed_b_conflict', conflict_keys=keys)
+        meals_disp = ', '.join(m or '?' for m, _k in keys) or 'suất ăn'
+        return JsonResponse({
+            'success': False,
+            'status': 'failed_b_conflict',
+            'message': f'Không chuyển được: {to_profile.full_name or to_emp} đã có đăng ký '
+                       f'"{meals_disp}" ngày {date_str}. Yêu cầu đã bị hủy.',
+        })
+
+    # 'a_not_registered' -> giữ pending, đợi data sync hoặc hết hạn.
+    _safe_send_netchat(transfer, 'pending')
+    return JsonResponse({
+        'success': True,
+        'status': 'pending',
+        'message': f'Đã ghi nhận yêu cầu. Hệ thống sẽ tự áp dụng khi data đăng ký '
+                   f'ngày {date_str} được nhập (trước 11h ngày đó).',
+    })
+
+
+@login_required
+@require_POST
+def meal_transfer_cancel(request, pk):
+    """Hủy yêu cầu pending — chỉ chính người tạo hoặc admin được hủy."""
+    transfer = get_object_or_404(MealTransfer, pk=pk)
+    is_owner = transfer.from_user_id == request.user.id
+    if not (is_owner or is_admin(request.user)):
+        return JsonResponse({'success': False, 'message': 'Không có quyền hủy yêu cầu này.'}, status=403)
+    if transfer.status != MealTransfer.STATUS_PENDING:
+        return JsonResponse(
+            {'success': False,
+             'message': f'Chỉ hủy được yêu cầu đang chờ (hiện tại: {transfer.get_status_display()}).'},
+            status=400,
+        )
+
+    transfer.status = MealTransfer.STATUS_CANCELLED
+    transfer.cancel_reason = 'Người tạo hủy.' if is_owner else 'Admin hủy.'
+    transfer.save(update_fields=['status', 'cancel_reason'])
+    return JsonResponse({'success': True, 'message': 'Đã hủy yêu cầu.'})

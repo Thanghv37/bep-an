@@ -489,12 +489,29 @@ def user_profile(request):
     config_recognition = SystemConfig.objects.filter(key='recognition_token').first()
     recognition_token = config_recognition.value if config_recognition else ''
 
+    # Danh sách yêu cầu chuyển suất ăn của user (10 gần nhất, cả 3 trạng thái).
+    from registrations.models import MealTransfer
+    from datetime import date as _date
+    my_transfers = list(
+        MealTransfer.objects
+        .filter(from_user=request.user)
+        .order_by('-created_at')[:10]
+    )
+    received_transfers = list(
+        MealTransfer.objects
+        .filter(to_user=request.user, status=MealTransfer.STATUS_APPLIED)
+        .order_by('-meal_date')[:10]
+    )
+
     return render(request, 'accounts/user_profile.html', {
         'profile': profile,
         'bot_config': bot_config,
         'msg_templates': msg_templates,
         'ai_config': ai_config,
         'recognition_token': recognition_token,
+        'my_transfers': my_transfers,
+        'received_transfers': received_transfers,
+        'today_iso': _date.today().isoformat(),
     })
 
 

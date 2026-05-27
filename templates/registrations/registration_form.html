@@ -103,7 +103,7 @@
             <table class="table reg-rows-table align-middle">
                 <thead>
                     <tr>
-                        <th style="width: 42%;">Mã nhân viên</th>
+                        <th style="width: 42%;">Mã NV hoặc Username</th>
                         <th style="width: 38%;">Họ và tên</th>
                         <th style="width: 12%;">Số suất</th>
                         <th style="width: 8%;"></th>
@@ -115,7 +115,7 @@
                         <td>
                             <input type="text" name="employee_code" autocomplete="off"
                                    class="form-control row-emp-code{% if row.error %} is-invalid{% elif row.code %} is-valid{% endif %}"
-                                   value="{{ row.code }}" placeholder="Nhập mã NV">
+                                   value="{{ row.code }}" placeholder="Mã NV hoặc Username">
                             <div class="small mt-1 row-feedback text-danger">{{ row.error }}</div>
                         </td>
                         <td>
@@ -174,7 +174,7 @@
     <tr class="reg-row">
         <td>
             <input type="text" name="employee_code" autocomplete="off"
-                   class="form-control row-emp-code" value="" placeholder="Nhập mã NV">
+                   class="form-control row-emp-code" value="" placeholder="Mã NV hoặc Username">
             <div class="small mt-1 row-feedback text-danger"></div>
         </td>
         <td>
@@ -195,10 +195,20 @@
 </template>
 
 {{ user_map|json_script:"user-map-data" }}
+{{ user_alias_map|json_script:"user-alias-map-data" }}
 
 <script>
 (function () {
     const userMap = JSON.parse(document.getElementById('user-map-data').textContent || '{}');
+    const aliasMap = JSON.parse(document.getElementById('user-alias-map-data').textContent || '{}');
+
+    // Resolve input (mã NV thuần hoặc user = email local part) -> canonical emp_code.
+    function resolveCode(raw) {
+        if (!raw) return '';
+        if (Object.prototype.hasOwnProperty.call(userMap, raw)) return raw;
+        const local = raw.split('@')[0].trim().toLowerCase();
+        return aliasMap[local] || '';
+    }
     const tbody = document.getElementById('reg-rows');
     const rowTemplate = document.getElementById('row-template');
     const addBtn = document.getElementById('add-row-btn');
@@ -209,29 +219,41 @@
         else if (ok === false) el.classList.add('is-invalid');
     }
 
-    // Auto-fill họ tên theo mã NV cho 1 dòng.
+    // Auto-fill họ tên theo mã NV hoặc username (email local part) cho 1 dòng.
     function lookupRow(row) {
         const codeInput = row.querySelector('.row-emp-code');
         const nameInput = row.querySelector('.row-emp-name');
         const feedback = row.querySelector('.row-feedback');
-        const code = (codeInput.value || '').trim();
+        const raw = (codeInput.value || '').trim();
 
-        if (!code) {
+        if (!raw) {
             nameInput.value = '';
             feedback.textContent = '';
             setState(codeInput, null);
             setState(nameInput, null);
             return;
         }
-        const fullName = userMap[code];
-        if (fullName) {
+        const canonical = resolveCode(raw);
+        const fullName = canonical ? userMap[canonical] : '';
+        if (fullName !== undefined && fullName !== '') {
             nameInput.value = fullName;
-            feedback.textContent = '';
+            // Nếu nhập user thay vì mã NV thì hiện gợi ý mã NV chuẩn (màu xanh, không phải lỗi).
+            if (canonical !== raw) {
+                feedback.textContent = '→ Mã NV: ' + canonical;
+                feedback.classList.remove('text-danger');
+                feedback.classList.add('text-success');
+            } else {
+                feedback.textContent = '';
+                feedback.classList.remove('text-success');
+                feedback.classList.add('text-danger');
+            }
             setState(codeInput, true);
             setState(nameInput, true);
         } else {
             nameInput.value = '';
-            feedback.textContent = '⚠ Mã nhân viên không tồn tại';
+            feedback.textContent = '⚠ Không tìm thấy nhân viên';
+            feedback.classList.remove('text-success');
+            feedback.classList.add('text-danger');
             setState(codeInput, false);
             setState(nameInput, null);
         }
@@ -285,13 +307,19 @@
         // Chặn submit thẳng — hiện popup xác nhận trước.
         e.preventDefault();
 
-        // Thu thập các dòng có nhập mã NV.
+        // Thu thập các dòng có nhập mã NV / username.
         const people = [];
         tbody.querySelectorAll('.reg-row').forEach(function (row) {
-            const code = (row.querySelector('.row-emp-code').value || '').trim();
-            if (!code) return;
+            const raw = (row.querySelector('.row-emp-code').value || '').trim();
+            if (!raw) return;
+            const canonical = resolveCode(raw);
             const qty = (row.querySelector('.row-qty').value || '1').trim();
-            people.push({ code: code, name: userMap[code] || '', qty: qty });
+            people.push({
+                raw: raw,
+                code: canonical,
+                name: canonical ? (userMap[canonical] || '') : '',
+                qty: qty,
+            });
         });
 
         if (!people.length) {
@@ -316,11 +344,15 @@
             const li = document.createElement('li');
             li.className = 'list-group-item';
             const strong = document.createElement('strong');
-            strong.textContent = p.code;
+            // Hiển thị mã NV chuẩn (nếu nhập user thì hiện cả nguyên gốc).
+            strong.textContent = p.code || p.raw;
             if (p.name) {
                 li.classList.add('d-flex', 'justify-content-between', 'align-items-center');
                 const left = document.createElement('span');
                 left.appendChild(strong);
+                if (p.code && p.code !== p.raw) {
+                    left.appendChild(document.createTextNode(' (' + p.raw + ')'));
+                }
                 left.appendChild(document.createTextNode(' — ' + p.name));
                 const right = document.createElement('span');
                 right.className = 'text-muted small';
@@ -330,7 +362,7 @@
             } else {
                 li.classList.add('text-danger');
                 li.appendChild(strong);
-                li.appendChild(document.createTextNode(' — ⚠ Mã nhân viên không tồn tại'));
+                li.appendChild(document.createTextNode(' — ⚠ Không tìm thấy nhân viên'));
             }
             confirmList.appendChild(li);
         });

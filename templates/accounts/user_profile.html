@@ -77,6 +77,207 @@
         </div>
     </div>
 </div>
+
+{# ============== CHUYỂN SUẤT ĂN ============== #}
+<div class="profile-card p-4 mt-4" id="mealTransferSection">
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <h5 class="fw-bold mb-0">🍱 Chuyển suất ăn</h5>
+        <span class="text-muted small">Cho phép chuyển suất ăn ngày X cho đồng nghiệp khác — trước 11h ngày đó.</span>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="border rounded p-3" style="background:#f9fafb;">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" style="font-size:13px;">Ngày suất ăn</label>
+                    <input type="date" id="mtDate" class="form-control" min="{{ today_iso }}" value="{{ today_iso }}">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" style="font-size:13px;">Người nhận (Mã NV hoặc Username)</label>
+                    <div class="input-group">
+                        <input type="text" id="mtRecipient" class="form-control" placeholder="VD: 117238">
+                        <button type="button" class="btn btn-outline-primary" id="mtLookupBtn">Tra cứu</button>
+                    </div>
+                </div>
+
+                <div id="mtRecipientInfo" class="mb-3" style="display:none;">
+                    <div class="border rounded p-2 d-flex align-items-center gap-3" style="background:white;">
+                        <img id="mtRecipientAvatar" src="" class="rounded-circle" style="width:48px;height:48px;object-fit:cover;background:#e5e7eb;">
+                        <div>
+                            <div class="fw-bold" id="mtRecipientName">—</div>
+                            <div class="text-muted small" id="mtRecipientMeta">—</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" style="font-size:13px;">Ghi chú (tuỳ chọn)</label>
+                    <textarea id="mtNote" class="form-control" rows="2" placeholder="VD: bận đi công tác"></textarea>
+                </div>
+
+                <button type="button" class="btn btn-primary fw-bold w-100" id="mtSubmitBtn" disabled>
+                    Xác nhận chuyển
+                </button>
+                <div id="mtSubmitMsg" class="mt-2 small"></div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <h6 class="fw-semibold mb-2">Yêu cầu của tôi (10 gần nhất)</h6>
+            {% if my_transfers %}
+                <div class="table-responsive" style="max-height:280px;">
+                    <table class="table table-sm align-middle">
+                        <thead style="position:sticky;top:0;background:#f3f4f6;">
+                            <tr>
+                                <th>Ngày</th>
+                                <th>Người nhận</th>
+                                <th>Trạng thái</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in my_transfers %}
+                            <tr data-transfer-id="{{ t.pk }}">
+                                <td>{{ t.meal_date|date:"d/m/Y" }}</td>
+                                <td>
+                                    <div class="small">{{ t.to_full_name|default:"—" }}</div>
+                                    <div class="text-muted" style="font-size:11px;">{{ t.to_employee_code }}</div>
+                                </td>
+                                <td>
+                                    {% if t.status == 'pending' %}
+                                        <span class="badge bg-warning text-dark">Chờ áp dụng</span>
+                                    {% elif t.status == 'applied' %}
+                                        <span class="badge bg-success">Đã áp dụng</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary" title="{{ t.cancel_reason }}">Đã hủy</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if t.status == 'pending' %}
+                                    <button type="button" class="btn btn-sm btn-outline-danger mt-cancel-btn" data-id="{{ t.pk }}">Hủy</button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-muted small">Chưa có yêu cầu chuyển suất nào.</div>
+            {% endif %}
+
+            {% if received_transfers %}
+            <h6 class="fw-semibold mb-2 mt-3">Suất nhận được</h6>
+            <div class="small">
+                {% for t in received_transfers %}
+                <div class="border-start border-3 border-success ps-2 mb-1">
+                    Ngày <b>{{ t.meal_date|date:"d/m/Y" }}</b> — từ {{ t.from_full_name|default:t.from_employee_code }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const dateEl = document.getElementById('mtDate');
+    const recipientEl = document.getElementById('mtRecipient');
+    const lookupBtn = document.getElementById('mtLookupBtn');
+    const infoBox = document.getElementById('mtRecipientInfo');
+    const avatarEl = document.getElementById('mtRecipientAvatar');
+    const nameEl = document.getElementById('mtRecipientName');
+    const metaEl = document.getElementById('mtRecipientMeta');
+    const noteEl = document.getElementById('mtNote');
+    const submitBtn = document.getElementById('mtSubmitBtn');
+    const submitMsg = document.getElementById('mtSubmitMsg');
+    let resolvedEmpCode = '';
+
+    function setMsg(text, kind) {
+        submitMsg.textContent = text || '';
+        submitMsg.style.color = kind === 'err' ? '#b91c1c' : (kind === 'ok' ? '#059669' : '#374151');
+    }
+
+    lookupBtn.addEventListener('click', async () => {
+        const q = recipientEl.value.trim();
+        if (!q) { setMsg('Vui lòng nhập mã NV hoặc username.', 'err'); return; }
+        setMsg('Đang tra cứu...', '');
+        try {
+            const r = await fetch(`{% url 'meal_transfer_lookup' %}?q=${encodeURIComponent(q)}`);
+            const d = await r.json();
+            if (!d.success) {
+                infoBox.style.display = 'none';
+                submitBtn.disabled = true;
+                resolvedEmpCode = '';
+                setMsg(d.message || 'Không tìm thấy.', 'err');
+                return;
+            }
+            resolvedEmpCode = d.employee_code;
+            avatarEl.src = d.avatar_url || '';
+            nameEl.textContent = d.full_name || '(chưa rõ tên)';
+            metaEl.textContent = [d.employee_code, d.unit, d.department].filter(Boolean).join(' · ');
+            infoBox.style.display = '';
+            submitBtn.disabled = false;
+            setMsg('');
+        } catch (e) {
+            setMsg('Lỗi mạng khi tra cứu.', 'err');
+        }
+    });
+
+    submitBtn.addEventListener('click', async () => {
+        if (!resolvedEmpCode) { setMsg('Tra cứu người nhận trước.', 'err'); return; }
+        if (!dateEl.value) { setMsg('Chọn ngày suất ăn.', 'err'); return; }
+        if (!confirm(`Chuyển suất ăn ngày ${dateEl.value} cho ${nameEl.textContent} (${resolvedEmpCode})?`)) return;
+
+        submitBtn.disabled = true;
+        setMsg('Đang xử lý...', '');
+        try {
+            const fd = new FormData();
+            fd.append('meal_date', dateEl.value);
+            fd.append('to_employee_code', resolvedEmpCode);
+            fd.append('note', noteEl.value);
+            const r = await fetch(`{% url 'meal_transfer_create' %}`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrftoken },
+                body: fd,
+            });
+            const d = await r.json();
+            if (d.success) {
+                setMsg(d.message, 'ok');
+                setTimeout(() => location.reload(), 1200);
+            } else {
+                setMsg(d.message || 'Lỗi không xác định.', 'err');
+                submitBtn.disabled = false;
+            }
+        } catch (e) {
+            setMsg('Lỗi mạng khi gửi yêu cầu.', 'err');
+            submitBtn.disabled = false;
+        }
+    });
+
+    document.querySelectorAll('.mt-cancel-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (!confirm('Hủy yêu cầu chuyển suất này?')) return;
+            const id = btn.dataset.id;
+            try {
+                const r = await fetch(`/registrations/meal-transfer/${id}/cancel/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrftoken },
+                });
+                const d = await r.json();
+                if (d.success) location.reload();
+                else alert(d.message || 'Lỗi khi hủy.');
+            } catch (e) {
+                alert('Lỗi mạng.');
+            }
+        });
+    });
+})();
+</script>
+
 {% if profile.role == 'admin' or request.user.is_superuser %}
 <div class="row g-4 mt-1 mb-0">
     <!-- CỘT TRÁI: BOT NETCHAT -->

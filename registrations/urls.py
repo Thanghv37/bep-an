@@ -17,6 +17,9 @@ from .views import (
     participation_add_supplementary,
     participation_remove_supplementary,
     participation_counts_api,
+    meal_transfer_lookup,
+    meal_transfer_create,
+    meal_transfer_cancel,
 )
 
 urlpatterns = [
@@ -40,4 +43,9 @@ urlpatterns = [
     path('api/send-notifications/', send_meal_notifications, name='send_meal_notifications'),
     path('api/notification-logs/', get_notification_logs_api, name='get_notification_logs_api'),
     path('participation/counts/', participation_counts_api, name='participation_counts_api'),
+
+    # --- CHUYỂN SUẤT ĂN ---
+    path('meal-transfer/lookup/', meal_transfer_lookup, name='meal_transfer_lookup'),
+    path('meal-transfer/create/', meal_transfer_create, name='meal_transfer_create'),
+    path('meal-transfer/<int:pk>/cancel/', meal_transfer_cancel, name='meal_transfer_cancel'),
 ]

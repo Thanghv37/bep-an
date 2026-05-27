@@ -114,6 +114,7 @@ def count_statuses(rows):
         'supplementary': sum(1 for r in rows if r['status'] == 'supplementary'),
         'not_attended': sum(1 for r in rows if r['status'] == 'not_attended'),
         'not_registered': sum(1 for r in rows if r['status'] == 'not_registered'),
+        'no_profile': sum(1 for r in rows if r['status'] == 'no_profile'),
     }
 
 
@@ -130,6 +131,8 @@ def build_report_caption(target_date, rows=None):
         f'\n- Chưa điểm danh: {c["not_attended"]}'
         f'\n- Chưa đăng ký: {c["not_registered"]}'
     )
+    if c.get('no_profile'):
+        caption += f'\n- Chưa có hồ sơ (đơn vị khác): {c["no_profile"]}'
     return caption
 
 
@@ -137,7 +140,7 @@ def build_report_caption(target_date, rows=None):
 
 def build_excel_bytes(target_date, rows):
     """Tạo file Excel binary từ rows. `rows` đến từ `_build_participation_rows`."""
-    status_order = {'valid': 0, 'supplementary': 1, 'not_attended': 2, 'not_registered': 3}
+    status_order = {'valid': 0, 'supplementary': 1, 'not_attended': 2, 'not_registered': 3, 'no_profile': 4}
     rows = sorted(rows, key=lambda r: (
         status_order.get(r['status'], 99),
         r['scan_time'] or 0,
@@ -148,15 +151,38 @@ def build_excel_bytes(target_date, rows):
     ws = wb.active
     ws.title = 'Tham gia'
 
-    headers = ['STT', 'Họ và tên', 'Mã NV', 'Đơn vị', 'Phòng ban', 'Thời gian quét', 'Trạng thái', 'Loại']
+    headers = ['STT', 'Họ và tên', 'Mã NV', 'Số suất ĐK', 'Đơn vị', 'Phòng ban', 'Thời gian quét', 'Trạng thái', 'Loại']
+    n_cols = len(headers)
+    last_col_letter = chr(ord('A') + n_cols - 1)
+
+    # Row 1: Title
     title = f'DANH SÁCH THAM GIA NGÀY {target_date.strftime("%d-%m-%Y")}'
-    ws.merge_cells('A1:H1')
+    ws.merge_cells(f'A1:{last_col_letter}1')
     ws['A1'] = title
     ws['A1'].font = Font(size=14, bold=True)
     ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
 
+    # Row 2: Summary (đưa lên trên cùng theo yêu cầu — người xem nắm số liệu trước khi nhìn list)
+    counts = count_statuses(rows)
+    total_quantity = sum(r.get('quantity', 0) for r in rows)
+    summary_cells = [
+        ('Tổng:', True),
+        (f"Đã điểm danh: {counts['valid']}", False),
+        (f"Đăng ký bổ sung: {counts['supplementary']}", False),
+        (f"Chưa điểm danh: {counts['not_attended']}", False),
+        (f"Chưa đăng ký: {counts['not_registered']}", False),
+        (f"Chưa có hồ sơ: {counts.get('no_profile', 0)}", False),
+        (f"Tổng suất ĐK: {total_quantity}", True),
+    ]
+    for col_idx, (text, bold) in enumerate(summary_cells, start=1):
+        cell = ws.cell(row=2, column=col_idx, value=text)
+        if bold:
+            cell.font = Font(bold=True)
+
+    # Row 3: empty (visual separator)
+    # Row 4: Headers
     for col_idx, h in enumerate(headers, start=1):
-        cell = ws.cell(row=3, column=col_idx, value=h)
+        cell = ws.cell(row=4, column=col_idx, value=h)
         cell.font = Font(bold=True, color='FFFFFF')
         cell.fill = PatternFill('solid', fgColor='2563EB')
         cell.alignment = Alignment(horizontal='center', vertical='center')
@@ -166,33 +192,36 @@ def build_excel_bytes(target_date, rows):
         'supplementary': PatternFill('solid', fgColor='DBEAFE'),
         'not_attended': PatternFill('solid', fgColor='FEF2F2'),
         'not_registered': PatternFill('solid', fgColor='FFF7ED'),
+        'no_profile': PatternFill('solid', fgColor='FEF3C7'),
     }
 
     for idx, r in enumerate(rows, start=1):
-        excel_row = idx + 3
+        excel_row = idx + 4
         profile = r.get('profile')
         unit = (profile.unit if profile else '') or ''
         dept = (profile.department if profile else '') or ''
         # scan_time lưu UTC (USE_TZ=True) — convert sang giờ VN trước khi format.
         scan_str = timezone.localtime(r['scan_time']).strftime('%H:%M:%S') if r['scan_time'] else '—'
-        values = [idx, r['display_name'], r['employee_code'], unit, dept, scan_str, r['status_label'], r['type']]
+        values = [
+            idx,
+            r['display_name'],
+            r['employee_code'],
+            r.get('quantity', 0),
+            unit,
+            dept,
+            scan_str,
+            r['status_label'],
+            r['type'],
+        ]
         fill = fills.get(r['status'])
         for col_idx, v in enumerate(values, start=1):
             cell = ws.cell(row=excel_row, column=col_idx, value=v)
             if fill:
                 cell.fill = fill
 
-    widths = [6, 28, 14, 24, 24, 16, 18, 14]
+    widths = [6, 28, 14, 12, 24, 24, 16, 18, 14]
     for col_idx, w in enumerate(widths, start=1):
         ws.column_dimensions[chr(ord('A') + col_idx - 1)].width = w
-
-    summary_row = len(rows) + 5
-    counts = count_statuses(rows)
-    ws.cell(row=summary_row, column=1, value='Tổng:').font = Font(bold=True)
-    ws.cell(row=summary_row, column=2, value=f"Đã điểm danh: {counts['valid']}")
-    ws.cell(row=summary_row, column=3, value=f"Đăng ký bổ sung: {counts['supplementary']}")
-    ws.cell(row=summary_row, column=4, value=f"Chưa điểm danh: {counts['not_attended']}")
-    ws.cell(row=summary_row, column=5, value=f"Chưa đăng ký: {counts['not_registered']}")
 
     buffer = io.BytesIO()
     wb.save(buffer)

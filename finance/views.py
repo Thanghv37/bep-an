@@ -571,6 +571,7 @@ def extra_request_by_date(request):
 
 
 @login_required
+@user_passes_test(can_manage_purchase)
 def extra_request_create(request):
     if request.method == 'POST':
         date_val = request.POST.get('date')
@@ -654,6 +655,7 @@ def format_main_qty(value, unit):
 
 
 @login_required
+@user_passes_test(can_manage_purchase)
 def extra_request_list(request):
     today = date.today()
 
