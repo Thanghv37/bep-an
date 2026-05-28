@@ -673,8 +673,57 @@ def registration_participation(request):
         'q_status': q_status,
         'total_users': total_users,
         'user_map': user_map,
+        'can_delete_scan': is_admin(request.user),  # chỉ admin thấy nút xóa lượt quét
     }
     return render(request, 'registrations/registration_participation.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+def participation_delete_scan(request):
+    """Xóa lượt quét (AttendanceLog) + ảnh chụp của 1 người trong 1 ngày.
+
+    Chỉ admin. MealRegistration được GIỮ NGUYÊN — sau khi xóa, nếu người đó
+    có đăng ký thì chuyển thành 'chưa điểm danh', nếu không thì biến mất khỏi
+    danh sách Tham gia.
+    """
+    employee_code = (request.POST.get('employee_code') or '').strip()
+    date_str = (request.POST.get('date') or '').strip()
+    if not employee_code or not date_str:
+        return JsonResponse({'success': False, 'message': 'Thiếu dữ liệu.'}, status=400)
+    try:
+        target_date = date.fromisoformat(date_str)
+    except ValueError:
+        return JsonResponse({'success': False, 'message': 'Ngày không hợp lệ.'}, status=400)
+
+    logs_deleted, _ = AttendanceLog.objects.filter(
+        employee_code=employee_code,
+        scan_time__date=target_date,
+    ).delete()
+
+    # Xóa kèm ảnh chụp (xóa file ảnh: lặp .delete() từng cái để gọi storage).
+    captures = AttendanceCapture.objects.filter(
+        employee_code=employee_code,
+        scan_time__date=target_date,
+    )
+    caps_deleted = 0
+    for cap in captures:
+        if cap.image:
+            cap.image.delete(save=False)
+        cap.delete()
+        caps_deleted += 1
+
+    if not logs_deleted and not caps_deleted:
+        return JsonResponse({
+            'success': False,
+            'message': 'Không tìm thấy lượt quét nào để xóa.',
+        }, status=404)
+
+    return JsonResponse({
+        'success': True,
+        'message': f'Đã xóa {logs_deleted} lượt quét, {caps_deleted} ảnh.',
+    })
 
 
 def _parse_date_param(request):

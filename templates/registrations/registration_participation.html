@@ -106,6 +106,7 @@
                                 </div>
                             </div>
                         </th>
+                        {% if can_delete_scan %}<th class="text-center" style="width: 70px;">Thao tác</th>{% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -161,10 +162,24 @@
                                 {% endif %}
                             </td>
                             <td><span class="type-badge">{{ row.type }}</span></td>
+                            {% if can_delete_scan %}
+                            <td class="text-center">
+                                {% if row.scan_time %}
+                                <button type="button" class="btn btn-sm btn-outline-danger scan-delete-btn"
+                                        data-code="{{ row.employee_code }}"
+                                        data-name="{{ row.display_name }}"
+                                        title="Xóa lượt quét của người này trong ngày">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            {% endif %}
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="6">
+                            <td colspan="{% if can_delete_scan %}7{% else %}6{% endif %}">
                                 <div class="empty-state py-5 text-center">
                                     <div class="fs-2">📅</div>
                                     <div class="fw-bold">Chưa có dữ liệu tham gia</div>
@@ -577,6 +592,34 @@ document.addEventListener('DOMContentLoaded', function () {
                 const td = btn.closest('td');
                 if (isAdd) setRowStatus(td, 'info', 'Đã đăng ký bổ sung');
                 else setRowStatus(td, 'warning', 'Chưa đăng ký');
+            })
+            .catch(function () { btn.disabled = false; alert('Lỗi kết nối.'); });
+    });
+
+    // Xóa lượt quét (AttendanceLog) — chỉ admin thấy nút này.
+    document.body.addEventListener('click', function (e) {
+        const btn = e.target.closest('.scan-delete-btn');
+        if (!btn) return;
+        const code = btn.dataset.code || '';
+        const name = btn.dataset.name || code;
+        const dateVal = dateInput ? dateInput.value : '';
+        if (!code || !dateVal) { alert('Thiếu mã nhân viên hoặc ngày.'); return; }
+        if (!confirm('Xóa lượt quét của ' + name + ' (' + code + ') ngày ' + dateVal + '?\n'
+                     + 'Đăng ký suất ăn vẫn giữ nguyên.')) return;
+
+        const fd = new FormData();
+        fd.append('employee_code', code);
+        fd.append('date', dateVal);
+
+        btn.disabled = true;
+        fetch("{% url 'participation_delete_scan' %}", {
+            method: 'POST', headers: { 'X-CSRFToken': CSRF_TOKEN }, body: fd
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) { btn.disabled = false; alert(data.message || 'Có lỗi xảy ra.'); return; }
+                // Reload để cập nhật lại trạng thái (chưa điểm danh / biến mất khỏi list).
+                location.reload();
             })
             .catch(function () { btn.disabled = false; alert('Lỗi kết nối.'); });
     });
