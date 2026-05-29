@@ -9,8 +9,13 @@ from django.shortcuts import render, redirect, get_object_or_404
 from decimal import Decimal, InvalidOperation
 from datetime import date
 
+from django.views.decorators.http import require_POST
+
 from meals.models import DailyMenu
-from .models import DailyPurchase, ExtraPurchaseRequest, ExtraPurchaseRequestItem, PurchaseEditLog, PurchaseExtraItem
+from .models import (
+    DailyPurchase, ExtraPurchaseRequest, ExtraPurchaseRequestItem,
+    PurchaseEditLog, PurchaseExtraItem, InventoryEntry, InventoryLog,
+)
 from accounts.permissions import is_admin, is_kitchen
 from .forms import DailyPurchaseForm
 from core.services.finance_ai import scan_receipt_image
@@ -812,3 +817,215 @@ def extra_request_list(request):
         'pending_count': pending_count,
         'cost_entered_count': cost_entered_count,
     })
+
+
+# ============================================================================
+# QUẢN LÝ KHO (Inventory) — tồn kho thực phẩm sau mỗi ngày nấu.
+# Mô hình theo TỪNG NGÀY; lưu trùng (ngày, nguyên liệu, đơn vị) -> cộng dồn.
+# Quyền: admin + kitchen (can_manage_purchase).
+# ============================================================================
+
+def _parse_inventory_date(date_str):
+    try:
+        return date.fromisoformat(date_str)
+    except (TypeError, ValueError):
+        return date.today()
+
+
+# Đơn vị "cùng ý nghĩa" -> cộng dồn được (có quy đổi). factor = số đơn vị cơ bản
+# (g cho khối lượng, ml cho thể tích) trong 1 đơn vị này.
+_UNIT_FACTORS = {
+    # Khối lượng (base = g)
+    'g': ('mass', Decimal('1')),
+    'gam': ('mass', Decimal('1')),
+    'gram': ('mass', Decimal('1')),
+    'kg': ('mass', Decimal('1000')),
+    'kí': ('mass', Decimal('1000')),
+    'ký': ('mass', Decimal('1000')),
+    'kilogram': ('mass', Decimal('1000')),
+    # Thể tích (base = ml)
+    'ml': ('volume', Decimal('1')),
+    'l': ('volume', Decimal('1000')),
+    'lit': ('volume', Decimal('1000')),
+    'lít': ('volume', Decimal('1000')),
+    'liter': ('volume', Decimal('1000')),
+}
+
+
+def _unit_category(unit):
+    """Trả về (category, factor).
+
+    - Khối lượng (g/kg...) -> ('mass', factor), thể tích (ml/l...) -> ('volume', factor):
+      cùng category thì cộng dồn được dù khác đơn vị (quy đổi qua factor).
+    - Đơn vị đếm (quả, chai, củ...) -> category riêng theo CHÍNH tên đơn vị, chỉ
+      gộp khi trùng y hệt (vd 'chai' khác 'lon' -> coi là nguyên liệu khác).
+    """
+    u = (unit or '').strip().lower()
+    if u in _UNIT_FACTORS:
+        return _UNIT_FACTORS[u]
+    return ('other:' + u, Decimal('1'))
+
+
+def _add_inventory(stored_date, name, quantity, unit, source, user, note=''):
+    """Nhập kho: cộng dồn theo TÊN + NHÓM ĐƠN VỊ.
+
+    Cùng tên + cùng nhóm đơn vị (khối lượng g↔kg, thể tích ml↔lít) -> cộng dồn,
+    quy đổi khối lượng nhập về đơn vị của dòng đang có. Khác nhóm đơn vị (vd kg
+    với chai) -> coi là nguyên liệu khác, tạo dòng riêng. Luôn ghi 1 InventoryLog
+    (đơn vị log = đơn vị người nhập, để lịch sử chính xác).
+    """
+    name = (name or '').strip()
+    unit = (unit or '').strip()
+    in_cat, in_factor = _unit_category(unit)
+
+    entry = None
+    for cand in InventoryEntry.objects.filter(ingredient_name__iexact=name):
+        cand_cat, _ = _unit_category(cand.unit)
+        if cand_cat == in_cat:
+            entry = cand
+            break
+
+    if entry:
+        _, exist_factor = _unit_category(entry.unit)
+        # Quy đổi lượng nhập (đơn vị nhập) -> đơn vị của dòng đang có.
+        converted = quantity * in_factor / exist_factor
+        entry.quantity = (entry.quantity or 0) + converted
+        entry.stored_date = stored_date
+        entry.source = source
+        if note:
+            entry.note = note
+        entry.save(update_fields=['quantity', 'stored_date', 'source', 'note', 'updated_at'])
+    else:
+        entry = InventoryEntry.objects.create(
+            stored_date=stored_date, ingredient_name=name, quantity=quantity,
+            unit=unit, source=source, note=note, created_by=user,
+        )
+
+    InventoryLog.objects.create(
+        action=InventoryLog.ACTION_IMPORT, action_date=stored_date,
+        ingredient_name=name, quantity=quantity, unit=unit,
+        source=source, created_by=user, note=note,
+    )
+    return entry
+
+
+@login_required
+@user_passes_test(can_manage_purchase)
+def inventory_list(request):
+    """Trang Quản lý kho: tồn hiện tại (running) + trích từ hóa đơn + lịch sử."""
+    target_date = _parse_inventory_date(request.GET.get('date'))
+
+    # Tồn hiện tại = tất cả nguyên liệu còn > 0, gộp theo tên.
+    entries = InventoryEntry.objects.filter(quantity__gt=0).order_by('ingredient_name')
+
+    # Nguyên liệu từ hóa đơn ngày được chọn để "lưu tồn".
+    invoice_items = PurchaseExtraItem.objects.filter(
+        purchase__date=target_date
+    ).select_related('purchase').order_by('ingredient_name')
+
+    # Lịch sử nhập/xuất + filter theo ngày & loại (độc lập với date picker trên).
+    log_date_str = (request.GET.get('log_date') or '').strip()
+    log_action = (request.GET.get('log_action') or '').strip()
+    logs_qs = InventoryLog.objects.select_related('created_by')
+    log_date = None
+    if log_date_str:
+        try:
+            log_date = date.fromisoformat(log_date_str)
+            logs_qs = logs_qs.filter(action_date=log_date)
+        except ValueError:
+            log_date = None
+    if log_action in (InventoryLog.ACTION_IMPORT, InventoryLog.ACTION_EXPORT):
+        logs_qs = logs_qs.filter(action=log_action)
+    logs = logs_qs[:100]
+
+    return render(request, 'finance/inventory.html', {
+        'target_date': target_date,
+        'entries': entries,
+        'invoice_items': invoice_items,
+        'logs': logs,
+        'log_date': log_date_str,
+        'log_action': log_action,
+    })
+
+
+@login_required
+@user_passes_test(can_manage_purchase)
+@require_POST
+def inventory_add_manual(request):
+    """Nhập tay 1 nguyên liệu vào kho."""
+    stored_date = _parse_inventory_date(request.POST.get('stored_date'))
+    name = (request.POST.get('ingredient_name') or '').strip()
+    unit = (request.POST.get('unit') or '').strip()
+    note = (request.POST.get('note') or '').strip()
+    qty_raw = (request.POST.get('quantity') or '').strip()
+
+    if not name:
+        return JsonResponse({'success': False, 'message': 'Vui lòng nhập tên nguyên liệu.'}, status=400)
+    try:
+        quantity = Decimal(qty_raw)
+    except (InvalidOperation, TypeError):
+        return JsonResponse({'success': False, 'message': 'Khối lượng không hợp lệ.'}, status=400)
+    if quantity <= 0:
+        return JsonResponse({'success': False, 'message': 'Khối lượng phải lớn hơn 0.'}, status=400)
+
+    _add_inventory(stored_date, name, quantity, unit, InventoryEntry.SOURCE_MANUAL, request.user, note)
+    return JsonResponse({'success': True, 'message': f'Đã nhập kho {name}.'})
+
+
+@login_required
+@user_passes_test(can_manage_purchase)
+@require_POST
+def inventory_save_from_invoice(request):
+    """Lưu tồn 1 nguyên liệu trích từ hóa đơn với khối lượng chỉ định."""
+    stored_date = _parse_inventory_date(request.POST.get('stored_date'))
+    name = (request.POST.get('ingredient_name') or '').strip()
+    unit = (request.POST.get('unit') or '').strip()
+    qty_raw = (request.POST.get('quantity') or '').strip()
+
+    if not name:
+        return JsonResponse({'success': False, 'message': 'Thiếu tên nguyên liệu.'}, status=400)
+    try:
+        quantity = Decimal(qty_raw)
+    except (InvalidOperation, TypeError):
+        return JsonResponse({'success': False, 'message': 'Khối lượng không hợp lệ.'}, status=400)
+    if quantity <= 0:
+        return JsonResponse({'success': False, 'message': 'Khối lượng phải lớn hơn 0.'}, status=400)
+
+    _add_inventory(stored_date, name, quantity, unit, InventoryEntry.SOURCE_INVOICE, request.user)
+    return JsonResponse({'success': True, 'message': f'Đã lưu tồn {name} ({quantity}{unit}).'})
+
+
+@login_required
+@user_passes_test(can_manage_purchase)
+@require_POST
+def inventory_export(request, pk):
+    """Xuất kho 1 nguyên liệu: trừ tồn, ghi log. Tồn về 0 -> xóa dòng."""
+    entry = get_object_or_404(InventoryEntry, pk=pk)
+    action_date = _parse_inventory_date(request.POST.get('stored_date'))
+    qty_raw = (request.POST.get('quantity') or '').strip()
+    try:
+        quantity = Decimal(qty_raw)
+    except (InvalidOperation, TypeError):
+        return JsonResponse({'success': False, 'message': 'Khối lượng không hợp lệ.'}, status=400)
+    if quantity <= 0:
+        return JsonResponse({'success': False, 'message': 'Khối lượng phải lớn hơn 0.'}, status=400)
+    if quantity > entry.quantity:
+        return JsonResponse(
+            {'success': False,
+             'message': f'Vượt quá tồn (còn {entry.quantity}{entry.unit}).'},
+            status=400,
+        )
+
+    with transaction.atomic():
+        InventoryLog.objects.create(
+            action=InventoryLog.ACTION_EXPORT, action_date=action_date,
+            ingredient_name=entry.ingredient_name, quantity=quantity,
+            unit=entry.unit, created_by=request.user,
+        )
+        entry.quantity = (entry.quantity or 0) - quantity
+        if entry.quantity <= 0:
+            entry.delete()
+        else:
+            entry.save(update_fields=['quantity', 'updated_at'])
+
+    return JsonResponse({'success': True, 'message': f'Đã xuất {quantity}{entry.unit} {entry.ingredient_name}.'})

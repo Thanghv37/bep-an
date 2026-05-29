@@ -906,6 +906,11 @@
                         <span>Hóa đơn đặt hàng</span>
                     </a>
 
+                    <a class="nav-link {% if '/inventory/' in request.path %}active{% endif %}" href="/inventory/">
+                        <i class="bi bi-box2-heart"></i>
+                        <span>Quản lý kho</span>
+                    </a>
+
                     <a class="nav-link {% if '/approvals/' in request.path %}active{% endif %}" href="/approvals/">
                         <i class="bi bi-check2-square"></i>
                         <span>Phê duyệt</span>
@@ -944,6 +949,11 @@
                     <a class="nav-link {% if '/extra-requests/' in request.path %}active{% endif %}" href="/extra-requests/">
                         <i class="bi bi-box-seam"></i>
                         <span>Hóa đơn đặt hàng</span>
+                    </a>
+
+                    <a class="nav-link {% if '/inventory/' in request.path %}active{% endif %}" href="/inventory/">
+                        <i class="bi bi-box2-heart"></i>
+                        <span>Quản lý kho</span>
                     </a>
 
                     <a class="nav-link {% if '/reports/' in request.path %}active{% endif %}" href="/reports/">

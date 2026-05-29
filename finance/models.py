@@ -245,6 +245,85 @@ class PurchaseRejectLog(models.Model):
 
     def __str__(self):
         return f"Từ chối chi phí {self.date} - {self.rejected_at:%d/%m/%Y %H:%M}"
+class InventoryEntry(models.Model):
+    """Tồn kho (tủ lạnh) thực phẩm còn lại sau mỗi ngày nấu.
+
+    Mô hình theo TỪNG NGÀY (lịch sử): mỗi (ngày, nguyên liệu, đơn vị) là 1 dòng.
+    Lưu thêm cùng (ngày, nguyên liệu, đơn vị) -> CỘNG DỒN quantity (mua nhiều
+    lần / nhiều hóa đơn cùng loại trong ngày).
+
+    Nguồn nhập:
+    - 'manual': nhân viên tự nhập tay.
+    - 'invoice': trích từ hóa đơn (PurchaseExtraItem) ngày đó, chọn khối lượng tồn.
+    """
+    SOURCE_MANUAL = 'manual'
+    SOURCE_INVOICE = 'invoice'
+    SOURCE_CHOICES = [
+        (SOURCE_MANUAL, 'Nhập tay'),
+        (SOURCE_INVOICE, 'Từ hóa đơn'),
+    ]
+
+    stored_date = models.DateField(verbose_name='Ngày lưu tồn')
+    ingredient_name = models.CharField(max_length=255, verbose_name='Nguyên liệu')
+    quantity = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0, verbose_name='Khối lượng tồn'
+    )
+    unit = models.CharField(max_length=50, blank=True, verbose_name='Đơn vị')
+
+    source = models.CharField(
+        max_length=20, choices=SOURCE_CHOICES, default=SOURCE_MANUAL,
+        verbose_name='Nguồn nhập'
+    )
+    note = models.TextField(blank=True, verbose_name='Ghi chú')
+
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        verbose_name='Người nhập'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['ingredient_name']
+        verbose_name = 'Tồn kho'
+        verbose_name_plural = 'Tồn kho'
+
+    def __str__(self):
+        return f'{self.ingredient_name} - {self.quantity}{self.unit}'
+
+
+class InventoryLog(models.Model):
+    """Lịch sử nhập / xuất kho — mỗi thao tác 1 dòng, không bị ảnh hưởng khi
+    InventoryEntry bị xóa (tồn về 0)."""
+    ACTION_IMPORT = 'import'
+    ACTION_EXPORT = 'export'
+    ACTION_CHOICES = [
+        (ACTION_IMPORT, 'Nhập kho'),
+        (ACTION_EXPORT, 'Xuất kho'),
+    ]
+
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES, verbose_name='Thao tác')
+    action_date = models.DateField(verbose_name='Ngày')
+    ingredient_name = models.CharField(max_length=255, verbose_name='Nguyên liệu')
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Khối lượng')
+    unit = models.CharField(max_length=50, blank=True, verbose_name='Đơn vị')
+    source = models.CharField(max_length=20, blank=True, verbose_name='Nguồn')
+    note = models.TextField(blank=True, verbose_name='Ghi chú')
+
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Người thực hiện'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Lịch sử kho'
+        verbose_name_plural = 'Lịch sử kho'
+
+    def __str__(self):
+        return f'{self.get_action_display()} {self.ingredient_name} {self.quantity}{self.unit}'
+
+
 class ExtraPurchaseRequest(models.Model):
     STATUS_PENDING = 'pending'
     STATUS_APPROVED = 'approved'

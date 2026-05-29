@@ -119,20 +119,42 @@ def count_statuses(rows):
 
 
 def build_report_caption(target_date, rows=None):
-    """Caption tin nhắn NetChat. Nếu có `rows` thì kèm số liệu tổng hợp để
-    người nhận nắm nhanh, không cần mở file."""
+    """Caption tin nhắn NetChat. Nếu có `rows` thì kèm số liệu tổng hợp +
+    liệt kê tên người ở các nhóm cần chú ý (chưa điểm danh / chưa đăng ký /
+    chưa có hồ sơ) để người nhận nắm ngay không cần mở file."""
     caption = f'📊 Báo cáo Tham gia ngày {target_date.strftime("%d-%m-%Y")}'
     if rows is None:
         return caption
     c = count_statuses(rows)
+
+    def _names(status):
+        return [r for r in rows if r['status'] == status]
+
+    def _fmt(items):
+        return ', '.join(
+            f'{r["display_name"]} ({r["employee_code"]})' for r in items
+        )
+
     caption += (
         f'\n- Đã điểm danh: {c["valid"]}'
         f'\n- Đăng ký bổ sung: {c["supplementary"]}'
-        f'\n- Chưa điểm danh: {c["not_attended"]}'
-        f'\n- Chưa đăng ký: {c["not_registered"]}'
     )
-    if c.get('no_profile'):
-        caption += f'\n- Chưa có hồ sơ (đơn vị khác): {c["no_profile"]}'
+
+    not_attended = _names('not_attended')
+    caption += f'\n- Chưa điểm danh: {len(not_attended)}'
+    if not_attended:
+        caption += f'\n   👉 {_fmt(not_attended)}'
+
+    not_registered = _names('not_registered')
+    caption += f'\n- Chưa đăng ký: {len(not_registered)}'
+    if not_registered:
+        caption += f'\n   👉 {_fmt(not_registered)}'
+
+    no_profile = _names('no_profile')
+    if no_profile:
+        caption += f'\n- Chưa có hồ sơ (đơn vị khác): {len(no_profile)}'
+        caption += f'\n   👉 {_fmt(no_profile)}'
+
     return caption
 
 

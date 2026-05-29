@@ -8,6 +8,10 @@ from .views import (
     extra_request_by_date,
     extra_request_list,
     scan_bill_ajax,
+    inventory_list,
+    inventory_add_manual,
+    inventory_save_from_invoice,
+    inventory_export,
 )
 
 urlpatterns = [
@@ -20,4 +24,10 @@ urlpatterns = [
     path('extra-requests/', extra_request_list, name='extra_request_list'),
     path('extra-requests/create/', extra_request_create, name='extra_request_create'),
     path('extra-requests/by-date/', extra_request_by_date, name='extra_request_by_date'),
+
+    # QUẢN LÝ KHO
+    path('inventory/', inventory_list, name='inventory_list'),
+    path('inventory/add-manual/', inventory_add_manual, name='inventory_add_manual'),
+    path('inventory/save-from-invoice/', inventory_save_from_invoice, name='inventory_save_from_invoice'),
+    path('inventory/<int:pk>/export/', inventory_export, name='inventory_export'),
 ]

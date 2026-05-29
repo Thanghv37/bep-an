@@ -1,0 +1,495 @@
+{% extends 'base.html' %}
+
+{% block title %}Quản lý kho{% endblock %}
+{% block page_title %}Quản lý kho{% endblock %}
+
+{% block content %}
+<style>
+    .inv-section-title { font-weight: 700; font-size: 16px; color: #0f172a; letter-spacing: -.01em; }
+    .inv-empty { color: #9ca3af; }
+    .inv-invoice-save { white-space: nowrap; }
+
+    /* ===== Bảng hiện đại (theo mẫu) ===== */
+    .inv-table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 0; }
+    .inv-table thead th {
+        font-size: 11.5px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #94a3b8;
+        background: #f8fafc;
+        padding: 12px 16px;
+        border: none;
+        border-bottom: 1px solid #eef2f6;
+        white-space: nowrap;
+    }
+    .inv-table thead th:first-child { border-top-left-radius: 12px; }
+    .inv-table thead th:last-child  { border-top-right-radius: 12px; }
+    .inv-table tbody td {
+        padding: 14px 16px;
+        border: none;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 14px;
+        color: #1e293b;
+        vertical-align: middle;
+    }
+    .inv-table tbody tr { transition: background .12s ease; }
+    .inv-table tbody tr:hover td { background: #f8fafc; }
+    .inv-table tbody tr:last-child td { border-bottom: none; }
+
+    .inv-table .inv-center { text-align: center; }
+    .inv-nowrap { white-space: nowrap; }
+    .inv-name { font-weight: 600; color: #0f172a; }
+    .inv-qty { font-weight: 700; color: #0f172a; }
+    .inv-qty .inv-unit { font-weight: 500; color: #64748b; font-size: 13px; }
+    .inv-date { color: #94a3b8; font-size: 12.5px; }
+
+    /* ===== Pill trạng thái ===== */
+    .inv-pill {
+        display: inline-flex; align-items: center; gap: 5px;
+        font-size: 11.5px; font-weight: 600;
+        padding: 4px 11px; border-radius: 999px;
+        border: 1px solid transparent; line-height: 1;
+    }
+    .inv-pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .inv-pill-in    { background: #ecfdf5; color: #059669; border-color: #d1fae5; }
+    .inv-pill-out   { background: #fff7ed; color: #c2410c; border-color: #ffedd5; }
+
+    /* ===== Nút icon tròn ===== */
+    .inv-icon-btn {
+        width: 34px; height: 34px; padding: 0;
+        display: inline-flex; align-items: center; justify-content: center;
+        border-radius: 9px;
+    }
+    /* ===== Nút lưu tồn (hóa đơn) ===== */
+    .inv-invoice-save { border-radius: 8px; font-weight: 600; font-size: 13px; padding: 5px 14px; }
+
+    /* ===== Desktop: chia cột cân đối (chỉ áp màn rộng) ===== */
+    @media (min-width: 769px) {
+        .inv-table { table-layout: fixed; }
+        .inv-table td, .inv-table th { overflow: hidden; text-overflow: ellipsis; }
+    }
+
+    /* ===== Mobile: mỗi dòng thành 1 card, cell xếp dọc kèm nhãn ===== */
+    @media (max-width: 768px) {
+        .inv-table thead { display: none; }
+        .inv-table, .inv-table tbody, .inv-table tr, .inv-table td { display: block; width: 100%; }
+        .inv-table tbody tr {
+            border: 1px solid #e2e8f0; border-radius: 12px;
+            margin-bottom: 10px; padding: 4px 14px; background: #f1f5f9;
+        }
+        .inv-table tbody tr:hover td { background: transparent; }
+        .inv-table tbody td {
+            border: none; border-bottom: 1px solid #e2e8f0;
+            padding: 10px 0; text-align: right !important;
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        }
+        .inv-table tbody tr td:last-child { border-bottom: none; }
+        .inv-table tbody td::before {
+            content: attr(data-label);
+            font-size: 11.5px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: .03em; color: #94a3b8; text-align: left; white-space: nowrap;
+        }
+        /* Cell không có nhãn (nút thao tác) -> đẩy nội dung sang phải */
+        .inv-table tbody td[data-label='']::before { content: none; }
+        .inv-table .inv-center { text-align: right !important; }
+    }
+</style>
+
+<div class="dashboard-card mb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <div class="section-title mb-1">🧊 Quản lý kho (tủ lạnh)</div>
+            <div class="section-subtitle mb-0">
+                Thực phẩm còn lưu trữ sau ngày nấu. Nhập tay hoặc trích từ hóa đơn ngày đó.
+            </div>
+        </div>
+        <form method="get" class="d-flex align-items-end gap-2">
+            <input type="hidden" name="log_date" value="{{ log_date }}">
+            <input type="hidden" name="log_action" value="{{ log_action }}">
+            <div>
+                <label class="form-label fw-semibold mb-1" style="font-size: 13px;">Ngày tồn kho</label>
+                <input type="date" name="date" value="{{ target_date|date:'Y-m-d' }}"
+                       class="form-control" onchange="this.form.submit()">
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row g-4">
+    {# ===== CỘT TRÁI: TỒN KHO HIỆN CÓ + NHẬP TAY ===== #}
+    <div class="col-lg-7">
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="inv-section-title">
+                    Tồn kho hiện tại
+                </div>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-open-add">
+                    <i class="bi bi-plus-lg"></i> Thêm
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="inv-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 34%;">Nguyên liệu</th>
+                            <th class="inv-center" style="width: 28%;">Khối lượng tồn</th>
+                            <th class="inv-center" style="width: 26%;">Từ ngày</th>
+                            <th style="width: 12%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="inv-entries">
+                        {% for e in entries %}
+                        <tr data-id="{{ e.pk }}"
+                            data-name="{{ e.ingredient_name }}"
+                            data-unit="{{ e.unit }}"
+                            data-qty="{{ e.quantity|floatformat:'-2' }}">
+                            <td class="inv-name" data-label="Nguyên liệu">{{ e.ingredient_name }}</td>
+                            <td class="inv-qty inv-center" data-label="Khối lượng tồn">{{ e.quantity|floatformat:'-2' }} <span class="inv-unit">{{ e.unit }}</span></td>
+                            <td class="inv-date inv-center" data-label="Từ ngày">{{ e.stored_date|date:'d/m/Y' }}</td>
+                            <td class="text-end" data-label="">
+                                <button type="button" class="btn btn-outline-warning inv-icon-btn inv-export-btn"
+                                        title="Xuất nguyên liệu khỏi kho">
+                                    <i class="bi bi-box-arrow-right"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr id="inv-empty-row">
+                            <td colspan="4" class="text-center inv-empty py-5">
+                                <div style="font-size: 26px;">🧊</div>
+                                Kho đang trống.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {# ===== CỘT PHẢI: TRÍCH TỪ HÓA ĐƠN ===== #}
+    <div class="col-lg-5">
+        <div class="dashboard-card">
+            <div class="inv-section-title mb-1">Trích từ hóa đơn ngày {{ target_date|date:'d/m/Y' }}</div>
+            <div class="section-subtitle mb-3" style="font-size: 13px;">
+                Chọn nguyên liệu mua hôm đó, nhập khối lượng còn lại để lưu vào kho.
+            </div>
+
+            {% if invoice_items %}
+            <div class="table-responsive" style="max-height: 480px;">
+                <table class="inv-table">
+                    <thead style="position: sticky; top: 0; z-index: 1;">
+                        <tr>
+                            <th style="width: 42%;">Nguyên liệu</th>
+                            <th class="inv-center" style="width: 33%;">Đã mua</th>
+                            <th style="width: 25%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for it in invoice_items %}
+                        <tr>
+                            <td class="inv-name" data-label="Nguyên liệu">{{ it.ingredient_name }}</td>
+                            <td class="inv-date inv-center" data-label="Đã mua">{{ it.quantity|floatformat:'-2' }} {{ it.unit }}</td>
+                            <td class="text-end" data-label="">
+                                <button type="button" class="btn btn-outline-success inv-invoice-save"
+                                        data-name="{{ it.ingredient_name }}"
+                                        data-unit="{{ it.unit }}"
+                                        data-qty="{{ it.quantity|floatformat:'-2' }}"
+                                        title="Lưu tồn nguyên liệu này">
+                                    Lưu tồn
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center inv-empty py-5">
+                <div style="font-size: 26px;">🧾</div>
+                Ngày này chưa có hóa đơn nào có nguyên liệu.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{# ===== LỊCH SỬ NHẬP / XUẤT KHO ===== #}
+<div class="dashboard-card mt-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div class="inv-section-title">Lịch sử nhập / xuất kho</div>
+        <form method="get" class="d-flex align-items-center gap-2" id="log-filter-form">
+            <input type="hidden" name="date" value="{{ target_date|date:'Y-m-d' }}">
+            <input type="date" name="log_date" value="{{ log_date }}"
+                   class="form-control form-control-sm" style="width: 160px;"
+                   onchange="this.form.submit()">
+            <select name="log_action" class="form-select form-select-sm" style="width: 130px;"
+                    onchange="this.form.submit()">
+                <option value="" {% if not log_action %}selected{% endif %}>Tất cả</option>
+                <option value="import" {% if log_action == 'import' %}selected{% endif %}>Chỉ nhập</option>
+                <option value="export" {% if log_action == 'export' %}selected{% endif %}>Chỉ xuất</option>
+            </select>
+            {% if log_date or log_action %}
+            <a href="?date={{ target_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-secondary" title="Xóa lọc">
+                <i class="bi bi-x-lg"></i>
+            </a>
+            {% endif %}
+        </form>
+    </div>
+    <div class="table-responsive" style="max-height: 400px;">
+        <table class="inv-table">
+            <thead style="position: sticky; top: 0; z-index: 1;">
+                <tr>
+                    <th style="width: 16%;">Thời gian</th>
+                    <th style="width: 11%;">Loại</th>
+                    <th style="width: 23%;">Nguyên liệu</th>
+                    <th class="inv-center" style="width: 16%;">Khối lượng</th>
+                    <th class="inv-center" style="width: 14%;">Ngày</th>
+                    <th class="text-end" style="width: 20%;">Người thực hiện</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td class="inv-date inv-nowrap" data-label="Thời gian">{{ log.created_at|date:'d/m/Y H:i' }}</td>
+                    <td data-label="Loại">
+                        {% if log.action == 'import' %}
+                            <span class="inv-pill inv-pill-in">Nhập</span>
+                        {% else %}
+                            <span class="inv-pill inv-pill-out">Xuất</span>
+                        {% endif %}
+                    </td>
+                    <td class="inv-name" data-label="Nguyên liệu">{{ log.ingredient_name }}</td>
+                    <td class="inv-qty inv-center" data-label="Khối lượng">{{ log.quantity|floatformat:'-2' }} <span class="inv-unit">{{ log.unit }}</span></td>
+                    <td class="inv-date inv-center" data-label="Ngày">{{ log.action_date|date:'d/m/Y' }}</td>
+                    <td class="text-end" data-label="Người thực hiện">{{ log.created_by.profile.full_name|default:log.created_by.username|default:'—' }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center inv-empty py-5">Không có lịch sử khớp bộ lọc.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{# ===== MODAL: NHẬP TAY ===== #}
+<div class="modal fade" id="addModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Thêm tồn kho (nhập tay)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Nguyên liệu</label>
+                    <input type="text" id="add-name" class="form-control" placeholder="VD: Thịt lợn">
+                </div>
+                <div class="row g-2">
+                    <div class="col-7">
+                        <label class="form-label fw-semibold">Khối lượng</label>
+                        <input type="number" step="0.01" min="0" id="add-qty" class="form-control" placeholder="0">
+                    </div>
+                    <div class="col-5">
+                        <label class="form-label fw-semibold">Đơn vị</label>
+                        <input type="text" id="add-unit" class="form-control" placeholder="kg" list="unit-suggestions">
+                        <datalist id="unit-suggestions">
+                            <option value="kg"><option value="g"><option value="lít"><option value="ml">
+                            <option value="quả"><option value="bó"><option value="củ"><option value="gói">
+                        </datalist>
+                    </div>
+                </div>
+                <div id="add-msg" class="small mt-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" id="add-btn">Lưu tồn</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ===== MODAL: LƯU TỒN TỪ HÓA ĐƠN ===== #}
+<div class="modal fade" id="invoiceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Lưu tồn từ hóa đơn</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2">
+                    Nguyên liệu: <strong id="inv-modal-name">—</strong>
+                </div>
+                <div class="mb-3 text-muted small">
+                    Đã mua: <span id="inv-modal-bought">—</span>
+                </div>
+                <label class="form-label fw-semibold">Khối lượng còn lại lưu vào kho</label>
+                <div class="input-group">
+                    <input type="number" step="0.01" min="0" id="inv-modal-qty" class="form-control" placeholder="0">
+                    <span class="input-group-text" id="inv-modal-unit"></span>
+                </div>
+                <div id="inv-modal-msg" class="small mt-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-success" id="inv-modal-save">Lưu tồn</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ===== MODAL: XUẤT KHO ===== #}
+<div class="modal fade" id="exportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Xuất nguyên liệu khỏi kho</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2">Nguyên liệu: <strong id="exp-name">—</strong></div>
+                <div class="mb-3 text-muted small">Đang tồn: <span id="exp-current">—</span></div>
+                <label class="form-label fw-semibold">Khối lượng xuất</label>
+                <div class="input-group">
+                    <input type="number" step="0.01" min="0" id="exp-qty" class="form-control" placeholder="0">
+                    <span class="input-group-text" id="exp-unit"></span>
+                </div>
+                <div id="exp-msg" class="small mt-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-warning" id="exp-save">Xuất kho</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const csrftoken = '{{ csrf_token }}';
+    const storedDate = '{{ target_date|date:"Y-m-d" }}';
+    const entriesBody = document.getElementById('inv-entries');
+
+    function post(url, data) {
+        const fd = new FormData();
+        Object.entries(data).forEach(([k, v]) => fd.append(k, v));
+        return fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrftoken }, body: fd })
+            .then(r => r.json());
+    }
+
+    // --- Nhập tay (modal) ---
+    const addModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('addModal'));
+    const addBtn = document.getElementById('add-btn');
+    const addMsg = document.getElementById('add-msg');
+    document.getElementById('btn-open-add').addEventListener('click', function () {
+        document.getElementById('add-name').value = '';
+        document.getElementById('add-qty').value = '';
+        document.getElementById('add-unit').value = '';
+        addMsg.textContent = '';
+        addModal.show();
+    });
+    addBtn.addEventListener('click', function () {
+        const name = document.getElementById('add-name').value.trim();
+        const qty = document.getElementById('add-qty').value.trim();
+        const unit = document.getElementById('add-unit').value.trim();
+        if (!name || !qty) {
+            addMsg.textContent = 'Nhập tên nguyên liệu và khối lượng.';
+            addMsg.style.color = '#b91c1c';
+            return;
+        }
+        addBtn.disabled = true;
+        post("{% url 'inventory_add_manual' %}", {
+            stored_date: storedDate, ingredient_name: name, quantity: qty, unit: unit,
+        }).then(d => {
+            addBtn.disabled = false;
+            if (d.success) { location.reload(); }
+            else { addMsg.textContent = d.message || 'Lỗi.'; addMsg.style.color = '#b91c1c'; }
+        }).catch(() => { addBtn.disabled = false; addMsg.textContent = 'Lỗi kết nối.'; addMsg.style.color = '#b91c1c'; });
+    });
+
+    // --- Xuất kho (modal) ---
+    const exportModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('exportModal'));
+    const expName = document.getElementById('exp-name');
+    const expCurrent = document.getElementById('exp-current');
+    const expUnit = document.getElementById('exp-unit');
+    const expQty = document.getElementById('exp-qty');
+    const expMsg = document.getElementById('exp-msg');
+    const expSave = document.getElementById('exp-save');
+    let expId = null;
+
+    entriesBody.addEventListener('click', function (e) {
+        const btn = e.target.closest('.inv-export-btn');
+        if (!btn) return;
+        const row = btn.closest('tr[data-id]');
+        expId = row.dataset.id;
+        expName.textContent = row.dataset.name;
+        expCurrent.textContent = row.dataset.qty + ' ' + (row.dataset.unit || '');
+        expUnit.textContent = row.dataset.unit || '';
+        expQty.value = '';
+        expMsg.textContent = '';
+        exportModal.show();
+    });
+
+    expSave.addEventListener('click', function () {
+        const qty = expQty.value.trim();
+        if (!qty || isNaN(qty) || Number(qty) <= 0) {
+            expMsg.textContent = 'Khối lượng không hợp lệ.';
+            expMsg.style.color = '#b91c1c';
+            return;
+        }
+        expSave.disabled = true;
+        post(`/inventory/${expId}/export/`, { stored_date: storedDate, quantity: qty }).then(d => {
+            expSave.disabled = false;
+            if (d.success) location.reload();
+            else { expMsg.textContent = d.message || 'Lỗi.'; expMsg.style.color = '#b91c1c'; }
+        }).catch(() => { expSave.disabled = false; expMsg.textContent = 'Lỗi kết nối.'; expMsg.style.color = '#b91c1c'; });
+    });
+
+    // --- Lưu tồn từ hóa đơn (modal) ---
+    const invoiceModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('invoiceModal'));
+    const invNameEl = document.getElementById('inv-modal-name');
+    const invBoughtEl = document.getElementById('inv-modal-bought');
+    const invUnitEl = document.getElementById('inv-modal-unit');
+    const invQtyEl = document.getElementById('inv-modal-qty');
+    const invMsgEl = document.getElementById('inv-modal-msg');
+    const invSaveBtn = document.getElementById('inv-modal-save');
+    let invCurrent = { name: '', unit: '' };
+
+    document.querySelectorAll('.inv-invoice-save').forEach(btn => {
+        btn.addEventListener('click', function () {
+            invCurrent = { name: btn.dataset.name, unit: btn.dataset.unit || '' };
+            const bought = btn.dataset.qty || '';
+            invNameEl.textContent = invCurrent.name;
+            invBoughtEl.textContent = bought + ' ' + invCurrent.unit;
+            invUnitEl.textContent = invCurrent.unit;
+            invQtyEl.value = bought;
+            invMsgEl.textContent = '';
+            invoiceModal.show();
+        });
+    });
+
+    invSaveBtn.addEventListener('click', function () {
+        const qty = invQtyEl.value.trim();
+        if (!qty || isNaN(qty) || Number(qty) <= 0) {
+            invMsgEl.textContent = 'Khối lượng không hợp lệ.';
+            invMsgEl.style.color = '#b91c1c';
+            return;
+        }
+        invSaveBtn.disabled = true;
+        post("{% url 'inventory_save_from_invoice' %}", {
+            stored_date: storedDate, ingredient_name: invCurrent.name,
+            quantity: qty, unit: invCurrent.unit,
+        }).then(d => {
+            invSaveBtn.disabled = false;
+            if (d.success) location.reload();
+            else { invMsgEl.textContent = d.message || 'Lỗi.'; invMsgEl.style.color = '#b91c1c'; }
+        }).catch(() => { invSaveBtn.disabled = false; invMsgEl.textContent = 'Lỗi kết nối.'; invMsgEl.style.color = '#b91c1c'; });
+    });
+});
+</script>
+{% endblock %}
