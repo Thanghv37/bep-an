@@ -135,10 +135,15 @@ def build_report_caption(target_date, rows=None):
             f'{r["display_name"]} ({r["employee_code"]})' for r in items
         )
 
-    caption += (
-        f'\n- Đã điểm danh: {c["valid"]}'
-        f'\n- Đăng ký bổ sung: {c["supplementary"]}'
-    )
+    total_qty = sum(r.get('quantity', 0) for r in rows)
+    caption += f'\n- Tổng suất đăng ký: {total_qty}'
+
+    caption += f'\n- Đã điểm danh: {c["valid"]}'
+
+    supplementary = _names('supplementary')
+    caption += f'\n- Đăng ký bổ sung: {len(supplementary)}'
+    if supplementary:
+        caption += f'\n   👉 {_fmt(supplementary)}'
 
     not_attended = _names('not_attended')
     caption += f'\n- Chưa điểm danh: {len(not_attended)}'
