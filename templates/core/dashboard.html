@@ -8,7 +8,7 @@
 
 
 <div class="row g-3 mb-3 kpi-row">
-    <div class="col-12 col-md-6 col-lg-2">
+    <div class="col-12 col-md-6 col-lg-2" style="--kpi-idx: 0;">
         <div class="kpi-card kpi-people">
             <div class="kpi-icon">👥</div>
             <div class="kpi-body">
@@ -63,7 +63,7 @@
         </script>
     </div>
 
-    <div class="col-12 col-md-6 col-lg">
+    <div class="col-12 col-md-6 col-lg" style="--kpi-idx: 1;">
         <div class="kpi-card kpi-income kpi-card-split">
             <div class="kpi-icon-col">
                 <div class="kpi-icon">💰</div>
@@ -108,7 +108,7 @@
         </div>
     </div>
 
-    <div class="col-12 col-md-6 col-lg">
+    <div class="col-12 col-md-6 col-lg" style="--kpi-idx: 2;">
         <div class="kpi-card kpi-expense kpi-card-split kpi-clickable" onclick="toggleExpenseDetail()">
             <div class="kpi-icon-col">
                 <div class="kpi-icon">🧾</div>
@@ -133,7 +133,7 @@
         </div>
     </div>
 
-    <div class="col-12 col-md-6 col-lg">
+    <div class="col-12 col-md-6 col-lg" style="--kpi-idx: 3;">
         <div class="kpi-card kpi-card-split {% if balance != None %}{% if balance >= 0 %}kpi-positive{% else %}kpi-negative{% endif %}{% else %}kpi-people{% endif %}">
             <div class="kpi-icon-col">
                 <div class="kpi-icon">{% if balance != None and balance < 0 %}⚠️{% else %}📊{% endif %}</div>
@@ -177,12 +177,38 @@
     border: 1px solid transparent;
     background: #fff;
     box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
     height: 100%;
+    /* Cascade entrance L→R + float vô tận; stagger qua --kpi-idx trên cột cha */
+    opacity: 0;
+    animation:
+        kpiSlideUp .55s cubic-bezier(.22,.61,.36,1) calc(var(--kpi-idx, 0) * 120ms) both,
+        kpiFloat 5.5s ease-in-out infinite calc(1s + var(--kpi-idx, 0) * 250ms);
 }
 .kpi-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+    transform: translateY(-4px) !important;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.13);
+}
+@keyframes kpiSlideUp {
+    from { opacity: 0; transform: translateY(20px) scale(.96); }
+    to   { opacity: 1; transform: translateY(0)    scale(1);   }
+}
+@keyframes kpiFloat {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-4px); }
+}
+
+/* Icon trong KPI nhấp nhô + hơi rung khi hover */
+.kpi-icon {
+    animation: kpiIconBob 3s ease-in-out infinite;
+    animation-delay: calc(var(--kpi-idx, 0) * 180ms);
+}
+@keyframes kpiIconBob {
+    0%, 100% { transform: translateY(0) rotate(-3deg); }
+    50%      { transform: translateY(-3px) rotate(3deg); }
+}
+.kpi-card:hover .kpi-icon {
+    animation-duration: 0.8s;
 }
 .kpi-clickable {
     cursor: pointer;
@@ -439,6 +465,58 @@
         <div class="text-muted">Không có dữ liệu chi phí</div>
     {% endif %}
 </div>
+{# ====== Row 2: Thực đơn hôm nay (full-width, cascade animation L→R) ====== #}
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+                <div>
+                    <div class="section-title">Thực đơn ngày hôm nay</div>
+                    <div class="section-subtitle">{{ selected_date|date:"d/m/Y" }}{% if menu_item_count %} · {{ menu_item_count }} món{% endif %}</div>
+                </div>
+                <a href="{% url 'review_dashboard' %}" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold shadow-sm">
+                    <i class="bi bi-star-fill me-1"></i> Đánh giá
+                </a>
+            </div>
+
+            {% if menu %}
+                <div class="today-dish-grid" id="todayDishGrid">
+                    {% for item in ordered_menu_items %}
+                    <div class="today-dish-card" style="--idx: {{ forloop.counter0 }};">
+                        <div class="today-dish-stage">
+                            <span class="today-dish-shimmer"></span>
+                            {% if item.dish.image %}
+                                <img class="today-dish-img" src="{{ item.dish.image.url }}" alt="{{ item.dish.name }}">
+                            {% else %}
+                                <div class="today-dish-img today-dish-noimg">🍴</div>
+                            {% endif %}
+                            {% if item.dish.dish_type == 'main' %}
+                                <span class="dish-badge dish-main today-dish-badge">Món chính</span>
+                            {% elif item.dish.dish_type == 'side' %}
+                                <span class="dish-badge dish-side today-dish-badge">Món phụ</span>
+                            {% elif item.dish.dish_type == 'soup' %}
+                                <span class="dish-badge dish-soup today-dish-badge">Món canh</span>
+                            {% elif item.dish.dish_type == 'dessert' %}
+                                <span class="dish-badge dish-dessert today-dish-badge">Tráng miệng</span>
+                            {% endif %}
+                        </div>
+                        <div class="today-dish-body">
+                            <div class="today-dish-name">{{ item.dish.name }}</div>
+                            {% if item.dish.description %}
+                                <div class="today-dish-desc">{{ item.dish.description|linebreaksbr }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">Chưa có thực đơn cho ngày này.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{# ====== Row 3: Thực đơn trong tuần (col-lg-8) + AI box (col-lg-4) ====== #}
 <div class="row g-4 mb-4" id="weekly-menu-section">
     <div class="col-lg-8">
         <div class="dashboard-card h-100">
@@ -470,7 +548,7 @@
 
             <div class="week-menu-grid mb-4">
                 {% for day in week_data %}
-                <div>
+                <div style="--day-idx: {{ forloop.counter0 }};">
                     <a href="?date={{ day.date_str }}#weekly-menu-section" class="text-decoration-none text-reset">
                         <div class="week-day-card
                             {% if day.date == selected_date %}
@@ -550,103 +628,19 @@
         </div>
     </div>
     <div class="col-lg-4">
-        <div class="dashboard-card h-100 d-flex flex-column">
-            <div class="d-flex justify-content-between align-items-start mb-2">
-                <div>
-                    <div class="section-title">Thực đơn ngày hôm nay</div>
-                    <div class="section-subtitle">{{ selected_date|date:"d/m/Y" }}</div>
-                </div>
-                <a href="{% url 'review_dashboard' %}" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold shadow-sm">
-                    <i class="bi bi-star-fill me-1"></i> Đánh giá
-                </a>
-            </div>
-
-            {% if menu %}
-                {# Showcase tự chiếu: slide tổng quan → zoom từng món → lặp lại #}
-                <div class="menu-showcase" id="menuShowcase">
-
-                    <div class="showcase-slide showcase-overview is-active">
-                        <div class="showcase-ov-head">
-                            <span class="showcase-ov-emoji">🍽️</span>
-                            <div class="showcase-ov-title">Hôm nay có {{ menu_item_count }} món</div>
-                        </div>
-                        <div class="showcase-ov-grid">
-                            {% for item in ordered_menu_items %}
-                            <div class="showcase-ov-item">
-                                {% if item.dish.image %}
-                                    <img src="{{ item.dish.image.url }}" alt="{{ item.dish.name }}">
-                                {% else %}
-                                    <div class="showcase-ov-noimg">🍴</div>
-                                {% endif %}
-                                <div class="showcase-ov-name">{{ item.dish.name }}</div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-
-                    {% for item in ordered_menu_items %}
-                    <div class="showcase-slide showcase-dish">
-                        <div class="showcase-dish-stage">
-                            {% if item.dish.image %}
-                                <img class="showcase-dish-img" src="{{ item.dish.image.url }}" alt="{{ item.dish.name }}">
-                            {% else %}
-                                <div class="showcase-dish-img showcase-dish-noimg">🍴</div>
-                            {% endif %}
-                            {% if item.dish.dish_type == 'main' %}
-                                <span class="dish-badge dish-main showcase-dish-badge">Món chính</span>
-                            {% elif item.dish.dish_type == 'side' %}
-                                <span class="dish-badge dish-side showcase-dish-badge">Món phụ</span>
-                            {% elif item.dish.dish_type == 'soup' %}
-                                <span class="dish-badge dish-soup showcase-dish-badge">Món canh</span>
-                            {% elif item.dish.dish_type == 'dessert' %}
-                                <span class="dish-badge dish-dessert showcase-dish-badge">Tráng miệng</span>
-                            {% endif %}
-                        </div>
-                        <div class="showcase-dish-body">
-                            <div class="showcase-dish-name">{{ item.dish.name }}</div>
-                            {% if item.dish.description %}
-                                <div class="showcase-dish-desc">{{ item.dish.description|linebreaksbr }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endfor %}
-
-                    <div class="showcase-dots" id="showcaseDots"></div>
-                </div>
-            {% else %}
-                <div class="empty-state">Chưa có thực đơn cho ngày này.</div>
-            {% endif %}
-        </div>
-    </div>
-    
-</div>
-
-<div class="row g-3 mb-3">
-    <div class="col-lg-8">
-        <div class="dashboard-card h-100 finance-chart-card">
-            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
-                <div>
-                    <div class="section-title d-flex align-items-center gap-2">
-                        <span class="chart-title-icon">📊</span>
-                        Xu hướng trong tuần
-                    </div>
-                    <div class="section-subtitle">
-                        So sánh Thu - Chi - Chênh lệch theo ngày
-                    </div>
-                </div>
-            </div>
-            <div class="chart-container">
-                <canvas id="financeChart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-lg-4">
         <div class="dashboard-card ai-chat-card h-100">
             <span class="ai-deco-blob ai-deco-blob-1"></span>
             <span class="ai-deco-blob ai-deco-blob-2"></span>
             <span class="ai-sparkle ai-sparkle-1">✨</span>
             <span class="ai-sparkle ai-sparkle-2">✦</span>
+
+            {# Food emoji bay lơ lửng trong background (decorative) #}
+            <span class="ai-food-float ai-food-1">🥗</span>
+            <span class="ai-food-float ai-food-2">🍎</span>
+            <span class="ai-food-float ai-food-3">🥕</span>
+            <span class="ai-food-float ai-food-4">🥦</span>
+            <span class="ai-food-float ai-food-5">🍅</span>
+            <span class="ai-food-float ai-food-6">🥚</span>
 
             <div class="ai-chat-header">
                 <div class="ai-avatar">
@@ -654,7 +648,12 @@
                     <span class="ai-avatar-ring"></span>
                 </div>
                 <div class="ai-chat-header-text">
-                    <div class="ai-title">AI dinh dưỡng</div>
+                    <div class="ai-title-row">
+                        <div class="ai-title">AI dinh dưỡng</div>
+                        <div class="ai-speaking-wave" id="aiSpeakingWave" aria-hidden="true">
+                            <span></span><span></span><span></span><span></span>
+                        </div>
+                    </div>
                     <div class="ai-subtitle">Phân tích menu hôm nay</div>
                 </div>
                 <span class="ai-status-pill">
@@ -683,6 +682,28 @@
                         Uống đủ nước giúp cơ thể trao đổi chất tốt hơn.
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ====== Row 4: Chart full-width ====== #}
+<div class="row g-3 mb-3">
+    <div class="col-12">
+        <div class="dashboard-card finance-chart-card">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                <div>
+                    <div class="section-title d-flex align-items-center gap-2">
+                        <span class="chart-title-icon">📊</span>
+                        Xu hướng trong tuần
+                    </div>
+                    <div class="section-subtitle">
+                        So sánh Thu - Chi - Chênh lệch theo ngày
+                    </div>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="financeChart"></canvas>
             </div>
         </div>
     </div>
@@ -717,6 +738,34 @@
         transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
         position: relative !important;
         overflow: hidden !important;
+        /* Cascade entrance: 5 day card slide-up tuần tự T2 → T6 */
+        opacity: 0;
+        animation: weekDayIn .55s cubic-bezier(.22,.61,.36,1) calc(var(--day-idx, 0) * 140ms) both;
+    }
+    @keyframes weekDayIn {
+        from { opacity: 0; transform: translateY(18px) scale(.95); }
+        to   { opacity: 1; transform: translateY(0)    scale(1);   }
+    }
+
+    /* Pulse glow vô tận cho card "Đang xem" — hút mắt đến ngày được chọn */
+    #weekly-menu-section .week-day-card-selected {
+        animation:
+            weekDayIn .55s cubic-bezier(.22,.61,.36,1) calc(var(--day-idx, 0) * 140ms) both,
+            selectedPulse 2.6s ease-in-out infinite calc(var(--day-idx, 0) * 140ms + 700ms);
+    }
+    @keyframes selectedPulse {
+        0%, 100% { box-shadow: 0 10px 24px rgba(99, 102, 241, 0.18); }
+        50%      { box-shadow: 0 14px 36px rgba(99, 102, 241, 0.42), 0 0 0 3px rgba(129, 140, 248, .18); }
+    }
+
+    /* Từng món trong week menu reveal lần lượt T2 → T6 — JS gán --reveal-delay */
+    #weekly-menu-section .week-menu-dishes li {
+        opacity: 0;
+        animation: weekDishReveal .42s ease-out var(--reveal-delay, 0ms) both;
+    }
+    @keyframes weekDishReveal {
+        from { opacity: 0; transform: translateX(-12px); }
+        to   { opacity: 1; transform: translateX(0); }
     }
 
     #weekly-menu-section .week-day-card::before {
@@ -850,192 +899,181 @@
         height: 110px !important;
     }
 
-    /* ===== Showcase thực đơn hôm nay (tự động chiếu, lặp vô hạn) ===== */
-    .menu-showcase {
+    /* ===== Thực đơn hôm nay (full-width, animation đa lớp) =====
+       - Cascade L→R khi load (todayDishIn, stagger theo --idx)
+       - Float vô tận (cardFloat, stagger theo --idx, start sau cascade)
+       - Ken Burns vô tận trên ảnh
+       - Spotlight cycling: JS thêm .is-featured cho từng card mỗi 3.5s
+    */
+    .today-dish-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+    }
+    .today-dish-card {
         position: relative;
-        flex: 1 1 auto;
-        /* min-height: 0 để showcase co theo chiều cao khung "Thực đơn trong
-           tuần" bên cạnh — không tự phình khi có ảnh món, tránh đẩy chart +
-           AI box xuống ngoài màn hình TV. */
-        min-height: 0;
-        border-radius: 16px;
-        overflow: hidden;
-        background: linear-gradient(160deg, #eef5ff 0%, #ffffff 55%, #eefcf2 100%);
-        border: 1px solid #e6edf6;
-    }
-    /* Mobile: 2 khung xếp dọc (không còn cùng hàng) → cần chiều cao tối
-       thiểu để showcase không bị sập về 0. */
-    @media (max-width: 991.98px) {
-        .menu-showcase { min-height: 380px; }
-    }
-
-    .showcase-slide {
-        position: absolute;
-        inset: 0;
         display: flex;
         flex-direction: column;
-        opacity: 0;
-        visibility: hidden;
-        transition: opacity .45s ease;
-    }
-    .showcase-slide.is-active {
-        opacity: 1;
-        visibility: visible;
-        animation: showcaseIn .7s ease both;
-    }
-    @keyframes showcaseIn {
-        from { opacity: 0; transform: scale(.93); }
-        to   { opacity: 1; transform: scale(1); }
-    }
-
-    /* --- Slide tổng quan --- */
-    .showcase-overview { padding: 18px; }
-    .showcase-ov-head {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 14px;
-    }
-    .showcase-ov-emoji { font-size: 26px; }
-    .showcase-ov-title {
-        font-weight: 800;
-        font-size: 17px;
-        color: #0f172a;
-    }
-    .showcase-ov-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-        overflow: hidden;
-    }
-    .showcase-ov-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
         background: #ffffff;
         border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 6px 8px;
-        min-width: 0;
-        animation: ovItemIn .5s ease both;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+        transition: transform .35s ease, box-shadow .35s ease, border-color .35s ease;
+        opacity: 0;
+        /* 2 animation: cascade một lần khi load, rồi float vô tận; stagger qua --idx */
+        animation:
+            todayDishIn .55s cubic-bezier(.22,.61,.36,1) calc(var(--idx, 0) * 100ms) both,
+            cardFloat 4.5s ease-in-out infinite calc(1.2s + var(--idx, 0) * 220ms);
     }
-    @keyframes ovItemIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to   { opacity: 1; transform: translateY(0); }
+    .today-dish-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 14px 32px rgba(15, 23, 42, 0.14);
+        border-color: #c7d2fe;
     }
-    .showcase-ov-item img,
-    .showcase-ov-noimg {
-        width: 46px;
-        height: 46px;
-        border-radius: 9px;
-        object-fit: cover;
-        flex-shrink: 0;
+    @keyframes todayDishIn {
+        from { opacity: 0; transform: translateX(-22px) scale(.94); }
+        to   { opacity: 1; transform: translateX(0) scale(1); }
     }
-    .showcase-ov-noimg {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #eef2f7;
-        font-size: 20px;
-    }
-    .showcase-ov-name {
-        font-weight: 700;
-        font-size: 13px;
-        color: #1e293b;
-        line-height: 1.25;
-        min-width: 0;
+    @keyframes cardFloat {
+        0%, 100% { transform: translateY(0); }
+        50%      { transform: translateY(-6px); }
     }
 
-    /* --- Slide từng món (zoom) --- */
-    .showcase-dish-stage {
+    .today-dish-stage {
         position: relative;
-        flex: 1 1 auto;        /* chiếm hết phần caption không dùng tới */
-        min-height: 180px;
-        overflow: hidden;
+        width: 100%;
+        height: 160px;
         background: #f1f5f9;
+        overflow: hidden;
     }
-    .showcase-dish-img {
+    .today-dish-img {
         width: 100%;
         height: 100%;
-        object-fit: contain;   /* hiện đầy đủ ảnh, không cắt */
+        object-fit: cover;
         display: block;
+        animation: kenburns 14s ease-in-out infinite alternate;
+        /* Mỗi card xuất phát ở giai đoạn khác nhau để không đồng bộ */
+        animation-delay: calc(var(--idx, 0) * -2.3s);
     }
-    .showcase-slide.is-active .showcase-dish-img {
-        animation: kenburns 6.5s ease-out both;
-    }
-    /* Zoom nhẹ trong khoảng ≤1 nên ảnh luôn hiện đủ, không bị cắt khi phóng. */
     @keyframes kenburns {
-        from { transform: scale(0.96); }
-        to   { transform: scale(1); }
+        0%   { transform: scale(1)    translate(0, 0); }
+        100% { transform: scale(1.09) translate(-2.5%, -1.5%); }
     }
-    .showcase-dish-noimg {
+    .today-dish-noimg {
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 64px;
-        background: #1e293b;
+        font-size: 48px;
+        background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+        animation: none;  /* placeholder không Ken Burns */
     }
-    .showcase-dish-badge {
+    .today-dish-badge {
         position: absolute;
-        top: 12px;
-        left: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, .3);
+        top: 10px;
+        left: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, .25);
+        z-index: 2;
     }
-    .showcase-dish-body {
-        flex: 0 0 auto;        /* chỉ cao bằng nội dung — không chiếm chỗ thừa */
-        padding: 16px 18px 30px;
+
+    /* Shimmer overlay — chỉ chạy khi card đang được spotlight */
+    .today-dish-shimmer {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(110deg,
+            transparent 30%,
+            rgba(255, 255, 255, .45) 50%,
+            transparent 70%);
+        transform: translateX(-100%);
+        pointer-events: none;
+        z-index: 1;
+        opacity: 0;
+        transition: opacity .3s ease;
+    }
+
+    .today-dish-body {
+        padding: 12px 14px 14px;
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        overflow: hidden;
+        gap: 6px;
+        flex: 1;
+        min-width: 0;
     }
-    .showcase-dish-name {
+    .today-dish-name {
         font-weight: 800;
-        font-size: 22px;
+        font-size: 15px;
         color: #0f172a;
-        line-height: 1.2;
-        animation: dishTextIn .6s .15s ease both;
+        line-height: 1.3;
+        transition: background .4s ease;
     }
-    @keyframes dishTextIn {
-        from { opacity: 0; transform: translateX(-14px); }
-        to   { opacity: 1; transform: translateX(0); }
-    }
-    .showcase-dish-desc {
-        font-size: 14.5px;
-        line-height: 1.6;
-        color: #334155;
-        white-space: pre-line;
-        animation: dishTextIn .6s .3s ease both;
+    .today-dish-desc {
+        font-size: 12.5px;
+        line-height: 1.5;
+        color: #64748b;
         display: -webkit-box;
-        -webkit-line-clamp: 6;
+        -webkit-line-clamp: 3;
+        line-clamp: 3;
         -webkit-box-orient: vertical;
         overflow: hidden;
     }
 
-    /* --- Chấm chỉ thị slide --- */
-    .showcase-dots {
-        position: absolute;
-        bottom: 10px;
-        left: 0;
-        right: 0;
-        display: flex;
-        justify-content: center;
-        gap: 6px;
-        z-index: 3;
+    /* ===== Spotlight state — card đang được "lên đèn" ===== */
+    .today-dish-card.is-featured {
+        /* Pause float để giữ vị trí ổn định khi đang nổi bật */
+        animation-play-state: running, paused;
+        transform: translateY(-10px) scale(1.045);
+        border-color: #818cf8;
+        box-shadow:
+            0 22px 50px rgba(99, 102, 241, .35),
+            0 0 0 3px rgba(129, 140, 248, .25);
+        z-index: 2;
     }
-    .showcase-dot {
-        width: 7px;
-        height: 7px;
-        border-radius: 999px;
-        background: rgba(15, 23, 42, .22);
-        transition: all .3s ease;
+    .today-dish-card.is-featured .today-dish-img {
+        animation-duration: 6s;  /* Ken Burns nhanh hơn khi được spotlight */
     }
-    .showcase-dot.is-active {
-        background: #2563eb;
-        width: 20px;
+    .today-dish-card.is-featured .today-dish-shimmer {
+        opacity: 1;
+        animation: shimmerSweep 1.8s ease-in-out;
     }
+    @keyframes shimmerSweep {
+        0%   { transform: translateX(-100%); }
+        100% { transform: translateX(110%); }
+    }
+    .today-dish-card.is-featured .today-dish-badge {
+        animation: badgePulse 1.1s ease-in-out infinite;
+    }
+    @keyframes badgePulse {
+        0%, 100% { transform: scale(1); }
+        50%      { transform: scale(1.12); box-shadow: 0 6px 18px rgba(99, 102, 241, .55); }
+    }
+    .today-dish-card.is-featured .today-dish-name {
+        background: linear-gradient(90deg, #4f46e5 0%, #06b6d4 50%, #10b981 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+    @media (max-width: 768px) {
+        .today-dish-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .today-dish-stage { height: 130px; }
+        .today-dish-name { font-size: 13.5px; }
+    }
+
+    /* Tôn trọng người dùng đã tắt hiệu ứng giảm chuyển động (accessibility) */
+    @media (prefers-reduced-motion: reduce) {
+        .today-dish-card,
+        .today-dish-img,
+        .today-dish-card.is-featured .today-dish-shimmer,
+        .today-dish-card.is-featured .today-dish-badge {
+            animation: none !important;
+        }
+    }
+
     .chart-container {
-        height: 260px;
+        height: 320px;
         width: 100%;
         margin-top: 4px;
     }
@@ -1277,6 +1315,26 @@
         align-items: baseline;
         gap: 8px;
         margin-bottom: 12px;
+        position: relative;
+    }
+    /* Glow pulse tím-cyan quanh số kcal — vô tận */
+    .ai-kcal-wrap::before {
+        content: '';
+        position: absolute;
+        left: -10px;
+        top: -8px;
+        width: 90px;
+        height: 60px;
+        background: radial-gradient(ellipse, rgba(99, 102, 241, .35) 0%, rgba(6, 182, 212, .15) 40%, transparent 75%);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 0;
+        animation: kcalGlow 2.4s ease-in-out infinite;
+        filter: blur(8px);
+    }
+    @keyframes kcalGlow {
+        0%, 100% { opacity: .45; transform: scale(.9); }
+        50%      { opacity: .9;  transform: scale(1.15); }
     }
     .ai-kcal-number {
         font-size: 36px;
@@ -1287,6 +1345,8 @@
         color: transparent;
         line-height: 1;
         letter-spacing: -0.5px;
+        position: relative;
+        z-index: 1;
     }
     .ai-kcal-unit {
         font-size: 13px;
@@ -1359,6 +1419,103 @@
         border-color: #bbf7d0;
         color: #064e3b;
         font-size: 13.5px;
+    }
+
+    /* ===== Food emoji bay trong background AI box ===== */
+    .ai-food-float {
+        position: absolute;
+        font-size: 20px;
+        opacity: 0;
+        z-index: 0;
+        pointer-events: none;
+        animation: foodFloat 14s linear infinite;
+        filter: saturate(0.85);
+    }
+    .ai-food-1 { left: 8%;  animation-delay: 0s;    animation-duration: 13s; }
+    .ai-food-2 { left: 28%; animation-delay: -3s;   animation-duration: 16s; font-size: 18px; }
+    .ai-food-3 { left: 50%; animation-delay: -7s;   animation-duration: 14s; font-size: 22px; }
+    .ai-food-4 { left: 72%; animation-delay: -2s;   animation-duration: 15s; }
+    .ai-food-5 { left: 88%; animation-delay: -10s;  animation-duration: 12s; font-size: 17px; }
+    .ai-food-6 { left: 60%; animation-delay: -5s;   animation-duration: 17s; font-size: 19px; }
+    @keyframes foodFloat {
+        0%   { transform: translateY(105%) rotate(0deg);    opacity: 0; }
+        10%  { opacity: .22; }
+        90%  { opacity: .22; }
+        100% { transform: translateY(-130%) rotate(360deg); opacity: 0; }
+    }
+
+    /* ===== Speaking wave — 4 thanh sóng âm cạnh title khi AI đang "nói" ===== */
+    .ai-title-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .ai-speaking-wave {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        height: 16px;
+        opacity: 0;
+        transition: opacity .35s ease;
+    }
+    .ai-speaking-wave.is-active {
+        opacity: 1;
+    }
+    .ai-speaking-wave span {
+        display: block;
+        width: 3px;
+        height: 4px;
+        border-radius: 999px;
+        background: linear-gradient(180deg, #4f46e5, #06b6d4);
+    }
+    .ai-speaking-wave.is-active span {
+        animation: speakBar 0.95s ease-in-out infinite;
+    }
+    .ai-speaking-wave.is-active span:nth-child(1) { animation-delay: 0s;    }
+    .ai-speaking-wave.is-active span:nth-child(2) { animation-delay: .15s;  }
+    .ai-speaking-wave.is-active span:nth-child(3) { animation-delay: .30s;  }
+    .ai-speaking-wave.is-active span:nth-child(4) { animation-delay: .45s;  }
+    @keyframes speakBar {
+        0%, 100% { height: 4px;  }
+        50%      { height: 14px; }
+    }
+
+    /* Caret nhấp nháy ở cuối typewriter text */
+    .ai-typing-caret {
+        display: inline-block;
+        width: 7px;
+        margin-left: 1px;
+        color: #4f46e5;
+        font-weight: 800;
+        animation: caretBlink .85s steps(2) infinite;
+    }
+    @keyframes caretBlink {
+        0%, 50%   { opacity: 1; }
+        51%, 100% { opacity: 0; }
+    }
+
+    /* ===== Tip slide-in/out khi đổi nội dung ===== */
+    #healthTipText {
+        display: inline-block;
+        transition: transform .45s cubic-bezier(.22,.61,.36,1), opacity .45s ease;
+    }
+    #healthTipText.tip-leave {
+        transform: translateX(-30px);
+        opacity: 0;
+    }
+    #healthTipText.tip-enter {
+        transform: translateX(30px);
+        opacity: 0;
+    }
+
+    /* Level badge icon nảy nhẹ vô tận để thu hút mắt */
+    .ai-level-badge .ai-level-icon {
+        display: inline-block;
+        animation: levelIconBob 1.8s ease-in-out infinite;
+    }
+    @keyframes levelIconBob {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50%      { transform: translateY(-2px) scale(1.15); }
     }
     .week-menu-groups {
         width: 100%;
@@ -1657,13 +1814,23 @@ const healthTips = [
 ];
 
 let tipIndex = 0;
-setInterval(() => {
-    tipIndex = (tipIndex + 1) % healthTips.length;
+function rotateTip() {
     const tipEl = document.getElementById('healthTipText');
-    if (tipEl) {
+    if (!tipEl) return;
+    tipIndex = (tipIndex + 1) % healthTips.length;
+    // Slide tip cũ ra bên trái + fade
+    tipEl.classList.add('tip-leave');
+    setTimeout(function () {
         tipEl.textContent = healthTips[tipIndex];
-    }
-}, 60000);
+        // Đặt vị trí khởi đầu bên phải rồi animate vào
+        tipEl.classList.remove('tip-leave');
+        tipEl.classList.add('tip-enter');
+        // Reflow để trigger transition khi xoá class
+        void tipEl.offsetWidth;
+        tipEl.classList.remove('tip-enter');
+    }, 450);
+}
+setInterval(rotateTip, 15000);
 </script>
 <script>
 async function loadNutritionAnalysis() {
@@ -1699,6 +1866,7 @@ async function loadNutritionAnalysis() {
             levelIcon = '⬆️';
         }
 
+        const summaryHtml = String(data.summary || '').trim();
         container.innerHTML = `
             <div class="ai-message-bot">
                 <div class="ai-bot-title">
@@ -1707,7 +1875,7 @@ async function loadNutritionAnalysis() {
                 </div>
 
                 <div class="ai-kcal-wrap">
-                    <span class="ai-kcal-number">${data.total_kcal}</span>
+                    <span class="ai-kcal-number" data-target="${Number(data.total_kcal) || 0}">0</span>
                     <span class="ai-kcal-unit">kcal/suất</span>
                 </div>
 
@@ -1717,11 +1885,46 @@ async function loadNutritionAnalysis() {
                     <strong>${data.level}</strong>
                 </div>
 
-                <div class="ai-summary-text">
-                    ${data.summary}
-                </div>
+                <div class="ai-summary-text" data-full-text="${summaryHtml.replace(/"/g, '&quot;')}"></div>
             </div>
         `;
+
+        // ===== Counter animate kcal từ 0 → target =====
+        const kcalEl = container.querySelector('.ai-kcal-number');
+        if (kcalEl) {
+            const target = Number(kcalEl.dataset.target) || 0;
+            const duration = 1400;
+            const start = performance.now();
+            function tickCount(now) {
+                const t = Math.min(1, (now - start) / duration);
+                const eased = 1 - Math.pow(1 - t, 3);  // easeOutCubic
+                kcalEl.textContent = Math.round(target * eased).toLocaleString('vi-VN');
+                if (t < 1) requestAnimationFrame(tickCount);
+            }
+            requestAnimationFrame(tickCount);
+        }
+
+        // ===== Typewriter summary, đồng thời hiện speaking wave bên cạnh avatar =====
+        const summaryEl = container.querySelector('.ai-summary-text');
+        const wave = document.getElementById('aiSpeakingWave');
+        if (summaryEl) {
+            const full = summaryEl.dataset.fullText || '';
+            summaryEl.innerHTML = '<span class="ai-typing-caret">▍</span>';
+            const caret = summaryEl.querySelector('.ai-typing-caret');
+            if (wave) wave.classList.add('is-active');
+            let i = 0;
+            // Bắt đầu typewriter sau khi counter kcal chạy được 1 nhịp (~600ms)
+            setTimeout(function tick() {
+                if (i >= full.length) {
+                    if (caret) setTimeout(function () { caret.remove(); }, 1200);
+                    if (wave) wave.classList.remove('is-active');
+                    return;
+                }
+                if (caret) caret.insertAdjacentText('beforebegin', full.charAt(i));
+                i++;
+                setTimeout(tick, 18);
+            }, 650);
+        }
 
     } catch (error) {
 
@@ -1741,42 +1944,142 @@ loadNutritionAnalysis();
 </script>
 
 <script>
-/* Showcase thực đơn hôm nay — tự động chuyển slide, lặp vô hạn. */
+/* ===== Animate counters trên 4 KPI card =====
+   Tìm các .kpi-value / .kpi-split-val có firstChild là text-node số,
+   parse "1.234" / "-200.000" / "12" → animate 0 → target trong ~1.3s easeOutCubic,
+   re-format theo locale vi-VN, giữ nguyên unit span (đ / suất). */
 (function () {
-    const showcase = document.getElementById('menuShowcase');
-    if (!showcase) return;
+    function parseNumberText(text) {
+        const m = (text || '').trim().match(/^(-?)([\d.,]+)/);
+        if (!m) return null;
+        const sign = m[1] === '-' ? -1 : 1;
+        const raw = m[2].replace(/\./g, '').replace(',', '.');
+        const n = parseFloat(raw);
+        return isFinite(n) ? sign * n : null;
+    }
+    function animateNumber(textNode, target, duration) {
+        const isInt = Number.isInteger(target);
+        const isNeg = target < 0;
+        const abs = Math.abs(target);
+        const start = performance.now();
+        const sign = isNeg ? '-' : '';
+        function tick(now) {
+            const t = Math.min(1, (now - start) / duration);
+            const eased = 1 - Math.pow(1 - t, 3);
+            const v = abs * eased;
+            const display = isInt
+                ? Math.round(v).toLocaleString('vi-VN')
+                : v.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
+            textNode.textContent = sign + display;
+            if (t < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+    }
+    function initCounters() {
+        const selectors = ['.kpi-value', '.kpi-split-val'];
+        document.querySelectorAll(selectors.join(', ')).forEach(el => {
+            // Bỏ qua nếu chứa empty placeholder (Chưa có giá / Chưa có dữ liệu)
+            if (el.querySelector('.kpi-empty')) return;
+            const node = el.firstChild;
+            if (!node || node.nodeType !== Node.TEXT_NODE) return;
+            const target = parseNumberText(node.textContent);
+            if (target === null) return;
+            // Đặt về 0 ngay, animate sau cascade entrance (~ 700ms)
+            const sign = target < 0 ? '-' : '';
+            node.textContent = sign + '0';
+            setTimeout(function () { animateNumber(node, target, 1300); }, 700);
+        });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initCounters);
+    } else {
+        initCounters();
+    }
 
-    const slides = Array.from(showcase.querySelectorAll('.showcase-slide'));
-    const dotsWrap = document.getElementById('showcaseDots');
-    if (!slides.length) return;
+    // Khi poll update ps-* cập nhật số → animate đếm từ giá trị hiện tại sang mới
+    const psIds = ['ps-valid', 'ps-notreg', 'ps-notatt'];
+    psIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const origSetter = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent').set;
+        // Wrap để bắt lệnh set textContent từ poll
+        Object.defineProperty(el, 'textContent', {
+            configurable: true,
+            get() { return el.firstChild ? el.firstChild.textContent : ''; },
+            set(newText) {
+                const current = parseNumberText(el.firstChild ? el.firstChild.textContent : '') || 0;
+                const target = parseNumberText(String(newText));
+                if (target === null || target === current) {
+                    origSetter.call(el, newText);
+                    return;
+                }
+                // Animate ngắn 600ms khi cập nhật realtime
+                const start = performance.now();
+                const duration = 600;
+                function tick(now) {
+                    const t = Math.min(1, (now - start) / duration);
+                    const eased = 1 - Math.pow(1 - t, 3);
+                    const v = Math.round(current + (target - current) * eased);
+                    origSetter.call(el, v.toLocaleString('vi-VN'));
+                    if (t < 1) requestAnimationFrame(tick);
+                }
+                requestAnimationFrame(tick);
+            }
+        });
+    });
+})();
 
-    if (slides.length === 1) {
-        slides[0].classList.add('is-active');
+/* ===== Reveal lần lượt từng món trong "Thực đơn trong tuần" T2 → T6 =====
+   Tích lũy delay qua tất cả ngày: T2 hết món rồi mới đến T3, etc. */
+(function () {
+    const section = document.getElementById('weekly-menu-section');
+    if (!section) return;
+    // Reduced motion: cho hiện luôn, không stagger
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        section.querySelectorAll('.week-menu-dishes li').forEach(li => {
+            li.style.setProperty('--reveal-delay', '0ms');
+        });
         return;
     }
-
-    // Dựng chấm chỉ thị tương ứng số slide.
-    const dots = slides.map(function () {
-        const d = document.createElement('span');
-        d.className = 'showcase-dot';
-        dotsWrap.appendChild(d);
-        return d;
+    const days = section.querySelectorAll('.week-day-card');
+    let cum = 0;
+    const PER_DISH = 90;    // ms giữa các món trong cùng ngày
+    const PER_DAY_GAP = 3;  // số "đơn vị" thêm vào giữa 2 ngày để có khoảng nghỉ
+    const BASE_DELAY = 900; // sau khi day cards cascade vào xong (5 * 140ms + 200ms buffer)
+    days.forEach(day => {
+        day.querySelectorAll('.week-menu-dishes li').forEach(li => {
+            li.style.setProperty('--reveal-delay', (BASE_DELAY + cum * PER_DISH) + 'ms');
+            cum += 1;
+        });
+        cum += PER_DAY_GAP;
     });
+})();
+
+/* Spotlight cycling — mỗi 3.5s "lên đèn" 1 card, đi từ trái sang phải, lặp vô tận. */
+(function () {
+    const grid = document.getElementById('todayDishGrid');
+    if (!grid) return;
+    const cards = Array.from(grid.querySelectorAll('.today-dish-card'));
+    if (cards.length < 2) return;  // 1 card thì không cần cycle
+
+    // Tôn trọng prefers-reduced-motion
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     let idx = 0;
-    let timer = null;
+    // Bắt đầu sau khi cascade ban đầu hoàn tất (cascade max ~ 0.55s + N * 0.1s)
+    const startDelay = 1500 + cards.length * 100;
 
-    function show(i) {
-        slides.forEach(function (s, si) { s.classList.toggle('is-active', si === i); });
-        dots.forEach(function (d, di) { d.classList.toggle('is-active', di === i); });
-        idx = i;
-        // Slide tổng quan chiếu ngắn hơn slide giới thiệu từng món.
-        const dur = slides[i].classList.contains('showcase-overview') ? 4500 : 5500;
-        clearTimeout(timer);
-        timer = setTimeout(function () { show((idx + 1) % slides.length); }, dur);
+    function step() {
+        cards.forEach(c => c.classList.remove('is-featured'));
+        cards[idx].classList.add('is-featured');
+        idx = (idx + 1) % cards.length;
     }
 
-    show(0);
+    setTimeout(function () {
+        step();
+        setInterval(step, 3500);
+    }, startDelay);
 })();
 </script>
+
 {% endblock %}

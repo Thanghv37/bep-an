@@ -268,12 +268,50 @@
     <div class="col-lg-6">
         <div class="dashboard-card h-100">
 
+            <style>
+                .prep-qty-input {
+                    border: 1px dashed #cbd5e1; background: transparent;
+                    width: 90px; padding: 2px 6px;
+                    font-weight: 700; color: #2563eb; border-radius: 4px;
+                    text-align: right;
+                }
+                .prep-qty-input:focus { outline: 2px solid #2563eb; border-color: transparent; background: #fff; }
+                .prep-unit { color: #64748b; font-weight: 500; font-size: 13px; margin-left: 4px; }
+                .prep-add-row { padding-top: 10px; border-top: 1px dashed #e5e7eb; margin-top: 8px; }
+                .prep-action-col { width: 50px; text-align: center; }
+                /* Block chỉ hiển thị khi đang xuất phiếu */
+                .prep-export-only { display: none; }
+                /* Khi đang xuất ảnh / PDF: ẩn viền input, cột thao tác, form thêm, cột chỉ dùng để xem nội bộ */
+                .exporting .prep-qty-input { border: none !important; outline: none !important; padding: 0 !important; }
+                .exporting .prep-action-col { display: none !important; }
+                .exporting .prep-add-row { display: none !important; }
+                .exporting .prep-edit-only { display: none !important; }
+                .exporting .prep-export-only { display: block !important; }
+                .exporting .prep-col-dish { display: none !important; }
+                .exporting .prep-col-portion { display: none !important; }
+                /* Khi xuất phiếu: ẩn input + đơn vị thô, hiện giá trị đã quy đổi (g→kg, ml→l nếu ≥ 1000) */
+                .prep-qty-formatted { display: none; font-weight: 700; color: #2563eb; }
+                .exporting .prep-qty-input { display: none !important; }
+                .exporting .prep-unit { display: none !important; }
+                .exporting .prep-qty-formatted { display: inline !important; }
+                /* Style bảng khi xuất phiếu — gọn gàng, viền rõ */
+                .exporting #prep-table { border: 1px solid #0f172a; }
+                .exporting #prep-table th,
+                .exporting #prep-table td {
+                    border: 1px solid #cbd5e1; padding: 8px 12px;
+                }
+                .exporting #prep-table thead th {
+                    background: #f1f5f9; color: #0f172a; font-weight: 700;
+                }
+            </style>
+
             <div class="d-flex justify-content-between align-items-start mb-1 flex-wrap gap-2">
                 <div>
                     <div class="section-title mb-1">Khối lượng cần chuẩn bị</div>
                     <div class="section-subtitle mb-3">
                         {% if focus_registered_count != None %}
                             Cho {{ focus_registered_count }} người ăn.
+                            <span class="text-muted small d-block">Có thể sửa khối lượng / thêm / xóa nguyên liệu trước khi xuất.</span>
                         {% else %}
                             Chưa có dữ liệu số người đăng ký ăn.
                         {% endif %}
@@ -281,44 +319,156 @@
                 </div>
 
                 {% if preparation_items and focus_registered_count != None %}
-                    <a href="{% url 'export_ingredients_pdf' %}?date={{ focus_date|date:'Y-m-d' }}"
-                    class="btn btn-sm btn-outline-primary">
-                        Xuất PDF
-                    </a>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="button"
+                                class="btn btn-sm {% if focus_prep_order %}btn-success{% else %}btn-outline-success{% endif %}"
+                                id="btnConfirmPrep"
+                                data-menu-id="{{ focus_menu.id }}">
+                            <i class="bi bi-check2-circle"></i> Xác nhận nguyên liệu
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="btnExportPng"
+                                {% if not focus_prep_order %}disabled title="Cần xác nhận nguyên liệu trước khi xuất"{% endif %}>
+                            <i class="bi bi-image"></i> Xuất ảnh
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" id="btnExportPdf"
+                                {% if not focus_prep_order %}disabled title="Cần xác nhận nguyên liệu trước khi xuất"{% endif %}>
+                            <i class="bi bi-file-pdf"></i> Xuất PDF
+                        </button>
+                    </div>
                 {% endif %}
             </div>
 
+            {% if focus_prep_order %}
+            <div class="alert alert-success py-2 px-3 mb-2" style="font-size: 13px;" id="prep-confirmed-banner">
+                <i class="bi bi-check2-circle"></i>
+                <strong>Đã xác nhận</strong> lúc
+                <span id="prep-confirmed-at">{{ focus_prep_order.confirmed_at|date:'d/m/Y H:i' }}</span>
+                — hóa đơn đang hiển thị ở trang "Hóa đơn đặt hàng".
+                <span class="text-muted">Có thể sửa rồi bấm "Xác nhận" lại để cập nhật.</span>
+            </div>
+            {% else %}
+            <div class="alert alert-warning py-2 px-3 mb-2" style="font-size: 13px;" id="prep-confirmed-banner" {% if not preparation_items %}style="display:none"{% endif %}>
+                <i class="bi bi-exclamation-circle"></i>
+                <strong>Chưa xác nhận.</strong> Hóa đơn này chưa hiển thị ở trang "Hóa đơn đặt hàng".
+                Bấm "Xác nhận nguyên liệu" sau khi chỉnh sửa xong.
+            </div>
+            {% endif %}
+
             {% if preparation_items and focus_registered_count != None %}
-                <div class="table-responsive">
-                    <table class="table table-modern align-middle">
-                        <thead>
-                            <tr>
-                                <th>Nguyên liệu</th>
-                                <th>Dùng trong món</th>
-                                <th>Khẩu phần/người</th>
-                                <th>Tổng cần chuẩn bị</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in preparation_items %}
-                            <tr>
-                                <td class="fw-semibold">{{ item.ingredient_name }}</td>
+                <div id="prep-export-region" style="background:#fff; padding:18px; border-radius:8px;">
 
-                                <td>
-                                    {% for dish_name in item.dish_names %}
-                                        <span class="badge bg-light text-dark border me-1">{{ dish_name }}</span>
-                                    {% endfor %}
-                                </td>
+                    {# ====== Header công ty đặt hàng (chỉ hiện khi xuất ảnh/PDF) ====== #}
+                    <div class="prep-export-only" style="margin-bottom:18px; padding-bottom:14px; border-bottom:2px solid #0f172a;">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:20px;">
+                            <div style="max-width:60%;">
+                                <div style="font-size:14px; font-weight:800; color:#0f172a; text-transform:uppercase; letter-spacing:0.4px;">
+                                    Trung tâm Kỹ thuật Khu vực 2
+                                </div>
+                                <div style="font-size:12px; color:#475569; margin-top:4px; line-height:1.5;">
+                                    27B Nguyễn Thành Hãn, quận Hải Châu,<br>thành phố Đà Nẵng
+                                </div>
+                            </div>
+                            <div style="text-align:right; font-size:12px; color:#475569;">
+                                <div>Đà Nẵng, ngày {{ focus_date|date:'d' }} tháng {{ focus_date|date:'m' }} năm {{ focus_date|date:'Y' }}</div>
+                            </div>
+                        </div>
+                    </div>
 
-                                <td>{{ item.quantity_per_person }} {{ item.unit }}</td>
+                    {# ====== Tiêu đề phiếu ====== #}
+                    <div class="prep-export-header" style="text-align:center; margin-bottom:14px;">
+                        <div style="font-size:22px; font-weight:800; color:#0f172a; letter-spacing:0.6px;">PHIẾU ĐẶT MUA NGUYÊN LIỆU</div>
+                        <div class="prep-edit-only" style="font-size:13px; color:#64748b; margin-top:4px;">
+                            Ngày áp dụng: {{ focus_date|date:'d/m/Y' }} · Cho {{ focus_registered_count }} người ăn
+                        </div>
+                        <div class="prep-export-only" style="font-size:13px; color:#475569; margin-top:6px; font-style:italic;">
+                            (Áp dụng cho bữa ăn ngày {{ focus_date|date:'d/m/Y' }})
+                        </div>
+                    </div>
 
-                                <td class="text-primary fw-bold">
-                                    {{ item.required_total_quantity|format_weight:item.unit }}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                    {# ====== Thông tin nhà cung cấp (chỉ hiện khi xuất) ====== #}
+                    <div class="prep-export-only" style="margin-bottom:16px; padding:12px 14px; background:#f8fafc; border-left:4px solid #2563eb; border-radius:4px;">
+                        <div style="font-size:13px; color:#0f172a;">
+                            <strong>Kính gửi:</strong> Công ty TNHH Đắc Vinh
+                        </div>
+                        <div style="font-size:12px; color:#475569; margin-top:4px;">
+                            <strong>Địa chỉ:</strong> 407 Trưng Nữ Vương, quận Hải Châu, thành phố Đà Nẵng
+                        </div>
+                        <div style="font-size:12px; color:#475569; margin-top:6px; font-style:italic;">
+                            Trung tâm Kỹ thuật Khu vực 2 trân trọng đề nghị Quý công ty cung cấp các nguyên liệu sau:
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-modern align-middle" id="prep-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:50px;">STT</th>
+                                    <th>Nguyên liệu</th>
+                                    <th class="prep-col-dish">Dùng trong món</th>
+                                    <th class="prep-col-portion">Khẩu phần/người</th>
+                                    <th>Số lượng đặt hàng</th>
+                                    <th class="prep-action-col"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="prep-tbody">
+                                {% for item in preparation_items %}
+                                <tr>
+                                    <td class="prep-stt">{{ forloop.counter }}</td>
+                                    <td class="fw-semibold">{{ item.ingredient_name }}</td>
+                                    <td class="prep-col-dish">
+                                        {% for dish_name in item.dish_names %}
+                                            <span class="badge bg-light text-dark border me-1">{{ dish_name }}</span>
+                                        {% endfor %}
+                                    </td>
+                                    <td class="prep-col-portion">{{ item.quantity_per_person }} {{ item.unit }}</td>
+                                    <td>
+                                        <input type="number" step="0.01" min="0" class="prep-qty-input"
+                                               value="{{ item.required_total_quantity|floatformat:'-2' }}">
+                                        <span class="prep-unit">{{ item.unit }}</span>
+                                        <span class="prep-qty-formatted"></span>
+                                    </td>
+                                    <td class="prep-action-col">
+                                        <button type="button" class="btn btn-sm btn-link text-danger prep-del-row p-0" title="Xóa dòng">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {# ====== Chữ ký (chỉ hiện khi xuất) ====== #}
+                    <div class="prep-export-only" style="margin-top:28px;">
+                        <div style="display:flex; justify-content:space-around; gap:20px; text-align:center;">
+                            <div style="flex:1;">
+                                <div style="font-size:13px; font-weight:700; color:#0f172a;">ĐẠI DIỆN BÊN ĐẶT HÀNG</div>
+                                <div style="font-size:11px; color:#64748b; font-style:italic;">(Ký, ghi rõ họ tên)</div>
+                                <div style="height:70px;"></div>
+                            </div>
+                            <div style="flex:1;">
+                                <div style="font-size:13px; font-weight:700; color:#0f172a;">ĐẠI DIỆN NHÀ CUNG CẤP</div>
+                                <div style="font-size:11px; color:#64748b; font-style:italic;">(Ký, ghi rõ họ tên)</div>
+                                <div style="height:70px;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 align-items-center flex-wrap prep-add-row">
+                        <input type="text" id="prep-add-name" class="form-control form-control-sm"
+                               style="max-width:200px;" placeholder="Tên nguyên liệu (bổ sung)">
+                        <input type="number" step="0.01" min="0" id="prep-add-qty"
+                               class="form-control form-control-sm" style="max-width:110px;" placeholder="Khối lượng">
+                        <input type="text" id="prep-add-unit" class="form-control form-control-sm"
+                               style="max-width:90px;" placeholder="Đơn vị" list="prep-unit-suggest">
+                        <datalist id="prep-unit-suggest">
+                            <option value="kg"><option value="g"><option value="lít"><option value="ml">
+                            <option value="quả"><option value="bó"><option value="củ"><option value="gói">
+                        </datalist>
+                        <button type="button" class="btn btn-sm btn-outline-success" id="prep-add-btn">
+                            <i class="bi bi-plus-lg"></i> Thêm
+                        </button>
+                    </div>
                 </div>
 
             {% elif focus_menu %}
@@ -620,5 +770,316 @@ document.getElementById('applySuggestionBtn')?.addEventListener('click', functio
         }
     });
 });
+</script>
+
+{# ====== JS: chỉnh sửa bảng nguyên liệu + xuất PNG/PDF ====== #}
+<script>
+(function () {
+    const tbody = document.getElementById('prep-tbody');
+    if (!tbody) return; // không có data thì thoát
+
+    function renumber() {
+        tbody.querySelectorAll('tr').forEach((tr, i) => {
+            const stt = tr.querySelector('.prep-stt');
+            if (stt) stt.textContent = i + 1;
+        });
+    }
+
+    // ===== Trạng thái xác nhận: dirty (chưa xác nhận / có thay đổi) vs clean (đã xác nhận) =====
+    const btnConfirm = document.getElementById('btnConfirmPrep');
+    const btnPng = document.getElementById('btnExportPng');
+    const btnPdf = document.getElementById('btnExportPdf');
+
+    function markDirty() {
+        if (btnConfirm) {
+            btnConfirm.classList.remove('btn-success');
+            btnConfirm.classList.add('btn-outline-success');
+        }
+        [btnPng, btnPdf].forEach(b => {
+            if (!b) return;
+            b.disabled = true;
+            b.setAttribute('title', 'Cần xác nhận nguyên liệu trước khi xuất');
+        });
+    }
+
+    function markClean() {
+        if (btnConfirm) {
+            btnConfirm.classList.remove('btn-outline-success');
+            btnConfirm.classList.add('btn-success');
+        }
+        [btnPng, btnPdf].forEach(b => {
+            if (!b) return;
+            b.disabled = false;
+            b.removeAttribute('title');
+        });
+    }
+
+    // Bất kỳ thay đổi nào trên bảng → quay lại dirty
+    tbody.addEventListener('input', function (e) {
+        if (e.target.classList.contains('prep-qty-input')) markDirty();
+    });
+
+    // Xóa dòng
+    tbody.addEventListener('click', function (e) {
+        const btn = e.target.closest('.prep-del-row');
+        if (!btn) return;
+        btn.closest('tr').remove();
+        renumber();
+        markDirty();
+    });
+
+    // Thêm dòng (nguyên liệu bổ sung — chỉ có tên + khối lượng + đơn vị)
+    const addBtn = document.getElementById('prep-add-btn');
+    const addName = document.getElementById('prep-add-name');
+    const addQty = document.getElementById('prep-add-qty');
+    const addUnit = document.getElementById('prep-add-unit');
+    if (addBtn) addBtn.addEventListener('click', function () {
+        const name = (addName.value || '').trim();
+        const qty = (addQty.value || '').trim();
+        const unit = (addUnit.value || '').trim();
+        if (!name) { addName.focus(); return; }
+        if (!qty || isNaN(qty) || Number(qty) <= 0) { addQty.focus(); return; }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="prep-stt"></td>
+            <td class="fw-semibold"></td>
+            <td class="prep-col-dish"><span class="text-muted small">— bổ sung —</span></td>
+            <td class="prep-col-portion">—</td>
+            <td>
+                <input type="number" step="0.01" min="0" class="prep-qty-input" value="">
+                <span class="prep-unit"></span>
+                <span class="prep-qty-formatted"></span>
+            </td>
+            <td class="prep-action-col">
+                <button type="button" class="btn btn-sm btn-link text-danger prep-del-row p-0" title="Xóa dòng">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        `;
+        tr.querySelector('td.fw-semibold').textContent = name;
+        tr.querySelector('.prep-qty-input').value = qty;
+        tr.querySelector('.prep-unit').textContent = unit;
+        tbody.appendChild(tr);
+        renumber();
+
+        addName.value = ''; addQty.value = ''; addUnit.value = '';
+        addName.focus();
+        markDirty();
+    });
+
+    // ===== Export PNG / PDF =====
+    const HTML2CANVAS = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+    const JSPDF = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
+
+    function loadScript(url) {
+        return new Promise((resolve, reject) => {
+            if (document.querySelector(`script[data-src="${url}"]`)) { resolve(); return; }
+            const s = document.createElement('script');
+            s.src = url; s.dataset.src = url;
+            s.onload = resolve; s.onerror = () => reject(new Error('Không tải được ' + url));
+            document.body.appendChild(s);
+        });
+    }
+
+    function getRegion() { return document.getElementById('prep-export-region'); }
+
+    // Quy đổi đơn vị giống filter format_weight ở backend:
+    //   g/gram ≥ 1000 → kg; ml/mililit ≥ 1000 → l (lít); đơn vị khác giữ nguyên.
+    function formatQuantityForExport(rawValue, rawUnit) {
+        const v = parseFloat(String(rawValue).replace(',', '.'));
+        if (!isFinite(v)) return (rawValue || '') + ' ' + (rawUnit || '');
+        const unit = (rawUnit || 'g').trim();
+        const key = unit.toLowerCase();
+        const aliases = { 'gram': 'g', 'kilogram': 'kg', 'mililit': 'ml', 'lit': 'l', 'lít': 'l' };
+        const canon = aliases[key] || key;
+        const vn = (n, decimals = 2) => {
+            const s = n.toFixed(decimals);
+            const [intPart, decPart] = s.split('.');
+            const intWithDot = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            // Bỏ ".00" cho số nguyên
+            return decPart && decPart !== '00' ? intWithDot + ',' + decPart : intWithDot;
+        };
+        if (canon === 'g' || canon === '') {
+            return v >= 1000 ? vn(v / 1000) + ' kg' : vn(v) + ' g';
+        }
+        if (canon === 'ml') {
+            return v >= 1000 ? vn(v / 1000) + ' l' : vn(v) + ' ml';
+        }
+        // Đơn vị khác — giữ casing người dùng nhập
+        return vn(v) + ' ' + (unit || canon);
+    }
+
+    async function captureCanvas() {
+        const region = getRegion();
+        // Đồng bộ value DOM cho html2canvas (input value vào DOM attr)
+        region.querySelectorAll('.prep-qty-input').forEach(inp => {
+            inp.setAttribute('value', inp.value);
+        });
+        // Tính giá trị đã quy đổi cho từng dòng, đổ vào span .prep-qty-formatted (chỉ hiện khi .exporting)
+        region.querySelectorAll('#prep-tbody tr').forEach(tr => {
+            const inp = tr.querySelector('.prep-qty-input');
+            const unitSpan = tr.querySelector('.prep-unit');
+            const fmtSpan = tr.querySelector('.prep-qty-formatted');
+            if (!inp || !fmtSpan) return;
+            const unit = (unitSpan?.textContent || '').trim();
+            fmtSpan.textContent = formatQuantityForExport(inp.value, unit);
+        });
+        region.classList.add('exporting');
+        await new Promise(r => requestAnimationFrame(r));
+        try {
+            await loadScript(HTML2CANVAS);
+            const canvas = await window.html2canvas(region, {
+                scale: 2, backgroundColor: '#ffffff', useCORS: true,
+            });
+            return canvas;
+        } finally {
+            region.classList.remove('exporting');
+        }
+    }
+
+    function fileNameBase() {
+        const d = '{{ focus_date|date:"Y-m-d" }}';
+        return 'nguyen_lieu_' + d;
+    }
+
+    // ===== Xác nhận nguyên liệu (chốt vào DB, hiển thị ở trang Hóa đơn đặt hàng) =====
+    const CSRF = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value
+        || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+
+    function collectItems() {
+        const items = [];
+        document.querySelectorAll('#prep-tbody tr').forEach(tr => {
+            const name = (tr.querySelector('td.fw-semibold')?.textContent || '').trim();
+            const qtyInput = tr.querySelector('.prep-qty-input');
+            const unit = (tr.querySelector('.prep-unit')?.textContent || '').trim();
+            const dishesCell = tr.children[2];
+            const dishNames = Array.from(dishesCell?.querySelectorAll('.badge') || [])
+                .map(b => b.textContent.trim()).join(', ');
+            const qppCell = tr.children[3];
+            const qppRaw = (qppCell?.textContent || '').trim();
+            // qppRaw dạng "200 g" hoặc "—" → parse số đầu
+            const qppMatch = qppRaw.match(/^(\d+(?:[.,]\d+)?)/);
+            const qpp = qppMatch ? qppMatch[1].replace(',', '.') : '0';
+            if (!name || !qtyInput) return;
+            const qty = (qtyInput.value || '').trim();
+            if (!qty || Number(qty) <= 0) return;
+            items.push({
+                name, dish_names: dishNames,
+                quantity_per_person: qpp,
+                quantity: qty, unit,
+            });
+        });
+        return items;
+    }
+
+    document.getElementById('btnConfirmPrep')?.addEventListener('click', async function () {
+        const btn = this;
+        const menuId = btn.dataset.menuId;
+        if (!menuId) { alert('Thiếu menu id.'); return; }
+        const items = collectItems();
+        if (!items.length) { alert('Danh sách nguyên liệu trống.'); return; }
+        if (!confirm('Xác nhận ' + items.length + ' nguyên liệu? Hóa đơn sẽ hiển thị ở trang "Hóa đơn đặt hàng".')) return;
+
+        btn.disabled = true;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:14px;height:14px;"></span> Đang lưu...';
+
+        try {
+            const url = '/menus/' + menuId + '/prep-confirm/';
+            const r = await fetch(url, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items }),
+            });
+            const data = await r.json();
+            if (!data.success) {
+                alert('❌ ' + (data.message || 'Lỗi.'));
+                return;
+            }
+            // Cập nhật banner trên UI mà không reload
+            const banner = document.getElementById('prep-confirmed-banner');
+            if (banner) {
+                banner.className = 'alert alert-success py-2 px-3 mb-2';
+                banner.style.display = '';
+                banner.innerHTML = '<i class="bi bi-check2-circle"></i> <strong>Đã xác nhận</strong> lúc <span id="prep-confirmed-at">'
+                    + data.confirmed_at + '</span> — hóa đơn đang hiển thị ở trang "Hóa đơn đặt hàng".';
+            }
+            markClean();
+            alert('✅ ' + data.message);
+        } catch (e) {
+            alert('Lỗi kết nối: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    });
+
+    function isDirty() {
+        return btnConfirm && btnConfirm.classList.contains('btn-outline-success');
+    }
+
+    document.getElementById('btnExportPng')?.addEventListener('click', async function () {
+        const btn = this;
+        if (isDirty()) {
+            alert('Cần xác nhận nguyên liệu trước khi xuất ảnh.');
+            return;
+        }
+        btn.disabled = true;
+        try {
+            const canvas = await captureCanvas();
+            canvas.toBlob(function (blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = fileNameBase() + '.png';
+                document.body.appendChild(a); a.click(); a.remove();
+                URL.revokeObjectURL(url);
+            }, 'image/png');
+        } catch (e) {
+            alert('Lỗi xuất ảnh: ' + e.message);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    document.getElementById('btnExportPdf')?.addEventListener('click', async function () {
+        const btn = this;
+        if (isDirty()) {
+            alert('Cần xác nhận nguyên liệu trước khi xuất PDF.');
+            return;
+        }
+        btn.disabled = true;
+        try {
+            const canvas = await captureCanvas();
+            await loadScript(JSPDF);
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+            const pageW = pdf.internal.pageSize.getWidth();
+            const pageH = pdf.internal.pageSize.getHeight();
+            const margin = 8;
+            const imgW = pageW - margin * 2;
+            const imgH = canvas.height * imgW / canvas.width;
+            // Nếu cao hơn 1 trang, chia ảnh sang nhiều trang
+            const dataUrl = canvas.toDataURL('image/png');
+            if (imgH <= pageH - margin * 2) {
+                pdf.addImage(dataUrl, 'PNG', margin, margin, imgW, imgH);
+            } else {
+                // Cắt ảnh theo trang
+                let remaining = imgH; let yOffset = 0;
+                while (remaining > 0) {
+                    pdf.addImage(dataUrl, 'PNG', margin, margin - yOffset, imgW, imgH);
+                    remaining -= (pageH - margin * 2);
+                    yOffset += (pageH - margin * 2);
+                    if (remaining > 0) pdf.addPage();
+                }
+            }
+            pdf.save(fileNameBase() + '.pdf');
+        } catch (e) {
+            alert('Lỗi xuất PDF: ' + e.message);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+})();
 </script>
 {% endblock %}

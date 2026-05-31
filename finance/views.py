@@ -678,11 +678,14 @@ def extra_request_list(request):
     if order_type in ['', 'main']:
         menu = DailyMenu.objects.filter(
             date=selected_date
-        ).prefetch_related(
-            'items__dish__ingredients__ingredient'
+        ).select_related('prep_order').prefetch_related(
+            'prep_order__items'
         ).order_by('-created_at').first()
 
-        if menu:
+        # Chỉ hiển thị main_order khi đã có MenuPrepOrder (bếp đã xác nhận
+        # nguyên liệu trên trang Lên thực đơn). Trước khi xác nhận -> ẩn.
+        prep_order = getattr(menu, 'prep_order', None) if menu else None
+        if menu and prep_order:
             main_purchase = DailyPurchase.objects.filter(
                 date=selected_date,
                 purchase_type=DailyPurchase.PURCHASE_TYPE_MAIN
@@ -703,32 +706,12 @@ def extra_request_list(request):
 
             if show_main:
                 registered_count = menu.registered_count or 0
-                ingredient_map = {}
-
-                for menu_item in menu.items.all():
-                    for ing in menu_item.dish.ingredients.all():
-                        key = (ing.ingredient.name, ing.unit)
-
-                        if key not in ingredient_map:
-                            ingredient_map[key] = {
-                                'name': ing.ingredient.name,
-                                'unit': ing.unit,
-                                'quantity': Decimal('0'),
-                                'total_quantity': Decimal('0'),
-                            }
-
-                        q = Decimal(str(ing.quantity_per_person))
-                        ingredient_map[key]['quantity'] += q
-                        ingredient_map[key]['total_quantity'] += q * registered_count
-
                 ingredients = []
-
-                for row in ingredient_map.values():
-                    q_display, q_unit = format_main_qty(row['quantity'], row['unit'])
-                    total_display, total_unit = format_main_qty(row['total_quantity'], row['unit'])
-
+                for it in prep_order.items.all():
+                    q_display, q_unit = format_main_qty(it.quantity_per_person, it.unit)
+                    total_display, total_unit = format_main_qty(it.quantity, it.unit)
                     ingredients.append({
-                        'name': row['name'],
+                        'name': it.ingredient_name,
                         'quantity_display': q_display,
                         'quantity_unit': q_unit,
                         'total_display': total_display,

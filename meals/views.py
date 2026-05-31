@@ -2,6 +2,7 @@
 import calendar
 import json
 from datetime import datetime, date, time
+from decimal import Decimal, InvalidOperation
 from registrations.models import get_registered_count
 from django.conf import settings
 from django.contrib import messages
@@ -20,6 +21,8 @@ from .models import (
     MenuRejectLog,
     DishRejectLog,
     WeeklyMenuDraft,
+    MenuPrepOrder,
+    MenuPrepOrderItem,
 )
 from core.services.menu_ai import MenuAIService
 from .forms import DishForm, DailyMenuForm
@@ -538,12 +541,29 @@ def menu_list(request):
 
             preparation_items = list(ingredient_summary.values())
 
+    # Thông tin MenuPrepOrder (nếu đã xác nhận) — để render badge + dùng items
+    # đã chốt (nếu user đã từng xác nhận, hiện danh sách đã chốt thay vì auto-compute).
+    focus_prep_order = None
+    if focus_menu:
+        focus_prep_order = getattr(focus_menu, 'prep_order', None)
+        if focus_prep_order:
+            saved = list(focus_prep_order.items.all())
+            if saved:
+                preparation_items = [{
+                    'ingredient_name': it.ingredient_name,
+                    'unit': it.unit,
+                    'quantity_per_person': it.quantity_per_person,
+                    'required_total_quantity': it.quantity,
+                    'dish_names': [s.strip() for s in (it.dish_names or '').split(',') if s.strip()],
+                } for it in saved]
+
     context = {
         'calendar_weeks': calendar_weeks,
         'calendar_month': month,
         'calendar_year': year,
         'focus_date': focus_date,
         'focus_menu': focus_menu,
+        'focus_prep_order': focus_prep_order,
         'preparation_items': preparation_items,
         'focus_registered_count': focus_registered_count,
         'focus_can_delete': focus_can_delete,
@@ -1272,3 +1292,78 @@ def reject_extra_request(request, pk):
 
     messages.success(request, f'Đã từ chối đơn mua bổ sung ngày {extra_request.date.strftime("%d/%m/%Y")}.')
     return redirect('approval_dashboard')
+
+
+# ============================================================================
+# XÁC NHẬN NGUYÊN LIỆU CẦN CHUẨN BỊ (Menu Prep Order)
+# Bếp chỉnh sửa danh sách nguyên liệu trên trang Lên thực đơn rồi bấm
+# "Xác nhận" -> tạo MenuPrepOrder + items. Trang "Hóa đơn đặt hàng" chỉ hiện
+# main_order khi đã có MenuPrepOrder cho ngày đó.
+# ============================================================================
+from django.http import JsonResponse  # noqa: E402
+
+
+@login_required
+@user_passes_test(can_manage_menu)
+@require_POST
+def menu_prep_confirm(request, menu_id):
+    """POST JSON {items: [...]}: lưu danh sách nguyên liệu đã chỉnh sửa.
+
+    Mỗi item: {name, dish_names, quantity_per_person, quantity, unit}.
+    Re-confirm: xóa items cũ, tạo lại theo data mới.
+    """
+    menu = get_object_or_404(DailyMenu, pk=menu_id)
+    try:
+        payload = json.loads(request.body.decode('utf-8'))
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse({'success': False, 'message': 'Body JSON không hợp lệ.'}, status=400)
+
+    items = payload.get('items') or []
+    cleaned = []
+    for it in items:
+        name = (it.get('name') or '').strip()
+        try:
+            qty = Decimal(str(it.get('quantity', '0') or 0))
+            qpp = Decimal(str(it.get('quantity_per_person', '0') or 0))
+        except (InvalidOperation, ValueError, TypeError):
+            continue
+        if not name or qty <= 0:
+            continue
+        cleaned.append({
+            'name': name,
+            'dish_names': (it.get('dish_names') or '').strip()[:500],
+            'quantity_per_person': qpp,
+            'quantity': qty,
+            'unit': (it.get('unit') or '').strip()[:50],
+        })
+
+    if not cleaned:
+        return JsonResponse(
+            {'success': False, 'message': 'Danh sách nguyên liệu trống hoặc không hợp lệ.'},
+            status=400,
+        )
+
+    with transaction.atomic():
+        order, _ = MenuPrepOrder.objects.update_or_create(
+            menu=menu,
+            defaults={'confirmed_by': request.user},
+        )
+        order.items.all().delete()
+        for i, it in enumerate(cleaned):
+            MenuPrepOrderItem.objects.create(
+                order=order,
+                ingredient_name=it['name'],
+                dish_names=it['dish_names'],
+                quantity_per_person=it['quantity_per_person'],
+                quantity=it['quantity'],
+                unit=it['unit'],
+                sort_order=i,
+            )
+
+    order.refresh_from_db()
+    return JsonResponse({
+        'success': True,
+        'message': f'Đã xác nhận {len(cleaned)} nguyên liệu. Hóa đơn đã hiển thị ở trang "Hóa đơn đặt hàng".',
+        'confirmed_at': timezone.localtime(order.confirmed_at).strftime('%d/%m/%Y %H:%M'),
+        'item_count': len(cleaned),
+    })

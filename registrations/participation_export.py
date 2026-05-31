@@ -23,6 +23,9 @@ KEY_RECIPIENTS = 'participation_export_recipients'
 KEY_SEND_TIME = 'participation_export_send_time'
 KEY_SEND_MODE = 'participation_export_send_mode'      # 'dm' | 'channel'
 KEY_CHANNEL_ID = 'participation_export_channel_id'
+KEY_SEND_DAYS = 'participation_export_send_days'      # JSON list of int 0-6
+# Mặc định gửi T2-T6 (weekday 0..4), không gửi T7/CN.
+DEFAULT_SEND_DAYS = [0, 1, 2, 3, 4]
 
 
 # ---------- Config trong SystemConfig ----------
@@ -89,6 +92,33 @@ def set_send_mode(value):
         defaults={'value': val},
     )
     return val
+
+
+def get_send_days():
+    """Trả về list weekday gửi báo cáo (0=Thứ 2 ... 6=CN). Mặc định T2-T6."""
+    cfg = SystemConfig.objects.filter(key=KEY_SEND_DAYS).first()
+    if not cfg or not cfg.value:
+        return list(DEFAULT_SEND_DAYS)
+    try:
+        data = json.loads(cfg.value)
+        if isinstance(data, list):
+            cleaned = sorted({int(d) for d in data if 0 <= int(d) <= 6})
+            return cleaned if cleaned else list(DEFAULT_SEND_DAYS)
+    except (ValueError, TypeError):
+        pass
+    return list(DEFAULT_SEND_DAYS)
+
+
+def set_send_days(values):
+    """Lưu list weekday. `values` có thể là list int / list str / CSV string."""
+    if isinstance(values, str):
+        values = [v.strip() for v in values.split(',') if v.strip()]
+    cleaned = sorted({int(v) for v in (values or []) if str(v).strip().isdigit() and 0 <= int(v) <= 6})
+    SystemConfig.objects.update_or_create(
+        key=KEY_SEND_DAYS,
+        defaults={'value': json.dumps(cleaned)},
+    )
+    return cleaned
 
 
 def get_channel_id():

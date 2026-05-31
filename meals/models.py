@@ -328,3 +328,53 @@ class WeeklyMenuDraft(models.Model):
 
     def __str__(self):
         return f"Draft menu {self.date} - {self.created_by}"
+
+
+# =============================
+# MENU PREP ORDER — đơn nguyên liệu cần chuẩn bị đã được xác nhận
+# Bếp chỉnh sửa danh sách nguyên liệu (tăng/giảm khối lượng, thêm bổ sung)
+# rồi bấm "Xác nhận" -> tạo MenuPrepOrder. Sau đó "Hóa đơn đặt hàng" mới
+# hiển thị hóa đơn này (trước khi xác nhận thì ẩn).
+# =============================
+class MenuPrepOrder(models.Model):
+    menu = models.OneToOneField(
+        DailyMenu, on_delete=models.CASCADE,
+        related_name='prep_order', verbose_name='Thực đơn',
+    )
+    confirmed_at = models.DateTimeField(auto_now=True, verbose_name='Thời điểm xác nhận')
+    confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, verbose_name='Người xác nhận',
+    )
+
+    class Meta:
+        verbose_name = 'Đơn nguyên liệu chuẩn bị'
+        verbose_name_plural = 'Đơn nguyên liệu chuẩn bị'
+
+    def __str__(self):
+        return f'PrepOrder {self.menu.date}'
+
+
+class MenuPrepOrderItem(models.Model):
+    order = models.ForeignKey(
+        MenuPrepOrder, on_delete=models.CASCADE,
+        related_name='items', verbose_name='Đơn',
+    )
+    ingredient_name = models.CharField(max_length=255, verbose_name='Nguyên liệu')
+    dish_names = models.CharField(max_length=500, blank=True, verbose_name='Dùng trong món')
+    quantity_per_person = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0, verbose_name='Khẩu phần/người',
+    )
+    quantity = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, verbose_name='Tổng khối lượng',
+    )
+    unit = models.CharField(max_length=50, blank=True, verbose_name='Đơn vị')
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        verbose_name = 'Dòng nguyên liệu chuẩn bị'
+        verbose_name_plural = 'Dòng nguyên liệu chuẩn bị'
+
+    def __str__(self):
+        return f'{self.ingredient_name} - {self.quantity}{self.unit}'

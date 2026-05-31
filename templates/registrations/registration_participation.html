@@ -292,6 +292,27 @@ img.user-list-avatar { object-fit: cover; }
                 </div>
 
                 <div class="mb-3">
+                    <label class="form-label fw-semibold d-block">Ngày trong tuần gửi</label>
+                    <div class="d-flex flex-wrap gap-2" id="settings-send-days">
+                        <input type="checkbox" class="btn-check send-day-cb" id="day-0" value="0" autocomplete="off">
+                        <label class="btn btn-sm btn-outline-primary" for="day-0">T2</label>
+                        <input type="checkbox" class="btn-check send-day-cb" id="day-1" value="1" autocomplete="off">
+                        <label class="btn btn-sm btn-outline-primary" for="day-1">T3</label>
+                        <input type="checkbox" class="btn-check send-day-cb" id="day-2" value="2" autocomplete="off">
+                        <label class="btn btn-sm btn-outline-primary" for="day-2">T4</label>
+                        <input type="checkbox" class="btn-check send-day-cb" id="day-3" value="3" autocomplete="off">
+                        <label class="btn btn-sm btn-outline-primary" for="day-3">T5</label>
+                        <input type="checkbox" class="btn-check send-day-cb" id="day-4" value="4" autocomplete="off">
+                        <label class="btn btn-sm btn-outline-primary" for="day-4">T6</label>
+                        <input type="checkbox" class="btn-check send-day-cb" id="day-5" value="5" autocomplete="off">
+                        <label class="btn btn-sm btn-outline-primary" for="day-5">T7</label>
+                        <input type="checkbox" class="btn-check send-day-cb" id="day-6" value="6" autocomplete="off">
+                        <label class="btn btn-sm btn-outline-primary" for="day-6">CN</label>
+                    </div>
+                    <div class="form-text">Mặc định T2-T6; T7 và CN không gửi.</div>
+                </div>
+
+                <div class="mb-3">
                     <label class="form-label fw-semibold d-block">Hình thức gửi</label>
                     <div class="d-flex gap-4">
                         <div class="form-check">
@@ -474,6 +495,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 const modeInput = document.getElementById('mode-' + mode);
                 if (modeInput) modeInput.checked = true;
                 applyMode(mode);
+                const sendDays = (data.send_days && data.send_days.length) ? data.send_days : [0,1,2,3,4];
+                document.querySelectorAll('.send-day-cb').forEach(cb => {
+                    cb.checked = sendDays.includes(parseInt(cb.value, 10));
+                });
                 const codes = data.recipients || [];
                 if (codes.length === 0) {
                     addRow('');
@@ -492,6 +517,8 @@ document.addEventListener('DOMContentLoaded', function () {
         fd.append('mode', getMode());
         fd.append('recipients', codes.join('\n'));
         fd.append('channel_id', channelInput.value.trim());
+        const sendDays = Array.from(document.querySelectorAll('.send-day-cb:checked')).map(cb => cb.value);
+        fd.append('send_days', sendDays.join(','));
 
         btnSave.disabled = true;
         btnSave.textContent = 'Đang lưu...';

@@ -16,6 +16,7 @@ from registrations.participation_export import (
     build_excel_bytes,
     get_channel_id,
     get_recipients,
+    get_send_days,
     get_send_mode,
     get_send_time,
     send_participation_excel,
@@ -63,7 +64,16 @@ class Command(BaseCommand):
                 # Không log để journalctl đỡ spam (chạy mỗi phút).
                 return
 
-            # 3. Check đã gửi hôm nay chưa
+            # 3. Check thứ trong tuần (Mon=0..Sun=6). Mặc định T2-T6.
+            send_days = get_send_days()
+            if now_vn.date().weekday() not in send_days:
+                self.stdout.write(
+                    f'[skip] Today (weekday={now_vn.date().weekday()}) '
+                    f'không nằm trong send_days={send_days}.'
+                )
+                return
+
+            # 4. Check đã gửi hôm nay chưa
             last_cfg = SystemConfig.objects.filter(key=KEY_LAST_SENT).first()
             if last_cfg and last_cfg.value == today_str:
                 self.stdout.write(f'[skip] Already sent today ({today_str}).')

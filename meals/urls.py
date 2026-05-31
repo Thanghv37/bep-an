@@ -8,6 +8,7 @@ from .views import (
     apply_week_menu_draft,
     approve_all_dishes, approve_all_menus,
     approve_all_extra_requests, approve_all_purchases,
+    menu_prep_confirm,
 )
 
 urlpatterns = [
@@ -47,4 +48,6 @@ urlpatterns = [
 
     path('menus/api/suggest-next-week/', suggest_next_week_menu, name='suggest_next_week_menu'),
     path('menus/api/apply-week-draft/', apply_week_menu_draft, name='apply_week_menu_draft'),
+
+    path('menus/<int:menu_id>/prep-confirm/', menu_prep_confirm, name='menu_prep_confirm'),
 ]

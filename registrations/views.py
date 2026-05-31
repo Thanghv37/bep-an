@@ -799,6 +799,8 @@ def participation_settings(request):
         set_send_mode,
         get_channel_id,
         set_channel_id,
+        get_send_days,
+        set_send_days,
     )
 
     if request.method == 'POST':
@@ -806,6 +808,7 @@ def participation_settings(request):
         recipients_raw = request.POST.get('recipients', '')
         mode_raw = (request.POST.get('mode') or '').strip()
         channel_id_raw = (request.POST.get('channel_id') or '').strip()
+        send_days_raw = request.POST.get('send_days', '')
         codes = [line.strip() for line in recipients_raw.splitlines() if line.strip()]
         try:
             saved_time = set_send_time(send_time_raw)
@@ -814,6 +817,7 @@ def participation_settings(request):
         saved_mode = set_send_mode(mode_raw)
         saved_codes = set_recipients(codes)
         saved_channel = set_channel_id(channel_id_raw)
+        saved_days = set_send_days(send_days_raw)
         existing = set(UserProfile.objects.filter(employee_code__in=saved_codes).values_list('employee_code', flat=True))
         invalid = [c for c in saved_codes if c not in existing]
         return JsonResponse({
@@ -822,6 +826,7 @@ def participation_settings(request):
             'mode': saved_mode,
             'recipients': saved_codes,
             'channel_id': saved_channel,
+            'send_days': saved_days,
             'invalid_codes': invalid,
         })
 
@@ -831,6 +836,7 @@ def participation_settings(request):
         'mode': get_send_mode(),
         'recipients': get_recipients(),
         'channel_id': get_channel_id(),
+        'send_days': get_send_days(),
     })
 
 
