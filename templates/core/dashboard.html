@@ -1944,10 +1944,11 @@ loadNutritionAnalysis();
 </script>
 
 <script>
-/* ===== Animate counters trên 4 KPI card =====
-   Tìm các .kpi-value / .kpi-split-val có firstChild là text-node số,
-   parse "1.234" / "-200.000" / "12" → animate 0 → target trong ~1.3s easeOutCubic,
-   re-format theo locale vi-VN, giữ nguyên unit span (đ / suất). */
+/* ===== Animate counters + cascade trên 4 KPI card =====
+   Counter: parse text-node của .kpi-value / .kpi-split-val,
+   animate 0 → target trong ~1.3s easeOutCubic, format vi-VN, giữ unit span.
+   Replay tự động mỗi 2 phút (cascade entrance + counter chạy lại). */
+const REDUCED_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 (function () {
     function parseNumberText(text) {
         const m = (text || '').trim().match(/^(-?)([\d.,]+)/);
@@ -1975,25 +1976,58 @@ loadNutritionAnalysis();
         }
         requestAnimationFrame(tick);
     }
-    function initCounters() {
+    function runCounters() {
         const selectors = ['.kpi-value', '.kpi-split-val'];
         document.querySelectorAll(selectors.join(', ')).forEach(el => {
-            // Bỏ qua nếu chứa empty placeholder (Chưa có giá / Chưa có dữ liệu)
             if (el.querySelector('.kpi-empty')) return;
             const node = el.firstChild;
             if (!node || node.nodeType !== Node.TEXT_NODE) return;
-            const target = parseNumberText(node.textContent);
-            if (target === null) return;
-            // Đặt về 0 ngay, animate sau cascade entrance (~ 700ms)
+            // Lần đầu: lưu target từ text gốc; lần sau: lấy lại từ data-attr
+            let target;
+            if (el.dataset.counterTarget !== undefined) {
+                target = parseFloat(el.dataset.counterTarget);
+            } else {
+                target = parseNumberText(node.textContent);
+                if (target === null) return;
+                el.dataset.counterTarget = String(target);
+            }
+            if (!isFinite(target)) return;
             const sign = target < 0 ? '-' : '';
             node.textContent = sign + '0';
-            setTimeout(function () { animateNumber(node, target, 1300); }, 700);
+            animateNumber(node, target, 1300);
         });
     }
+
+    // Replay cascade CSS animation bằng cách reset rồi force reflow
+    function replayCssAnim(elements, container) {
+        if (!elements || !elements.length) return;
+        elements.forEach(el => { el.style.animation = 'none'; });
+        if (container) void container.offsetWidth;
+        else void elements[0].offsetWidth;
+        elements.forEach(el => { el.style.animation = ''; });
+    }
+
+    function replayKpi() {
+        const cards = document.querySelectorAll('.kpi-card');
+        const row = document.querySelector('.kpi-row');
+        replayCssAnim(cards, row);
+        // Counter chạy sau khi cascade vào (~700ms vào tới scale 1)
+        setTimeout(runCounters, 700);
+    }
+
+    function init() {
+        if (REDUCED_MOTION) {
+            runCounters();  // chạy thẳng counter, không stagger
+            return;
+        }
+        setTimeout(runCounters, 700);  // counter ban đầu, đợi cascade
+        // Replay mỗi 2 phút
+        setInterval(replayKpi, 120000);
+    }
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initCounters);
+        document.addEventListener('DOMContentLoaded', init);
     } else {
-        initCounters();
+        init();
     }
 
     // Khi poll update ps-* cập nhật số → animate đếm từ giá trị hiện tại sang mới
@@ -2030,29 +2064,48 @@ loadNutritionAnalysis();
 })();
 
 /* ===== Reveal lần lượt từng món trong "Thực đơn trong tuần" T2 → T6 =====
-   Tích lũy delay qua tất cả ngày: T2 hết món rồi mới đến T3, etc. */
+   Tích lũy delay qua tất cả ngày: T2 hết món rồi mới đến T3, etc.
+   Replay tự động mỗi 1 phút (day cards cascade + từng món reveal chạy lại). */
 (function () {
     const section = document.getElementById('weekly-menu-section');
     if (!section) return;
-    // Reduced motion: cho hiện luôn, không stagger
-    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    // Reduced motion: cho hiện luôn, không stagger, không replay
+    if (REDUCED_MOTION) {
         section.querySelectorAll('.week-menu-dishes li').forEach(li => {
             li.style.setProperty('--reveal-delay', '0ms');
         });
         return;
     }
-    const days = section.querySelectorAll('.week-day-card');
-    let cum = 0;
+
     const PER_DISH = 90;    // ms giữa các món trong cùng ngày
-    const PER_DAY_GAP = 3;  // số "đơn vị" thêm vào giữa 2 ngày để có khoảng nghỉ
-    const BASE_DELAY = 900; // sau khi day cards cascade vào xong (5 * 140ms + 200ms buffer)
-    days.forEach(day => {
-        day.querySelectorAll('.week-menu-dishes li').forEach(li => {
-            li.style.setProperty('--reveal-delay', (BASE_DELAY + cum * PER_DISH) + 'ms');
-            cum += 1;
+    const PER_DAY_GAP = 3;  // số "đơn vị" nghỉ giữa 2 ngày
+    const BASE_DELAY = 900; // sau khi day cards cascade vào xong (5 * 140ms + buffer)
+
+    function assignDishDelays() {
+        const days = section.querySelectorAll('.week-day-card');
+        let cum = 0;
+        days.forEach(day => {
+            day.querySelectorAll('.week-menu-dishes li').forEach(li => {
+                li.style.setProperty('--reveal-delay', (BASE_DELAY + cum * PER_DISH) + 'ms');
+                cum += 1;
+            });
+            cum += PER_DAY_GAP;
         });
-        cum += PER_DAY_GAP;
-    });
+    }
+    assignDishDelays();  // lần đầu
+
+    function replayWeekly() {
+        const dayCards = section.querySelectorAll('.week-day-card');
+        const lis = section.querySelectorAll('.week-menu-dishes li');
+        // Reset cả 2 nhóm cùng lúc, 1 reflow chung trên section
+        dayCards.forEach(c => { c.style.animation = 'none'; });
+        lis.forEach(li => { li.style.animation = 'none'; });
+        void section.offsetWidth;
+        dayCards.forEach(c => { c.style.animation = ''; });
+        lis.forEach(li => { li.style.animation = ''; });
+    }
+
+    setInterval(replayWeekly, 60000);
 })();
 
 /* Spotlight cycling — mỗi 3.5s "lên đèn" 1 card, đi từ trái sang phải, lặp vô tận. */
