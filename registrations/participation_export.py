@@ -138,7 +138,9 @@ def set_channel_id(value):
 # ---------- Thống kê & caption ----------
 
 def count_statuses(rows):
-    """Đếm số dòng theo từng trạng thái tham gia."""
+    """Đếm số dòng theo từng trạng thái tham gia.
+    Riêng `guest_qty` là tổng số SUẤT của khách ngoài (vì 1 khách có
+    thể đặt nhiều suất) — phục vụ hiển thị "tổng suất khách ngoài"."""
     return {
         'valid': sum(1 for r in rows if r['status'] == 'valid'),
         'supplementary': sum(1 for r in rows if r['status'] == 'supplementary'),
@@ -146,6 +148,7 @@ def count_statuses(rows):
         'not_registered': sum(1 for r in rows if r['status'] == 'not_registered'),
         'no_profile': sum(1 for r in rows if r['status'] == 'no_profile'),
         'guest': sum(1 for r in rows if r['status'] == 'guest'),
+        'guest_qty': sum(r.get('quantity', 0) for r in rows if r['status'] == 'guest'),
     }
 
 

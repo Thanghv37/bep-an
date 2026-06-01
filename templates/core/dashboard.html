@@ -59,7 +59,8 @@
                             elValid.textContent = d.valid;
                             elNotreg.textContent = d.not_registered;
                             elNotatt.textContent = d.not_attended;
-                            if (elGuest) elGuest.textContent = d.guest || 0;
+                            // KPI Khách ngoài tính theo TỔNG SUẤT (1 khách có thể đặt nhiều suất)
+                            if (elGuest) elGuest.textContent = d.guest_qty || 0;
                         })
                         .catch(function () { /* lỗi mạng — giữ số cũ */ });
                 }
