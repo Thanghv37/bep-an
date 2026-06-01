@@ -14,6 +14,9 @@ class MealRegistration(models.Model):
     status = models.CharField(max_length=100, blank=True, verbose_name='Trạng thái')
 
     source = models.CharField(max_length=50, default='excel', verbose_name='Nguồn dữ liệu')
+    # Ghi chú — chủ yếu dùng cho khách ngoài (source='guest') để mô tả
+    # đơn vị/đối tác. Với nhân viên nội bộ thường để trống.
+    note = models.CharField(max_length=255, blank=True, verbose_name='Ghi chú')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -139,6 +139,57 @@
             </table>
         </div>
 
+        {# --- Khách ngoài (không thuộc TTKTKV2) --- #}
+        <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
+            <div>
+                <div class="fw-semibold">Khách ngoài <span class="text-muted small">(không thuộc TTKTKV2)</span></div>
+                <div class="small text-muted">Chỉ cần nhập tên, số suất và ghi chú đơn vị/đối tác.</div>
+            </div>
+            <button type="button" class="btn btn-outline-info btn-sm" id="add-guest-btn">
+                <i class="bi bi-plus-lg"></i> Thêm khách ngoài
+            </button>
+        </div>
+
+        <div class="table-responsive" id="guest-table-wrap" {% if not guest_rows %}style="display:none"{% endif %}>
+            <table class="table reg-rows-table align-middle">
+                <thead>
+                    <tr>
+                        <th style="width: 38%;">Họ và tên khách</th>
+                        <th style="width: 12%;">Số suất</th>
+                        <th style="width: 42%;">Ghi chú (đơn vị / đối tác)</th>
+                        <th style="width: 8%;"></th>
+                    </tr>
+                </thead>
+                <tbody id="guest-rows">
+                    {% for g in guest_rows %}
+                    <tr class="guest-row">
+                        <td>
+                            <input type="text" name="guest_name" autocomplete="off"
+                                   class="form-control guest-name{% if g.error %} is-invalid{% elif g.name %} is-valid{% endif %}"
+                                   value="{{ g.name }}" placeholder="VD: Nguyễn Văn A">
+                            <div class="small mt-1 row-feedback text-danger">{{ g.error }}</div>
+                        </td>
+                        <td>
+                            <input type="number" name="guest_qty" min="1"
+                                   class="form-control guest-qty" value="{{ g.quantity }}">
+                        </td>
+                        <td>
+                            <input type="text" name="guest_note" autocomplete="off"
+                                   class="form-control guest-note"
+                                   value="{{ g.note }}" placeholder="VD: đối tác công ty X">
+                        </td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-outline-danger btn-sm guest-remove"
+                                    title="Xóa dòng">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
         <div class="d-flex gap-2 mt-3">
             <button type="submit" class="btn btn-primary">Lưu đăng kí</button>
             <a href="{% url 'registration_list' %}" class="btn btn-outline-secondary">Quay lại</a>
@@ -187,6 +238,31 @@
         </td>
         <td class="text-center">
             <button type="button" class="btn btn-outline-danger btn-sm row-remove"
+                    title="Xóa dòng">
+                <i class="bi bi-trash"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+
+{# Khuôn dòng khách ngoài — JS clone khi bấm "Thêm khách ngoài" #}
+<template id="guest-row-template">
+    <tr class="guest-row">
+        <td>
+            <input type="text" name="guest_name" autocomplete="off"
+                   class="form-control guest-name" value="" placeholder="VD: Nguyễn Văn A">
+            <div class="small mt-1 row-feedback text-danger"></div>
+        </td>
+        <td>
+            <input type="number" name="guest_qty" min="1"
+                   class="form-control guest-qty" value="1">
+        </td>
+        <td>
+            <input type="text" name="guest_note" autocomplete="off"
+                   class="form-control guest-note" value="" placeholder="VD: đối tác công ty X">
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-outline-danger btn-sm guest-remove"
                     title="Xóa dòng">
                 <i class="bi bi-trash"></i>
             </button>
@@ -286,6 +362,30 @@
         tbody.lastElementChild.querySelector('.row-emp-code').focus();
     });
 
+    // ===== Khách ngoài =====
+    const guestTbody = document.getElementById('guest-rows');
+    const guestWrap = document.getElementById('guest-table-wrap');
+    const guestTemplate = document.getElementById('guest-row-template');
+    const addGuestBtn = document.getElementById('add-guest-btn');
+
+    function syncGuestWrap() {
+        if (!guestWrap) return;
+        guestWrap.style.display = guestTbody.children.length ? '' : 'none';
+    }
+
+    addGuestBtn.addEventListener('click', function () {
+        guestTbody.appendChild(guestTemplate.content.cloneNode(true));
+        syncGuestWrap();
+        guestTbody.lastElementChild.querySelector('.guest-name').focus();
+    });
+
+    guestTbody.addEventListener('click', function (e) {
+        const removeBtn = e.target.closest('.guest-remove');
+        if (!removeBtn) return;
+        removeBtn.closest('.guest-row').remove();
+        syncGuestWrap();
+    });
+
     // Dropdown Bữa ăn / Bếp ăn — tô đỏ khi chưa chọn, xanh khi đã chọn.
     function syncSelect(el) { setState(el, !!el.value); }
     ['id_meal_name', 'id_kitchen_name'].forEach(function (id) {
@@ -322,8 +422,18 @@
             });
         });
 
-        if (!people.length) {
-            alert('Vui lòng nhập ít nhất một người đăng kí.');
+        // Thu thập khách ngoài.
+        const guests = [];
+        guestTbody.querySelectorAll('.guest-row').forEach(function (row) {
+            const name = (row.querySelector('.guest-name').value || '').trim();
+            const qty = (row.querySelector('.guest-qty').value || '1').trim();
+            const note = (row.querySelector('.guest-note').value || '').trim();
+            if (!name && !note) return;  // dòng trống thì bỏ
+            guests.push({ name: name, qty: qty, note: note });
+        });
+
+        if (!people.length && !guests.length) {
+            alert('Vui lòng nhập ít nhất một người đăng kí hoặc khách ngoài.');
             return;
         }
 
@@ -336,7 +446,9 @@
             ' · ' + (mealVal || '(chưa chọn bữa ăn)') +
             ' · ' + (kitchenVal || '(chưa chọn bếp ăn)');
 
-        confirmCount.textContent = 'Đăng kí suất ăn cho ' + people.length + ' người:';
+        const total = people.length + guests.length;
+        const guestNote = guests.length ? ' (gồm ' + guests.length + ' khách ngoài)' : '';
+        confirmCount.textContent = 'Đăng kí suất ăn cho ' + total + ' người' + guestNote + ':';
 
         // Dựng danh sách bằng DOM (an toàn XSS — không nội suy chuỗi vào innerHTML).
         confirmList.innerHTML = '';
@@ -364,6 +476,30 @@
                 li.appendChild(strong);
                 li.appendChild(document.createTextNode(' — ⚠ Không tìm thấy nhân viên'));
             }
+            confirmList.appendChild(li);
+        });
+
+        // Khách ngoài — render với badge "Khách ngoài"
+        guests.forEach(function (g) {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            li.style.backgroundColor = '#f0f9ff';
+            const left = document.createElement('span');
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-info-subtle text-info border me-2';
+            badge.textContent = 'Khách ngoài';
+            left.appendChild(badge);
+            const strong = document.createElement('strong');
+            strong.textContent = g.name || '(chưa nhập tên)';
+            left.appendChild(strong);
+            if (g.note) {
+                left.appendChild(document.createTextNode(' (' + g.note + ')'));
+            }
+            const right = document.createElement('span');
+            right.className = 'text-muted small';
+            right.textContent = g.qty + ' suất';
+            li.appendChild(left);
+            li.appendChild(right);
             confirmList.appendChild(li);
         });
 

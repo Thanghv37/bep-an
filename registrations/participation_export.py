@@ -145,6 +145,7 @@ def count_statuses(rows):
         'not_attended': sum(1 for r in rows if r['status'] == 'not_attended'),
         'not_registered': sum(1 for r in rows if r['status'] == 'not_registered'),
         'no_profile': sum(1 for r in rows if r['status'] == 'no_profile'),
+        'guest': sum(1 for r in rows if r['status'] == 'guest'),
     }
 
 
@@ -190,6 +191,15 @@ def build_report_caption(target_date, rows=None):
         caption += f'\n- Chưa có hồ sơ (đơn vị khác): {len(no_profile)}'
         caption += f'\n   👉 {_fmt(no_profile)}'
 
+    guests = _names('guest')
+    if guests:
+        caption += f'\n- Khách ngoài: {len(guests)}'
+        for g in guests:
+            note = (g.get('note') or '').strip()
+            note_part = f' ({note})' if note else ''
+            qty = g.get('quantity', 0)
+            caption += f'\n   👉 {g["display_name"]}{note_part} — {qty} suất'
+
     return caption
 
 
@@ -197,7 +207,7 @@ def build_report_caption(target_date, rows=None):
 
 def build_excel_bytes(target_date, rows):
     """Tạo file Excel binary từ rows. `rows` đến từ `_build_participation_rows`."""
-    status_order = {'valid': 0, 'supplementary': 1, 'not_attended': 2, 'not_registered': 3, 'no_profile': 4}
+    status_order = {'valid': 0, 'supplementary': 1, 'not_attended': 2, 'not_registered': 3, 'no_profile': 4, 'guest': 5}
     rows = sorted(rows, key=lambda r: (
         status_order.get(r['status'], 99),
         r['scan_time'] or 0,
@@ -229,6 +239,7 @@ def build_excel_bytes(target_date, rows):
         (f"Chưa điểm danh: {counts['not_attended']}", False),
         (f"Chưa đăng ký: {counts['not_registered']}", False),
         (f"Chưa có hồ sơ: {counts.get('no_profile', 0)}", False),
+        (f"Khách ngoài: {counts.get('guest', 0)}", False),
         (f"Tổng suất ĐK: {total_quantity}", True),
     ]
     for col_idx, (text, bold) in enumerate(summary_cells, start=1):
@@ -250,6 +261,7 @@ def build_excel_bytes(target_date, rows):
         'not_attended': PatternFill('solid', fgColor='FEF2F2'),
         'not_registered': PatternFill('solid', fgColor='FFF7ED'),
         'no_profile': PatternFill('solid', fgColor='FEF3C7'),
+        'guest': PatternFill('solid', fgColor='EFF6FF'),
     }
 
     for idx, r in enumerate(rows, start=1):
@@ -257,6 +269,9 @@ def build_excel_bytes(target_date, rows):
         profile = r.get('profile')
         unit = (profile.unit if profile else '') or ''
         dept = (profile.department if profile else '') or ''
+        # Khách ngoài: profile=None, dùng note (đơn vị/đối tác) đổ vào cột "Đơn vị"
+        if r['status'] == 'guest' and not unit:
+            unit = (r.get('note') or '').strip()
         # scan_time lưu UTC (USE_TZ=True) — convert sang giờ VN trước khi format.
         scan_str = timezone.localtime(r['scan_time']).strftime('%H:%M:%S') if r['scan_time'] else '—'
         values = [

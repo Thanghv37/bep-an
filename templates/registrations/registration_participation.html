@@ -57,6 +57,7 @@
                         <option value="not_attended" {% if q_status == "not_attended" %}selected{% endif %}>Chưa điểm danh</option>
                         <option value="supplementary" {% if q_status == "supplementary" %}selected{% endif %}>Đã đăng ký bổ sung</option>
                         <option value="no_profile" {% if q_status == "no_profile" %}selected{% endif %}>Chưa có hồ sơ</option>
+                        <option value="guest" {% if q_status == "guest" %}selected{% endif %}>Khách ngoài</option>
                     </select>
                 </div>
 
@@ -123,7 +124,11 @@
                                     {% endif %}
                                     <div>
                                         <div class="user-list-name">{{ row.display_name }}</div>
-                                        <div class="user-list-sub">Lịch sử tham gia ăn</div>
+                                        {% if row.status == 'guest' and row.note %}
+                                            <div class="user-list-sub text-primary">{{ row.note }}</div>
+                                        {% else %}
+                                            <div class="user-list-sub">Lịch sử tham gia ăn</div>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </td>

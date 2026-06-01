@@ -165,32 +165,38 @@
 
                     <tr id="main-order-detail" class="order-detail-row d-none">
                         <td colspan="7">
-                            <div class="order-detail-box">
-                                <div class="detail-title">
-                                    Nguyên liệu chính cần chuẩn bị cho {{ main_order.registered_count }} người
+                            <div class="order-detail-box main-order-detail-box">
+                                <div class="main-detail-header">
+                                    <div>
+                                        <div class="main-detail-title">Phiếu đặt mua nguyên liệu</div>
+                                        <div class="main-detail-subtitle">
+                                            Ngày áp dụng: {{ main_order.date|date:"d/m/Y" }} · {{ main_order.ingredients|length }} nguyên liệu · cho {{ main_order.registered_count }} người
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="table-responsive">
-                                    <table class="table table-sm align-middle mb-0 detail-table">
+                                    <table class="main-order-table">
                                         <thead>
                                             <tr>
-                                                <th>Nguyên liệu</th>
-                                                <th class="text-center">Khẩu phần/người</th>
-                                                <th class="text-center">Tổng dự kiến</th>
+                                                <th class="col-stt">STT</th>
+                                                <th class="col-name">Nguyên liệu</th>
+                                                <th class="col-qty">Số lượng đặt hàng</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {% for ing in main_order.ingredients %}
                                             <tr>
-                                                <td class="fw-semibold">{{ ing.name }}</td>
-                                                <td class="text-center">{{ ing.quantity_display }} {{ ing.quantity_unit }}</td>
-                                                <td class="text-center fw-bold text-primary">{{ ing.total_display }} {{ ing.total_unit }}</td>
+                                                <td class="col-stt">{{ forloop.counter }}</td>
+                                                <td class="col-name">{{ ing.name }}</td>
+                                                <td class="col-qty">
+                                                    <span class="qty-num">{{ ing.total_display }}</span>
+                                                    <span class="qty-unit">{{ ing.total_unit }}</span>
+                                                </td>
                                             </tr>
                                             {% empty %}
                                             <tr>
-                                                <td colspan="3">
-                                                    <div class="text-muted small py-2">Không có nguyên liệu.</div>
-                                                </td>
+                                                <td colspan="3" class="text-center text-muted py-3">Không có nguyên liệu.</td>
                                             </tr>
                                             {% endfor %}
                                         </tbody>
@@ -505,6 +511,102 @@
     background: #fde2e1;
     color: #dc3545;
     border-color: #f5c2c7;
+}
+
+/* ===== Phiếu đặt mua nguyên liệu (detail của main_order) ===== */
+.main-order-detail-box {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 18px 20px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+.main-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e2e8f0;
+}
+.main-detail-title {
+    font-size: 17px;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: 0.3px;
+}
+.main-detail-subtitle {
+    font-size: 12.5px;
+    color: #64748b;
+    margin-top: 3px;
+}
+
+.main-order-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: #ffffff;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+.main-order-table thead th {
+    background: #f1f5f9;
+    color: #0f172a;
+    font-weight: 700;
+    font-size: 12.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 12px 16px;
+    border-bottom: 2px solid #cbd5e1;
+}
+.main-order-table tbody td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 14px;
+    vertical-align: middle;
+}
+.main-order-table tbody tr:last-child td {
+    border-bottom: none;
+}
+.main-order-table tbody tr:hover td {
+    background: #f8fbff;
+}
+
+.main-order-table .col-stt {
+    width: 56px;
+    text-align: center;
+    color: #94a3b8;
+    font-weight: 600;
+}
+.main-order-table .col-name {
+    font-weight: 600;
+    color: #0f172a;
+}
+.main-order-table .col-qty {
+    width: 200px;
+    text-align: right;
+    white-space: nowrap;
+}
+.main-order-table .qty-num {
+    font-weight: 800;
+    font-size: 15.5px;
+    color: #2563eb;
+}
+.main-order-table .qty-unit {
+    color: #64748b;
+    font-weight: 600;
+    font-size: 13px;
+    margin-left: 4px;
+}
+
+@media (max-width: 576px) {
+    .main-order-detail-box { padding: 12px; }
+    .main-order-table .col-stt { width: 36px; padding: 10px 8px; }
+    .main-order-table .col-qty { width: auto; padding: 10px 8px; }
+    .main-order-table tbody td,
+    .main-order-table thead th { padding: 10px 8px; font-size: 13px; }
+    .main-detail-title { font-size: 15px; }
 }
 </style>
 

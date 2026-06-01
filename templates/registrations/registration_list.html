@@ -182,11 +182,15 @@
                                 <div>
                                     <div class="fw-bold text-dark">
                                         {% if item.full_name %}{{ item.full_name }}{% elif profile and profile.full_name %}{{ profile.full_name }}{% else %}Chưa rõ tên{% endif %}
-                                        {% if not profile %}
+                                        {% if item.source == 'guest' %}
+                                        <span class="badge ms-1" style="background:#dbeafe;color:#1d4ed8;border:1px solid #60a5fa;font-size:10px;font-weight:700;">Khách ngoài</span>
+                                        {% elif not profile %}
                                         <span class="badge ms-1" style="background:#fef3c7;color:#b45309;border:1px solid #f59e0b;font-size:10px;font-weight:700;">Chưa có hồ sơ NV</span>
                                         {% endif %}
                                     </div>
-                                    <div class="text-muted small">{% if profile %}{{ profile.email|default:"" }}{% endif %}</div>
+                                    <div class="text-muted small">
+                                        {% if item.source == 'guest' and item.note %}{{ item.note }}{% elif profile %}{{ profile.email|default:"" }}{% endif %}
+                                    </div>
                                 </div>
                             </div>
                         </td>

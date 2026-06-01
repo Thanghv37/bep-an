@@ -31,6 +31,7 @@ import threading
 import time
 import requests
 import json
+import uuid
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from accounts.models import UserProfile
@@ -222,6 +223,10 @@ def registration_create(request):
         kitchen_name = (request.POST.get('kitchen_name') or '').strip()
         codes = request.POST.getlist('employee_code')
         quantities = request.POST.getlist('quantity')
+        # Khách ngoài (không thuộc TTKTKV2) — chỉ cần tên + số suất + ghi chú
+        guest_names = request.POST.getlist('guest_name')
+        guest_qtys = request.POST.getlist('guest_qty')
+        guest_notes = request.POST.getlist('guest_note')
 
         form_errors = []  # lỗi của field dùng chung
 
@@ -305,10 +310,36 @@ def registration_create(request):
                         r['error'] = ('Người này đã được đăng kí cho '
                                       'ngày / bữa / bếp này.')
 
-        if not rows:
-            form_errors.append('Vui lòng nhập ít nhất một người.')
+        # --- Dựng + validate dòng khách ngoài (không cần tra emp_code) ---
+        guest_rows = []
+        for i, gname in enumerate(guest_names):
+            name = (gname or '').strip()
+            qty_raw = (guest_qtys[i] if i < len(guest_qtys) else '').strip()
+            note_raw = (guest_notes[i] if i < len(guest_notes) else '').strip()
+            # Bỏ qua dòng hoàn toàn trống (cả 3 field rỗng)
+            if not name and not qty_raw and not note_raw:
+                continue
+            try:
+                qty_int = int(qty_raw) if qty_raw else 1
+            except ValueError:
+                qty_int = 0
+            gr = {
+                'name': name,
+                'quantity': qty_raw or '1',
+                'qty_int': qty_int,
+                'note': note_raw,
+                'error': '',
+            }
+            if not name:
+                gr['error'] = 'Vui lòng nhập tên khách.'
+            elif qty_int < 1:
+                gr['error'] = 'Số suất phải là số nguyên ≥ 1.'
+            guest_rows.append(gr)
 
-        has_row_error = any(r['error'] for r in rows)
+        if not rows and not guest_rows:
+            form_errors.append('Vui lòng nhập ít nhất một người (nhân viên hoặc khách ngoài).')
+
+        has_row_error = any(r['error'] for r in rows) or any(g['error'] for g in guest_rows)
 
         if form_errors or has_row_error:
             # Có lỗi → không lưu gì, render lại kèm dữ liệu đã nhập.
@@ -326,6 +357,7 @@ def registration_create(request):
                 'sel_meal': meal_name,
                 'sel_kitchen': kitchen_name,
                 'rows': display_rows,
+                'guest_rows': guest_rows,
             })
 
         # --- Hợp lệ toàn bộ → lưu trong 1 transaction ---
@@ -341,8 +373,25 @@ def registration_create(request):
                     status=STATUS_FIXED,
                     source='manual',
                 )
+            for g in guest_rows:
+                # Sinh emp_code synthetic — UUID hex 12 char, prefix EXT-, đảm
+                # bảo unique cho unique_together(emp_code, date, meal, kitchen).
+                synthetic_code = f"EXT-{uuid.uuid4().hex[:12]}"
+                MealRegistration.objects.create(
+                    employee_code=synthetic_code,
+                    full_name=g['name'],
+                    date=parsed_date,
+                    meal_name=meal_name,
+                    kitchen_name=kitchen_name,
+                    quantity=g['qty_int'],
+                    status=STATUS_FIXED,
+                    source='guest',
+                    note=g['note'],
+                )
 
-        messages.success(request, f'Đã thêm {len(rows)} đăng kí suất ăn.')
+        total = len(rows) + len(guest_rows)
+        guest_note = f' (gồm {len(guest_rows)} khách ngoài)' if guest_rows else ''
+        messages.success(request, f'Đã thêm {total} đăng kí suất ăn{guest_note}.')
         return redirect('registration_list')
 
     # --- GET: form trống với 1 dòng, đề xuất sẵn bữa trưa + bếp khu vực 2 ---
@@ -358,6 +407,7 @@ def registration_create(request):
         'sel_meal': default_meal,
         'sel_kitchen': default_kitchen,
         'rows': [{'code': '', 'name': '', 'quantity': '1', 'error': ''}],
+        'guest_rows': [],  # mặc định section khách ngoài không có dòng nào
     })
 
 
@@ -462,6 +512,9 @@ _PARTICIPATION_STATUS_LABELS = {
     # Người không có UserProfile (đơn vị khác thuộc tổng công ty) — không có
     # dữ liệu khuôn mặt nên không điểm danh được, được bypass vào ăn.
     'no_profile': ('Chưa có hồ sơ', 'warning'),
+    # Khách ngoài (không thuộc TTKTKV2) — nhập tay với note đơn vị/đối tác,
+    # emp_code synthetic EXT-..., không qua nhận diện khuôn mặt.
+    'guest': ('Khách ngoài', 'primary'),
 }
 
 
@@ -470,7 +523,11 @@ def _build_participation_rows(target_date):
     logs = list(AttendanceLog.objects.filter(scan_time__date=target_date).order_by('scan_time'))
     scanned_codes = {(log.employee_code or '').strip() for log in logs}
 
-    registrations = MealRegistration.objects.filter(date=target_date)
+    # Tách khách ngoài (source='guest') — không có profile, không scan, status='guest'
+    all_regs = MealRegistration.objects.filter(date=target_date)
+    guest_regs = [r for r in all_regs if r.source == 'guest']
+    registrations = [r for r in all_regs if r.source != 'guest']
+
     registered_name_map = {}
     # 1 người có thể đăng ký nhiều suất (đặt giúp người khác) — cộng dồn quantity.
     registered_quantity_map = {}
@@ -537,6 +594,7 @@ def _build_participation_rows(target_date):
             'type': log.type or 'Quét thẻ',
             'capture_image_url': capture_map.get(emp_code),
             'quantity': registered_quantity_map.get(emp_code, 0),
+            'note': '',
         })
 
     not_attended_codes = set(registered_name_map.keys()) - scanned_codes
@@ -557,6 +615,24 @@ def _build_participation_rows(target_date):
             'type': '—',
             'capture_image_url': None,
             'quantity': registered_quantity_map.get(emp_code, 0),
+            'note': '',
+        })
+
+    # Khách ngoài — không qua scan/profile, hiển thị riêng dưới status='guest'
+    guest_label, guest_css = _PARTICIPATION_STATUS_LABELS['guest']
+    for r in guest_regs:
+        rows.append({
+            'employee_code': (r.employee_code or '').strip(),
+            'display_name': (r.full_name or '').strip() or 'Khách ngoài',
+            'profile': None,
+            'scan_time': None,
+            'status': 'guest',
+            'status_label': guest_label,
+            'status_class': guest_css,
+            'type': 'Khách ngoài',
+            'capture_image_url': None,
+            'quantity': r.quantity or 0,
+            'note': (r.note or '').strip(),
         })
 
     return rows
