@@ -196,7 +196,9 @@ def build_report_caption(target_date, rows=None):
 
     guests = _names('guest')
     if guests:
-        caption += f'\n- Khách ngoài: {len(guests)}'
+        # Tổng suất khách ngoài (1 khách có thể đặt nhiều suất)
+        guest_total_qty = sum(g.get('quantity', 0) for g in guests)
+        caption += f'\n- Khách ngoài: {guest_total_qty}'
         for g in guests:
             note = (g.get('note') or '').strip()
             note_part = f' ({note})' if note else ''
@@ -242,7 +244,7 @@ def build_excel_bytes(target_date, rows):
         (f"Chưa điểm danh: {counts['not_attended']}", False),
         (f"Chưa đăng ký: {counts['not_registered']}", False),
         (f"Chưa có hồ sơ: {counts.get('no_profile', 0)}", False),
-        (f"Khách ngoài: {counts.get('guest', 0)}", False),
+        (f"Khách ngoài: {counts.get('guest_qty', 0)}", False),
         (f"Tổng suất ĐK: {total_quantity}", True),
     ]
     for col_idx, (text, bold) in enumerate(summary_cells, start=1):
