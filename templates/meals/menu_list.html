@@ -422,8 +422,8 @@
                                     </td>
                                     <td class="prep-col-portion">{{ item.quantity_per_person }} {{ item.unit }}</td>
                                     <td>
-                                        <input type="number" step="0.01" min="0" class="prep-qty-input"
-                                               value="{{ item.required_total_quantity|floatformat:'-2' }}">
+                                        <input type="number" step="0.001" min="0" class="prep-qty-input"
+                                               value="{{ item.required_total_quantity }}">
                                         <span class="prep-unit">{{ item.unit }}</span>
                                         <span class="prep-qty-formatted"></span>
                                     </td>

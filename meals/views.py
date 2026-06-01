@@ -51,6 +51,62 @@ def staff_required(user):
     return user.is_staff or user.is_superuser
 
 
+# Aliases dùng cho quy đổi đơn vị mặc định trong "Khối lượng cần chuẩn bị".
+_GRAM_ALIASES = {'g', 'gram', 'gr'}
+_ML_ALIASES = {'ml', 'mililit', 'mililít'}
+_THOUSAND = Decimal('1000')
+
+
+def _format_decimal_clean(d):
+    """Decimal/None → str: dot separator, strip trailing zeros, no scientific.
+    Dùng để render thẳng ra template + HTML input value (tránh locale vi đổi
+    dấu chấm thành phẩy → input type=number invalid)."""
+    if d is None:
+        return '0'
+    try:
+        d = Decimal(str(d))
+    except (InvalidOperation, ValueError, TypeError):
+        return '0'
+    if d == d.to_integral_value():
+        return str(int(d))
+    s = format(d, 'f')  # tránh scientific notation
+    if '.' in s:
+        s = s.rstrip('0').rstrip('.')
+    return s
+
+
+def _normalize_to_bulk_unit(items):
+    """Quy đổi đơn vị mặc định cho đơn đặt số lượng lớn:
+    - g/gram → kg (chia 1000)
+    - ml/mililit → lít (chia 1000)
+    - Đơn vị khác (kg, lít, quả, củ, miếng, gói, bó...) giữ nguyên.
+
+    Đồng thời format quantity_per_person + required_total_quantity sang str
+    sạch (dot separator, no trailing zero) cho mọi item — kể cả không quy
+    đổi — để template không bị locale vi đổi dấu chấm thành phẩy.
+    """
+    for it in items:
+        unit_raw = (it.get('unit') or '').strip()
+        key = unit_raw.lower()
+        try:
+            qpp = Decimal(str(it.get('quantity_per_person') or 0))
+            tot = Decimal(str(it.get('required_total_quantity') or 0))
+        except (InvalidOperation, ValueError, TypeError):
+            qpp = Decimal('0')
+            tot = Decimal('0')
+        if key in _GRAM_ALIASES:
+            it['unit'] = 'kg'
+            qpp = qpp / _THOUSAND
+            tot = tot / _THOUSAND
+        elif key in _ML_ALIASES:
+            it['unit'] = 'lít'
+            qpp = qpp / _THOUSAND
+            tot = tot / _THOUSAND
+        it['quantity_per_person'] = _format_decimal_clean(qpp)
+        it['required_total_quantity'] = _format_decimal_clean(tot)
+    return items
+
+
 def get_grouped_dishes():
     return {
         'main': Dish.objects.filter(is_active=True, status=Dish.STATUS_APPROVED, dish_type='main').order_by('name'),
@@ -556,6 +612,13 @@ def menu_list(request):
                     'required_total_quantity': it.quantity,
                     'dish_names': [s.strip() for s in (it.dish_names or '').split(',') if s.strip()],
                 } for it in saved]
+
+    # Quy đổi đơn vị mặc định cho đơn đặt số lượng lớn:
+    #   g/gram → kg, ml/mililit → lít (chia giá trị / 1000).
+    # Áp dụng cho cả nhánh auto-compute lẫn prep_order saved (legacy
+    # data lưu bằng g/ml vẫn hiện kg/lít, user re-confirm sẽ lưu lại đúng).
+    if preparation_items:
+        preparation_items = _normalize_to_bulk_unit(preparation_items)
 
     context = {
         'calendar_weeks': calendar_weeks,
