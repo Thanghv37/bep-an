@@ -35,6 +35,10 @@
                         <span class="ptext">Chưa điểm danh</span>
                         <span class="pnum pnum-red" id="ps-notatt">—</span>
                     </div>
+                    <div class="pstat">
+                        <span class="ptext">Khách ngoài</span>
+                        <span class="pnum pnum-blue" id="ps-guest">—</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -43,6 +47,7 @@
                 const elValid = document.getElementById('ps-valid');
                 const elNotreg = document.getElementById('ps-notreg');
                 const elNotatt = document.getElementById('ps-notatt');
+                const elGuest = document.getElementById('ps-guest');
                 if (!elValid) return;
                 const dateParam = '{{ selected_date|date:"Y-m-d" }}';
                 function poll() {
@@ -54,6 +59,7 @@
                             elValid.textContent = d.valid;
                             elNotreg.textContent = d.not_registered;
                             elNotatt.textContent = d.not_attended;
+                            if (elGuest) elGuest.textContent = d.guest || 0;
                         })
                         .catch(function () { /* lỗi mạng — giữ số cũ */ });
                 }
@@ -301,6 +307,7 @@
 .kpi-people-stats .pnum-green { color: #16a34a; }
 .kpi-people-stats .pnum-orange { color: #d97706; }
 .kpi-people-stats .pnum-red { color: #dc2626; }
+.kpi-people-stats .pnum-blue { color: #2563eb; }
 
 /* People / neutral - blue */
 .kpi-people {

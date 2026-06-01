@@ -127,13 +127,18 @@ def dashboard(request):
             'dessert': 4,
         }
     if menu:
-        
+        # Cơm luôn ưu tiên đầu trong nhóm "main" — bếp Việt cơm là món nền tảng
+        def _rice_priority(item):
+            name = (item.dish.name or '').lower().strip()
+            # match 'cơm', 'cơm trắng', 'cơm chiên...' nhưng KHÔNG match 'cá cơm'
+            return 0 if name.startswith('cơm') else 1
 
         # 1. sort menu trước
         ordered_menu_items = sorted(
             menu.items.all(),
             key=lambda item: (
                 dish_type_order.get(item.dish.dish_type, 99),
+                _rice_priority(item),
                 item.sort_order,
                 item.dish.name.lower(),
             )
