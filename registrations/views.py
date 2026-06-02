@@ -925,19 +925,14 @@ MAX_NOTIFICATION_PASSES = 3
 RETRY_PASS_SLEEP_SECONDS = 30
 
 
-_DISH_TYPE_EMOJI = {
-    'main': '🍚',
-    'side': '🥬',
-    'soup': '🍲',
-    'dessert': '🍮',
-}
 _DISH_TYPE_ORDER = {'main': 1, 'side': 2, 'soup': 3, 'dessert': 4}
 
 
 def _build_menu_summary(target_date):
     """Dựng đoạn text liệt kê món ăn của ngày target_date — mỗi dòng 1 món
-    với emoji theo loại, sort main → side → soup → dessert.
-    Trả '' nếu chưa có menu cho ngày đó."""
+    với gạch ngang đầu dòng (Markdown list), sort main → side → soup → dessert.
+    Trong nhóm main, Cơm luôn đứng đầu (bếp Việt cơm là món nền tảng).
+    Trả placeholder nếu chưa có menu cho ngày đó."""
     from meals.models import DailyMenu
     menu = (DailyMenu.objects
             .filter(date=target_date)
@@ -946,19 +941,21 @@ def _build_menu_summary(target_date):
             .first())
     if not menu:
         return '_(Chưa có thực đơn cho ngày này)_'
+
+    def _rice_priority(it):
+        name = (it.dish.name or '').lower().strip()
+        return 0 if name.startswith('cơm') else 1
+
     items = sorted(
         menu.items.all(),
         key=lambda it: (
             _DISH_TYPE_ORDER.get(it.dish.dish_type, 99),
+            _rice_priority(it),
             it.sort_order,
             (it.dish.name or '').lower(),
         ),
     )
-    lines = []
-    for it in items:
-        emoji = _DISH_TYPE_EMOJI.get(it.dish.dish_type, '🍽️')
-        lines.append(f"{emoji} {it.dish.name}")
-    return '\n'.join(lines)
+    return '\n'.join(f"- {it.dish.name}" for it in items)
 
 
 def _build_review_link():
