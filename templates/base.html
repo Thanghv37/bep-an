@@ -1028,6 +1028,8 @@
                     <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
                     <div class="page-subtitle">Bếp ăn KV2 - VT NET</div>
                 </div>
+                {# Slot cho từng trang tự thêm action button cạnh title (vd nút "Mở TV mode") #}
+                {% block page_title_action %}{% endblock %}
             </div>
             {% if request.user.is_authenticated %}
             <div class="topbar-right-group">

@@ -1,0 +1,1039 @@
+{% load currency_filters %}<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TV — Bếp ăn KV2 - VT NET</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+<style>
+/* ========== Global ========== */
+:root {
+    --tv-bg-start: #0f172a;
+    --tv-bg-mid: #1e1b4b;
+    --tv-bg-end: #0f172a;
+    --tv-text: #f1f5f9;
+    --tv-muted: #94a3b8;
+}
+* { box-sizing: border-box; }
+html, body {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    overflow: hidden;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--tv-text);
+    background:
+        radial-gradient(1200px 600px at 12% 8%,  rgba(99, 102, 241, 0.18) 0%, transparent 60%),
+        radial-gradient(1200px 600px at 88% 92%, rgba(6, 182, 212, 0.18) 0%, transparent 60%),
+        linear-gradient(135deg, var(--tv-bg-start) 0%, var(--tv-bg-mid) 50%, var(--tv-bg-end) 100%);
+    background-attachment: fixed;
+}
+
+.tv-app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 22px 28px;
+    gap: 18px;
+    position: relative;
+}
+
+/* ========== Header ========== */
+.tv-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #fff;
+}
+.tv-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.tv-brand-logo {
+    width: 56px; height: 56px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #06b6d4 0%, #10b981 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+    box-shadow: 0 10px 30px rgba(6, 182, 212, 0.45);
+}
+.tv-brand-title { font-size: 26px; font-weight: 900; letter-spacing: -0.02em; }
+.tv-brand-sub { font-size: 14px; color: var(--tv-muted); margin-top: 2px; }
+
+.tv-clock {
+    display: flex; align-items: flex-end; gap: 12px;
+}
+#tv-time {
+    font-size: 38px; font-weight: 900; line-height: 1;
+    background: linear-gradient(90deg, #06b6d4, #10b981, #f59e0b);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    letter-spacing: -0.03em;
+}
+#tv-date {
+    font-size: 14px; color: var(--tv-muted); padding-bottom: 4px;
+}
+.tv-exit {
+    color: var(--tv-muted);
+    text-decoration: none;
+    font-size: 13px;
+    margin-left: 18px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    transition: all .2s ease;
+}
+.tv-exit:hover { color: #fff; border-color: rgba(255, 255, 255, 0.4); }
+
+/* ========== KPI Cards (top, 4 cards full width) ========== */
+.tv-kpi-row {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr 1fr;
+    gap: 14px;
+    flex-shrink: 0;
+}
+.tv-kpi {
+    border-radius: 18px;
+    padding: 16px 20px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    backdrop-filter: blur(12px);
+    position: relative;
+    overflow: hidden;
+}
+.tv-kpi::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 60%);
+    pointer-events: none;
+}
+.tv-kpi-head {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--tv-muted);
+    margin-bottom: 8px;
+}
+.tv-kpi-value {
+    font-size: 36px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1;
+}
+.tv-kpi-value .unit { font-size: 16px; font-weight: 700; color: var(--tv-muted); margin-left: 4px; }
+
+.tv-people-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 18px;
+    margin-top: 10px;
+    font-size: 13px;
+}
+.tv-pstat { display: flex; justify-content: space-between; gap: 8px; }
+.tv-pstat .lbl { color: #cbd5e1; }
+.tv-pstat .num { font-weight: 800; }
+.tv-num-green { color: #34d399; }
+.tv-num-orange { color: #fbbf24; }
+.tv-num-red { color: #f87171; }
+.tv-num-blue { color: #60a5fa; }
+
+.tv-kpi-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+.tv-kpi-split .col {
+    border-radius: 12px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.04);
+}
+.tv-kpi-split .lbl {
+    font-size: 11px; color: var(--tv-muted); letter-spacing: 0.05em;
+}
+.tv-kpi-split .val {
+    font-size: 22px; font-weight: 900; margin-top: 4px;
+}
+.tv-kpi-income .val { color: #34d399; }
+.tv-kpi-expense .val { color: #f87171; }
+.tv-kpi-balance .val.pos { color: #818cf8; }
+.tv-kpi-balance .val.neg { color: #fb923c; }
+.tv-kpi-balance .val.muted { color: var(--tv-muted); }
+
+/* ========== Stage (panel rotation) ========== */
+.tv-stage {
+    flex: 1 1 auto;
+    position: relative;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+    min-height: 0;
+}
+.tv-panel {
+    position: absolute; inset: 0;
+    padding: 24px 32px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .8s ease, transform .8s ease;
+    transform: scale(.96);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.tv-panel.is-active {
+    opacity: 1;
+    visibility: visible;
+    transform: scale(1);
+}
+.tv-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+}
+.tv-panel-title {
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.tv-panel-title .icon-wrap {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #6366f1, #06b6d4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+}
+.tv-panel-meta {
+    color: var(--tv-muted);
+    font-size: 14px;
+}
+
+/* ===== Panel 1: Weekly menu ===== */
+.tv-week-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    min-height: 0;
+}
+.tv-day-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    padding: 16px 14px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    transition: all .4s ease;
+    opacity: 0;
+    animation: tvDayIn .55s cubic-bezier(.22,.61,.36,1) calc(var(--day-idx, 0) * 140ms) both;
+}
+@keyframes tvDayIn {
+    from { opacity: 0; transform: translateY(20px) scale(.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.tv-day-card.is-today {
+    background: linear-gradient(165deg, rgba(99,102,241,0.22), rgba(6,182,212,0.18));
+    border-color: rgba(129, 140, 248, .5);
+    box-shadow: 0 10px 30px rgba(99, 102, 241, 0.35);
+    animation:
+        tvDayIn .55s cubic-bezier(.22,.61,.36,1) calc(var(--day-idx, 0) * 140ms) both,
+        tvSelectedPulse 2.6s ease-in-out infinite calc(var(--day-idx, 0) * 140ms + 700ms);
+}
+@keyframes tvSelectedPulse {
+    0%, 100% { box-shadow: 0 10px 30px rgba(99, 102, 241, 0.35); }
+    50%      { box-shadow: 0 16px 40px rgba(99, 102, 241, 0.65), 0 0 0 3px rgba(129, 140, 248, .25); }
+}
+.tv-day-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+.tv-day-name { font-size: 19px; font-weight: 900; }
+.tv-day-date { font-size: 13px; color: var(--tv-muted); }
+.tv-day-today-tag {
+    font-size: 11px; font-weight: 800;
+    background: linear-gradient(90deg, #fbbf24, #f59e0b);
+    color: #0f172a;
+    padding: 2px 8px; border-radius: 999px;
+    margin-left: 6px;
+}
+.tv-day-dishes { display: flex; flex-direction: column; gap: 6px; flex: 1; overflow: hidden; }
+.tv-day-dishes li {
+    list-style: none;
+    font-size: 14.5px;
+    color: #e2e8f0;
+    line-height: 1.4;
+    padding: 4px 0;
+    border-left: 3px solid transparent;
+    padding-left: 9px;
+    opacity: 0;
+    animation: tvDishReveal .42s ease-out var(--reveal-delay, 0ms) both;
+}
+.tv-day-dishes .grp-main li     { border-left-color: #60a5fa; }
+.tv-day-dishes .grp-side li     { border-left-color: #a78bfa; }
+.tv-day-dishes .grp-soup li     { border-left-color: #34d399; }
+.tv-day-dishes .grp-dessert li  { border-left-color: #fbbf24; }
+@keyframes tvDishReveal {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+.tv-day-empty {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    color: var(--tv-muted); font-size: 13px;
+}
+
+/* ===== Panel 2: Today's menu — large gallery with spotlight ===== */
+.tv-today-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 18px;
+    min-height: 0;
+    overflow: hidden;
+    align-content: start;
+}
+.tv-today-card {
+    position: relative;
+    border-radius: 18px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex; flex-direction: column;
+    opacity: 0;
+    transform: translateX(-22px) scale(.94);
+    animation:
+        tvTodayIn .6s cubic-bezier(.22,.61,.36,1) calc(var(--idx, 0) * 110ms) forwards,
+        tvTodayFloat 5s ease-in-out infinite calc(1.3s + var(--idx, 0) * 220ms);
+    transition: box-shadow .4s ease, transform .4s ease, border-color .4s ease;
+}
+@keyframes tvTodayIn {
+    to { opacity: 1; transform: translateX(0) scale(1); }
+}
+@keyframes tvTodayFloat {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-7px); }
+}
+.tv-today-stage { position: relative; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; }
+.tv-today-img { width: 100%; height: 100%; object-fit: cover; display: block;
+    animation: tvKenBurns 14s ease-in-out infinite alternate;
+    animation-delay: calc(var(--idx, 0) * -2.3s);
+}
+@keyframes tvKenBurns {
+    0%   { transform: scale(1)    translate(0, 0); }
+    100% { transform: scale(1.09) translate(-2.5%, -1.5%); }
+}
+.tv-today-noimg {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 64px; width: 100%; height: 100%;
+    background: linear-gradient(135deg, #334155, #1e293b);
+}
+.tv-today-badge {
+    position: absolute; top: 12px; left: 12px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 11.5px; font-weight: 800;
+    color: #fff;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .35);
+    z-index: 2;
+}
+.badge-main    { background: linear-gradient(135deg, #3b82f6, #06b6d4); }
+.badge-side    { background: linear-gradient(135deg, #a855f7, #ec4899); }
+.badge-soup    { background: linear-gradient(135deg, #10b981, #84cc16); }
+.badge-dessert { background: linear-gradient(135deg, #f59e0b, #ef4444); }
+.tv-today-shimmer {
+    position: absolute; inset: 0;
+    background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.45) 50%, transparent 70%);
+    transform: translateX(-100%);
+    opacity: 0;
+    pointer-events: none; z-index: 1;
+}
+.tv-today-body { padding: 14px 16px; flex: 1; }
+.tv-today-name {
+    font-weight: 900;
+    font-size: 17px;
+    color: #fff;
+    line-height: 1.25;
+    margin-bottom: 6px;
+}
+.tv-today-desc {
+    font-size: 12.5px;
+    color: #cbd5e1;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.tv-today-card.is-featured {
+    transform: translateY(-10px) scale(1.04) !important;
+    box-shadow: 0 22px 50px rgba(99, 102, 241, .55), 0 0 0 3px rgba(129, 140, 248, .35);
+    border-color: rgba(129, 140, 248, .65);
+    z-index: 3;
+}
+.tv-today-card.is-featured .tv-today-shimmer {
+    opacity: 1; animation: tvShimmer 1.8s ease-in-out;
+}
+.tv-today-card.is-featured .tv-today-name {
+    background: linear-gradient(90deg, #818cf8, #06b6d4, #34d399);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+}
+@keyframes tvShimmer {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(110%); }
+}
+.tv-empty-large {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    color: var(--tv-muted); font-size: 18px; gap: 12px;
+}
+.tv-empty-large .icon { font-size: 64px; }
+
+/* ===== Panel 3: AI nutrition ===== */
+.tv-ai-wrap {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    min-height: 0;
+}
+.tv-ai-card {
+    background: linear-gradient(160deg, rgba(99, 102, 241, 0.20), rgba(6, 182, 212, 0.15));
+    border: 1px solid rgba(129, 140, 248, .25);
+    border-radius: 20px;
+    padding: 26px 28px;
+    display: flex; flex-direction: column; justify-content: center;
+    position: relative; overflow: hidden;
+}
+.tv-ai-card.right {
+    background: linear-gradient(160deg, rgba(16, 185, 129, 0.18), rgba(245, 158, 11, 0.14));
+    border-color: rgba(52, 211, 153, .30);
+}
+.tv-ai-blob {
+    position: absolute;
+    width: 220px; height: 220px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(99,102,241,.45), transparent 70%);
+    filter: blur(40px);
+    top: -60px; right: -50px;
+    animation: tvBlob 8s ease-in-out infinite;
+    pointer-events: none;
+}
+@keyframes tvBlob {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(10px, -8px) scale(1.12); }
+}
+.tv-ai-label {
+    font-size: 13px; letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #c7d2fe;
+    font-weight: 800;
+    margin-bottom: 14px;
+}
+.tv-ai-kcal-wrap {
+    display: flex; align-items: baseline; gap: 12px;
+    margin-bottom: 18px;
+    position: relative;
+}
+.tv-ai-kcal-wrap::before {
+    content: '';
+    position: absolute;
+    left: -16px; top: -12px;
+    width: 220px; height: 110px;
+    background: radial-gradient(ellipse, rgba(129, 140, 248, .45), transparent 70%);
+    filter: blur(14px);
+    z-index: 0;
+    animation: tvKcalGlow 2.4s ease-in-out infinite;
+}
+@keyframes tvKcalGlow {
+    0%, 100% { opacity: .5; transform: scale(.9); }
+    50%      { opacity: 1;  transform: scale(1.15); }
+}
+.tv-ai-kcal-num {
+    font-size: 88px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    background: linear-gradient(135deg, #818cf8 0%, #06b6d4 50%, #34d399 100%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    z-index: 1; position: relative;
+}
+.tv-ai-kcal-unit { font-size: 18px; color: #cbd5e1; font-weight: 700; }
+.tv-ai-level {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 17px; font-weight: 800;
+    border: 1px solid;
+    margin-bottom: 16px;
+    width: fit-content;
+}
+.tv-level-balanced { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; border-color: rgba(52, 211, 153, 0.4); }
+.tv-level-low       { background: rgba(245, 158, 11, 0.18); color: #fcd34d; border-color: rgba(251, 191, 36, 0.4); }
+.tv-level-high      { background: rgba(239, 68, 68, 0.18); color: #fca5a5; border-color: rgba(248, 113, 113, 0.4); }
+.tv-ai-summary {
+    font-size: 17.5px;
+    line-height: 1.6;
+    color: #e2e8f0;
+    max-height: 320px;
+    overflow: hidden;
+}
+.tv-ai-tip-icon-big {
+    font-size: 60px;
+    background: linear-gradient(135deg, #fbbf24, #f97316);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    animation: tvTipGlow 2.2s ease-in-out infinite;
+    margin-bottom: 12px;
+}
+@keyframes tvTipGlow {
+    0%, 100% { transform: scale(1) rotate(-4deg); }
+    50%      { transform: scale(1.15) rotate(4deg); filter: drop-shadow(0 0 14px #fcd34d); }
+}
+.tv-ai-tip-text {
+    font-size: 22px;
+    line-height: 1.55;
+    color: #fef3c7;
+    font-weight: 600;
+    transition: transform .45s cubic-bezier(.22,.61,.36,1), opacity .45s ease;
+}
+.tv-ai-tip-text.tip-leave { transform: translateX(-30px); opacity: 0; }
+.tv-ai-tip-text.tip-enter { transform: translateX(30px);  opacity: 0; }
+
+/* ===== Floating food emojis (panel 3 + general background ambience) ===== */
+.tv-food-float {
+    position: absolute;
+    font-size: 30px;
+    opacity: 0;
+    z-index: 0;
+    pointer-events: none;
+    animation: tvFoodFloat 16s linear infinite;
+}
+@keyframes tvFoodFloat {
+    0%   { transform: translateY(105%) rotate(0deg);    opacity: 0; }
+    10%  { opacity: .22; }
+    90%  { opacity: .22; }
+    100% { transform: translateY(-130%) rotate(360deg); opacity: 0; }
+}
+
+/* ===== Progress + dots ===== */
+.tv-progress-bar {
+    position: absolute;
+    bottom: 14px; left: 32px; right: 32px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    overflow: hidden;
+    z-index: 5;
+}
+.tv-progress-bar .fill {
+    height: 100%;
+    background: linear-gradient(90deg, #06b6d4, #10b981);
+    width: 0%;
+    transition: width linear;
+}
+.tv-dots {
+    position: absolute;
+    top: 24px; right: 32px;
+    display: flex; gap: 8px;
+    z-index: 5;
+}
+.tv-dot {
+    width: 10px; height: 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    transition: all .3s ease;
+    cursor: pointer;
+}
+.tv-dot.is-active {
+    width: 28px;
+    background: linear-gradient(90deg, #06b6d4, #10b981);
+    box-shadow: 0 0 12px rgba(6, 182, 212, .65);
+}
+
+@media (max-width: 1200px) {
+    .tv-kpi-row { grid-template-columns: 1fr 1fr; }
+    .tv-ai-wrap { grid-template-columns: 1fr; }
+    .tv-week-grid { grid-template-columns: repeat(3, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="tv-app">
+
+    {# ========= Header ========= #}
+    <div class="tv-header">
+        <div class="tv-brand">
+            <div class="tv-brand-logo">🍱</div>
+            <div>
+                <div class="tv-brand-title">Bếp ăn KV2 — VT NET</div>
+                <div class="tv-brand-sub">Bảng tin nhà ăn · tự động cập nhật</div>
+            </div>
+        </div>
+        <div class="tv-clock">
+            <span id="tv-time">--:--</span>
+            <span id="tv-date">{{ selected_date|date:"l, d/m/Y" }}</span>
+            <a href="{% url 'dashboard' %}" class="tv-exit" title="Thoát chế độ TV">
+                <i class="bi bi-x-lg"></i> Thoát
+            </a>
+        </div>
+    </div>
+
+    {# ========= 4 KPI cards ========= #}
+    <div class="tv-kpi-row">
+        {# 1. Đăng ký #}
+        <div class="tv-kpi">
+            <div class="tv-kpi-head">Đăng ký</div>
+            <div class="tv-kpi-value">{{ registered_count|default:0 }}<span class="unit">suất</span></div>
+            <div class="tv-people-stats">
+                <div class="tv-pstat">
+                    <span class="lbl">Đã điểm danh</span>
+                    <span class="num tv-num-green" id="ps-valid">—</span>
+                </div>
+                <div class="tv-pstat">
+                    <span class="lbl">Chưa đăng ký</span>
+                    <span class="num tv-num-orange" id="ps-notreg">—</span>
+                </div>
+                <div class="tv-pstat">
+                    <span class="lbl">Chưa điểm danh</span>
+                    <span class="num tv-num-red" id="ps-notatt">—</span>
+                </div>
+                <div class="tv-pstat">
+                    <span class="lbl">Khách ngoài</span>
+                    <span class="num tv-num-blue" id="ps-guest">—</span>
+                </div>
+            </div>
+        </div>
+
+        {# 2. Thu #}
+        <div class="tv-kpi tv-kpi-income">
+            <div class="tv-kpi-head">Thu</div>
+            <div class="tv-kpi-split">
+                <div class="col">
+                    <div class="lbl">🍖 Thực phẩm</div>
+                    <div class="val">{% if income_food != None %}{{ income_food|vnd }}<span class="unit"> đ</span>{% else %}—{% endif %}</div>
+                </div>
+                <div class="col">
+                    <div class="lbl">🧂 Gia vị</div>
+                    <div class="val">{% if income_spice != None %}{{ income_spice|vnd }}<span class="unit"> đ</span>{% else %}—{% endif %}</div>
+                </div>
+            </div>
+        </div>
+
+        {# 3. Chi #}
+        <div class="tv-kpi tv-kpi-expense">
+            <div class="tv-kpi-head">Chi</div>
+            <div class="tv-kpi-split">
+                <div class="col">
+                    <div class="lbl">🍖 Thực phẩm</div>
+                    <div class="val">{{ expense_food|vnd }}<span class="unit"> đ</span></div>
+                </div>
+                <div class="col">
+                    <div class="lbl">🧂 Gia vị</div>
+                    <div class="val">{{ expense_spice|vnd }}<span class="unit"> đ</span></div>
+                </div>
+            </div>
+        </div>
+
+        {# 4. Chênh lệch #}
+        <div class="tv-kpi tv-kpi-balance">
+            <div class="tv-kpi-head">Chênh lệch</div>
+            <div class="tv-kpi-split">
+                <div class="col">
+                    <div class="lbl">🍖 Thực phẩm</div>
+                    <div class="val {% if balance_food != None %}{% if balance_food >= 0 %}pos{% else %}neg{% endif %}{% else %}muted{% endif %}">
+                        {% if balance_food != None %}{{ balance_food|vnd }}<span class="unit"> đ</span>{% else %}—{% endif %}
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="lbl">🧂 Gia vị</div>
+                    <div class="val {% if balance_spice != None %}{% if balance_spice >= 0 %}pos{% else %}neg{% endif %}{% else %}muted{% endif %}">
+                        {% if balance_spice != None %}{{ balance_spice|vnd }}<span class="unit"> đ</span>{% else %}—{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ========= STAGE: 3 panels luân phiên ========= #}
+    <div class="tv-stage" id="tvStage">
+
+        <div class="tv-dots" id="tvDots">
+            <span class="tv-dot is-active" data-idx="0" title="Thực đơn trong tuần"></span>
+            <span class="tv-dot" data-idx="1" title="Thực đơn hôm nay"></span>
+            <span class="tv-dot" data-idx="2" title="AI dinh dưỡng"></span>
+        </div>
+
+        <div class="tv-progress-bar"><div class="fill" id="tvProgress"></div></div>
+
+        {# ===== Panel 1: Thực đơn trong tuần ===== #}
+        <div class="tv-panel" data-panel="0">
+            <div class="tv-panel-header">
+                <div class="tv-panel-title">
+                    <span class="icon-wrap">📅</span>
+                    Thực đơn trong tuần
+                </div>
+                <div class="tv-panel-meta">Thứ 2 → Thứ 6 · ngày đang chọn nhấp nháy</div>
+            </div>
+
+            <div class="tv-week-grid" id="tvWeekGrid">
+                {% for day in week_data %}
+                <div class="tv-day-card {% if day.date == selected_date %}is-today{% endif %}" style="--day-idx: {{ forloop.counter0 }};">
+                    <div class="tv-day-head">
+                        <div>
+                            <div class="tv-day-name">{{ day.label }}{% if day.date == selected_date %}<span class="tv-day-today-tag">HÔM NAY</span>{% endif %}</div>
+                            <div class="tv-day-date">{{ day.date|date:"d/m/Y" }}</div>
+                        </div>
+                    </div>
+                    <div class="tv-day-dishes">
+                        {% if day.menu_items %}
+                            {% for grp in day.menu_groups %}
+                                {% if grp.items %}
+                                <ul class="grp-{{ grp.type }}" style="list-style:none;padding:0;margin:0;">
+                                    {% for it in grp.items %}
+                                    <li>{{ it.dish.name }}</li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <div class="tv-day-empty">🌱 Chưa có menu</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {# ===== Panel 2: Thực đơn hôm nay ===== #}
+        <div class="tv-panel" data-panel="1">
+            <div class="tv-panel-header">
+                <div class="tv-panel-title">
+                    <span class="icon-wrap">🍽️</span>
+                    Thực đơn hôm nay
+                </div>
+                <div class="tv-panel-meta">{{ selected_date|date:"d/m/Y" }}{% if menu_item_count %} · {{ menu_item_count }} món{% endif %}</div>
+            </div>
+
+            {% if menu %}
+            <div class="tv-today-grid" id="tvTodayGrid">
+                {% for item in ordered_menu_items %}
+                <div class="tv-today-card" style="--idx: {{ forloop.counter0 }};">
+                    <div class="tv-today-stage">
+                        <span class="tv-today-shimmer"></span>
+                        {% if item.dish.image %}
+                            <img class="tv-today-img" src="{{ item.dish.image.url }}" alt="{{ item.dish.name }}">
+                        {% else %}
+                            <div class="tv-today-img tv-today-noimg">🍴</div>
+                        {% endif %}
+                        {% if item.dish.dish_type == 'main' %}
+                            <span class="tv-today-badge badge-main">Món chính</span>
+                        {% elif item.dish.dish_type == 'side' %}
+                            <span class="tv-today-badge badge-side">Món phụ</span>
+                        {% elif item.dish.dish_type == 'soup' %}
+                            <span class="tv-today-badge badge-soup">Món canh</span>
+                        {% elif item.dish.dish_type == 'dessert' %}
+                            <span class="tv-today-badge badge-dessert">Tráng miệng</span>
+                        {% endif %}
+                    </div>
+                    <div class="tv-today-body">
+                        <div class="tv-today-name">{{ item.dish.name }}</div>
+                        {% if item.dish.description %}
+                            <div class="tv-today-desc">{{ item.dish.description }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="tv-empty-large">
+                <div class="icon">🍽️</div>
+                <div>Chưa có thực đơn cho ngày hôm nay</div>
+            </div>
+            {% endif %}
+        </div>
+
+        {# ===== Panel 3: AI dinh dưỡng ===== #}
+        <div class="tv-panel" data-panel="2">
+            <div class="tv-panel-header">
+                <div class="tv-panel-title">
+                    <span class="icon-wrap">🤖</span>
+                    AI dinh dưỡng
+                </div>
+                <div class="tv-panel-meta">Phân tích menu hôm nay · {{ selected_date|date:"d/m/Y" }}</div>
+            </div>
+
+            {# Floating food emojis trang trí background #}
+            <span class="tv-food-float" style="left: 8%;  animation-duration: 14s; animation-delay: 0s;">🥗</span>
+            <span class="tv-food-float" style="left: 28%; animation-duration: 17s; animation-delay: -4s;">🍎</span>
+            <span class="tv-food-float" style="left: 48%; animation-duration: 15s; animation-delay: -8s;">🥕</span>
+            <span class="tv-food-float" style="left: 68%; animation-duration: 16s; animation-delay: -3s;">🥦</span>
+            <span class="tv-food-float" style="left: 88%; animation-duration: 13s; animation-delay: -10s;">🍅</span>
+
+            <div class="tv-ai-wrap">
+                <div class="tv-ai-card">
+                    <span class="tv-ai-blob"></span>
+                    <div class="tv-ai-label">Tổng năng lượng / suất</div>
+                    <div class="tv-ai-kcal-wrap">
+                        <span class="tv-ai-kcal-num" id="tvKcal" data-target="0">0</span>
+                        <span class="tv-ai-kcal-unit">kcal</span>
+                    </div>
+                    <div id="tvLevelWrap"></div>
+                    <div class="tv-ai-summary" id="tvSummary">Đang tải phân tích...</div>
+                </div>
+
+                <div class="tv-ai-card right">
+                    <span class="tv-ai-blob" style="background: radial-gradient(circle, rgba(251, 191, 36, .45), transparent 70%); top: auto; bottom: -60px; left: -50px; right: auto;"></span>
+                    <div class="tv-ai-label">💡 Mẹo dinh dưỡng</div>
+                    <div class="tv-ai-tip-icon-big">💡</div>
+                    <div class="tv-ai-tip-text" id="tvTip">
+                        Uống đủ nước giúp cơ thể trao đổi chất tốt hơn.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+/* ============== Đồng hồ + ngày realtime ============== */
+(function () {
+    const elTime = document.getElementById('tv-time');
+    const elDate = document.getElementById('tv-date');
+    const VN_DAYS = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+    function pad(n) { return n < 10 ? '0' + n : '' + n; }
+    function tick() {
+        const d = new Date();
+        elTime.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+        const dateStr = VN_DAYS[d.getDay()] + ', ' + pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear();
+        elDate.textContent = dateStr;
+    }
+    tick();
+    setInterval(tick, 1000);
+})();
+
+/* ============== Realtime poll số người ăn ============== */
+(function () {
+    const elValid = document.getElementById('ps-valid');
+    const elNotreg = document.getElementById('ps-notreg');
+    const elNotatt = document.getElementById('ps-notatt');
+    const elGuest = document.getElementById('ps-guest');
+    const dateParam = '{{ selected_date|date:"Y-m-d" }}';
+    function poll() {
+        fetch('/registrations/participation/counts/?date=' + dateParam,
+              { headers: { 'Accept': 'application/json' } })
+            .then(r => r.ok ? r.json() : null)
+            .then(d => {
+                if (!d || !d.success) return;
+                elValid.textContent = d.valid;
+                elNotreg.textContent = d.not_registered;
+                elNotatt.textContent = d.not_attended;
+                if (elGuest) elGuest.textContent = d.guest_qty || 0;
+            })
+            .catch(() => {});
+    }
+    poll();
+    setInterval(poll, 10000);
+})();
+
+/* ============== Cycle 3 panels ============== */
+(function () {
+    const stage = document.getElementById('tvStage');
+    const panels = stage.querySelectorAll('.tv-panel');
+    const dots = stage.querySelectorAll('.tv-dot');
+    const progress = document.getElementById('tvProgress');
+    // Mỗi panel chiếu bao lâu (ms)
+    const DURATIONS = [18000, 18000, 16000];
+
+    let idx = 0;
+    let timer = null;
+    let progressStart = 0;
+
+    function showPanel(i) {
+        panels.forEach((p, pi) => p.classList.toggle('is-active', pi === i));
+        dots.forEach((d, di) => d.classList.toggle('is-active', di === i));
+        // Reset progress bar
+        progress.style.transition = 'none';
+        progress.style.width = '0%';
+        // Force reflow
+        void progress.offsetWidth;
+        progress.style.transition = `width ${DURATIONS[i]}ms linear`;
+        progress.style.width = '100%';
+
+        // Replay animation cho từng panel
+        if (i === 0) replayWeekly();
+        else if (i === 1) replayToday();
+        else if (i === 2) loadNutrition();
+
+        clearTimeout(timer);
+        timer = setTimeout(() => showPanel((i + 1) % panels.length), DURATIONS[i]);
+        idx = i;
+    }
+
+    // Click dot để jump panel
+    dots.forEach(d => d.addEventListener('click', () => showPanel(parseInt(d.dataset.idx, 10))));
+
+    // Bắt đầu
+    showPanel(0);
+
+    /* === Replay weekly (cascade T2→T6 + reveal từng món) === */
+    function replayWeekly() {
+        const grid = document.getElementById('tvWeekGrid');
+        if (!grid) return;
+        // Reset
+        const cards = grid.querySelectorAll('.tv-day-card');
+        cards.forEach(c => { c.style.animation = 'none'; });
+        const lis = grid.querySelectorAll('.tv-day-dishes li');
+        lis.forEach(li => { li.style.animation = 'none'; });
+        void grid.offsetWidth;
+        cards.forEach(c => { c.style.animation = ''; });
+        // Assign reveal-delay tích lũy
+        let cum = 0;
+        const BASE = 900, PER = 90, GAP = 3;
+        cards.forEach(card => {
+            const cardLis = card.querySelectorAll('.tv-day-dishes li');
+            cardLis.forEach(li => {
+                li.style.setProperty('--reveal-delay', (BASE + cum * PER) + 'ms');
+                cum += 1;
+            });
+            cum += GAP;
+        });
+        lis.forEach(li => { li.style.animation = ''; });
+    }
+
+    /* === Replay today (cascade + spotlight cycling) === */
+    let spotlightTimer = null;
+    let spotlightIdx = 0;
+    function replayToday() {
+        const grid = document.getElementById('tvTodayGrid');
+        if (!grid) return;
+        const cards = grid.querySelectorAll('.tv-today-card');
+        if (!cards.length) return;
+        // Reset cascade
+        cards.forEach(c => { c.style.animation = 'none'; });
+        void grid.offsetWidth;
+        cards.forEach(c => { c.style.animation = ''; });
+
+        // Stop previous spotlight, start fresh
+        clearInterval(spotlightTimer);
+        spotlightIdx = 0;
+        function step() {
+            cards.forEach(c => c.classList.remove('is-featured'));
+            cards[spotlightIdx].classList.add('is-featured');
+            spotlightIdx = (spotlightIdx + 1) % cards.length;
+        }
+        // Đợi cascade vào xong rồi mới bắt đầu spotlight
+        setTimeout(() => {
+            step();
+            spotlightTimer = setInterval(step, 2400);
+        }, 1200 + cards.length * 110);
+    }
+
+    /* === AI nutrition: fetch + counter + typewriter === */
+    let nutritionLoaded = false;
+    let tipRotateTimer = null;
+    function loadNutrition() {
+        // Tip rotation (luôn bật khi vào panel 3)
+        clearInterval(tipRotateTimer);
+        const tips = [
+            "Uống đủ nước giúp cơ thể trao đổi chất tốt hơn.",
+            "Ăn chậm giúp hệ tiêu hóa hoạt động hiệu quả hơn.",
+            "Rau xanh cung cấp chất xơ, hỗ trợ kiểm soát đường huyết.",
+            "Đi bộ nhẹ sau ăn giúp giảm cảm giác đầy bụng.",
+            "Ngủ đủ giấc giúp cơ thể phục hồi và giảm mệt mỏi.",
+            "Trái cây tươi là lựa chọn tráng miệng tốt hơn đồ ngọt.",
+            "Hạn chế đồ chiên rán giúp giảm gánh nặng cho hệ tiêu hóa.",
+            "Bổ sung protein trong bữa ăn giúp no lâu hơn.",
+        ];
+        const tipEl = document.getElementById('tvTip');
+        let ti = 0;
+        function rotate() {
+            ti = (ti + 1) % tips.length;
+            tipEl.classList.add('tip-leave');
+            setTimeout(() => {
+                tipEl.textContent = tips[ti];
+                tipEl.classList.remove('tip-leave');
+                tipEl.classList.add('tip-enter');
+                void tipEl.offsetWidth;
+                tipEl.classList.remove('tip-enter');
+            }, 450);
+        }
+        tipRotateTimer = setInterval(rotate, 6000);
+
+        if (nutritionLoaded) {
+            // Restart counter animation
+            animateKcal();
+            return;
+        }
+        fetch('/nutrition-analysis/')
+            .then(r => r.json())
+            .then(data => {
+                nutritionLoaded = true;
+                if (data.error) {
+                    document.getElementById('tvSummary').textContent = data.error;
+                    return;
+                }
+                const kcalEl = document.getElementById('tvKcal');
+                kcalEl.dataset.target = data.total_kcal || 0;
+                animateKcal();
+
+                const levelLower = (data.level || '').toLowerCase();
+                let cls = 'tv-level-balanced', icon = '⚖️';
+                if (levelLower.includes('thiếu') || levelLower.includes('thấp')) { cls = 'tv-level-low'; icon = '⬇️'; }
+                else if (levelLower.includes('dư') || levelLower.includes('cao') || levelLower.includes('quá') || levelLower.includes('nhiều')) { cls = 'tv-level-high'; icon = '⬆️'; }
+                document.getElementById('tvLevelWrap').innerHTML =
+                    `<div class="tv-ai-level ${cls}"><span>${icon}</span> Mức đánh giá: <strong>${data.level}</strong></div>`;
+                // Typewriter summary
+                typewriter(document.getElementById('tvSummary'), data.summary || '');
+            })
+            .catch(() => {
+                document.getElementById('tvSummary').textContent = 'Không tải được phân tích AI.';
+            });
+    }
+    function animateKcal() {
+        const el = document.getElementById('tvKcal');
+        const target = Number(el.dataset.target) || 0;
+        const dur = 1400;
+        const start = performance.now();
+        function tick(now) {
+            const t = Math.min(1, (now - start) / dur);
+            const eased = 1 - Math.pow(1 - t, 3);
+            el.textContent = Math.round(target * eased).toLocaleString('vi-VN');
+            if (t < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+    }
+    function typewriter(el, text) {
+        el.textContent = '';
+        let i = 0;
+        function tick() {
+            if (i >= text.length) return;
+            el.textContent += text[i++];
+            setTimeout(tick, 18);
+        }
+        setTimeout(tick, 700);
+    }
+})();
+
+/* ============== ESC hoặc click "Thoát" để về dashboard chính ============== */
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') window.location.href = "{% url 'dashboard' %}";
+});
+
+/* ============== Auto reload mỗi 5 phút để data tươi ============== */
+setTimeout(() => window.location.reload(), 5 * 60 * 1000);
+</script>
+
+</body>
+</html>

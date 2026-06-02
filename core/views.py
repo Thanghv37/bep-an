@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from accounts.permissions import can_view_dashboard, can_manage_meal_price
+from accounts.permissions import can_view_dashboard, can_manage_meal_price, can_manage_menu
 from finance.models import DailyPurchase
 from .models import MealPriceSetting, MealPriceChangeLog
 from .forms import MealPriceSettingForm
@@ -88,9 +88,8 @@ def staff_required(user):
     return user.is_staff or user.is_superuser
 
 
-@login_required
-@user_passes_test(can_view_dashboard)
-def dashboard(request):
+def _render_dashboard(request, template_name):
+    """Body chung cho cả dashboard thường lẫn TV — chỉ khác template."""
     selected_date_str = request.GET.get('date')
 
     if selected_date_str:
@@ -358,7 +357,22 @@ def dashboard(request):
         'purchase_list': purchases_today,
         'week_data': week_data,
     }
-    return render(request, 'core/dashboard.html', context)
+    return render(request, template_name, context)
+
+
+@login_required
+@user_passes_test(can_view_dashboard)
+def dashboard(request):
+    """Dashboard chính — tất cả role có quyền dashboard đều xem được."""
+    return _render_dashboard(request, 'core/dashboard.html')
+
+
+@login_required
+@user_passes_test(can_manage_menu)
+def tv_dashboard(request):
+    """Trang TV fullscreen — chỉ admin + kitchen, dùng để show trên màn TV
+    ở khu vực nhà ăn cho mọi người xem từ xa."""
+    return _render_dashboard(request, 'core/tv_dashboard.html')
 
 
 @login_required
