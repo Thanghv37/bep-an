@@ -925,13 +925,65 @@ MAX_NOTIFICATION_PASSES = 3
 RETRY_PASS_SLEEP_SECONDS = 30
 
 
+_DISH_TYPE_EMOJI = {
+    'main': '🍚',
+    'side': '🥬',
+    'soup': '🍲',
+    'dessert': '🍮',
+}
+_DISH_TYPE_ORDER = {'main': 1, 'side': 2, 'soup': 3, 'dessert': 4}
+
+
+def _build_menu_summary(target_date):
+    """Dựng đoạn text liệt kê món ăn của ngày target_date — mỗi dòng 1 món
+    với emoji theo loại, sort main → side → soup → dessert.
+    Trả '' nếu chưa có menu cho ngày đó."""
+    from meals.models import DailyMenu
+    menu = (DailyMenu.objects
+            .filter(date=target_date)
+            .prefetch_related('items__dish')
+            .order_by('-created_at')
+            .first())
+    if not menu:
+        return '_(Chưa có thực đơn cho ngày này)_'
+    items = sorted(
+        menu.items.all(),
+        key=lambda it: (
+            _DISH_TYPE_ORDER.get(it.dish.dish_type, 99),
+            it.sort_order,
+            (it.dish.name or '').lower(),
+        ),
+    )
+    lines = []
+    for it in items:
+        emoji = _DISH_TYPE_EMOJI.get(it.dish.dish_type, '🍽️')
+        lines.append(f"{emoji} {it.dish.name}")
+    return '\n'.join(lines)
+
+
+def _build_review_link():
+    """URL công khai trang đánh giá món ăn, dạng absolute để click trong NetChat."""
+    from django.conf import settings
+    from django.urls import reverse
+    base = (settings.SITE_URL or '').rstrip('/')
+    try:
+        path = reverse('public_review')
+    except Exception:
+        path = '/reviews/public/'
+    return f"{base}{path}"
+
+
 def _send_one_notification(emp_code, username, full_name, reg,
-                           netchat_url, headers, bot_id, formatted_date):
+                           netchat_url, headers, bot_id, formatted_date,
+                           menu_summary='', review_link=''):
     """Gửi tin cho 1 người.
 
     Trả về tuple ``(result, error)`` với ``result`` ∈ {'success', 'permanent',
     'retryable'}. ``permanent`` = không nên retry (account không tồn tại,
     401/403). ``retryable`` = nên thử lại lượt sau (timeout, 5xx, 429, mạng).
+
+    ``menu_summary`` và ``review_link`` chung cho cả lô (cùng ngày), được
+    compute 1 lần ở ``_send_notifications_bg`` rồi truyền xuống.
     """
     try:
         # Bước A: Tìm Mattermost ID theo Username
@@ -972,6 +1024,8 @@ def _send_one_notification(emp_code, username, full_name, reg,
             meal_count=f"{reg.quantity:02d}",
             target_date=formatted_date,
             kitchen_name=reg.kitchen_name,
+            menu_summary=menu_summary,
+            review_link=review_link,
         )
         r_post = requests.post(
             f"{netchat_url}/api/v4/posts",
@@ -1027,6 +1081,10 @@ def _send_notifications_bg(employee_codes, target_date, config):
     except (ValueError, TypeError):
         formatted_date = str(target_date)
 
+    # Build menu_summary + review_link 1 lần (chung cho cả lô — cùng ngày).
+    menu_summary = _build_menu_summary(target_date)
+    review_link = _build_review_link()
+
     # State xuyên suốt các lượt — chỉ tạo NotificationLog 1 lần cho mỗi người
     # ở cuối, sau khi đã định đoạt: success / permanent / retry exhausted.
     pending = list(employee_codes)        # MNV cần thử ở lượt kế tiếp
@@ -1074,6 +1132,7 @@ def _send_notifications_bg(employee_codes, target_date, config):
             result, err = _send_one_notification(
                 emp_code, username, full_name, reg,
                 netchat_url, headers, bot_id, formatted_date,
+                menu_summary=menu_summary, review_link=review_link,
             )
 
             if result == 'success':

@@ -145,6 +145,10 @@ CSRF_TRUSTED_ORIGINS = [
     'http://net2kitchen.viettel.pro.vn',
 ]
 
+# URL gốc dùng cho các link gửi qua NetChat (vd link đánh giá món ăn).
+# Trên dev: localhost; trên prod: domain Viettel. Override qua env nếu cần.
+SITE_URL = os.getenv('SITE_URL', 'https://net2kitchen.viettel.pro.vn')
+
 # =========================
 # SECURITY HEADERS / COOKIES
 # =========================
