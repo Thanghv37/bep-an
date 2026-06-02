@@ -140,11 +140,22 @@ def set_channel_id(value):
 def count_statuses(rows):
     """Đếm số dòng theo từng trạng thái tham gia.
     Riêng `guest_qty` là tổng số SUẤT của khách ngoài (vì 1 khách có
-    thể đặt nhiều suất) — phục vụ hiển thị "tổng suất khách ngoài"."""
+    thể đặt nhiều suất) — phục vụ hiển thị "tổng suất khách ngoài".
+
+    `not_attended_total` = `not_attended` + những no_profile CHƯA QUÉT
+    (no_profile mà có scan_time nghĩa là đã thực sự vào ăn — không
+    tính vào chưa điểm danh). Dùng cho card KPI dashboard.
+    """
+    no_profile_unscanned = sum(
+        1 for r in rows
+        if r['status'] == 'no_profile' and not r.get('scan_time')
+    )
+    not_attended = sum(1 for r in rows if r['status'] == 'not_attended')
     return {
         'valid': sum(1 for r in rows if r['status'] == 'valid'),
         'supplementary': sum(1 for r in rows if r['status'] == 'supplementary'),
-        'not_attended': sum(1 for r in rows if r['status'] == 'not_attended'),
+        'not_attended': not_attended,
+        'not_attended_total': not_attended + no_profile_unscanned,
         'not_registered': sum(1 for r in rows if r['status'] == 'not_registered'),
         'no_profile': sum(1 for r in rows if r['status'] == 'no_profile'),
         'guest': sum(1 for r in rows if r['status'] == 'guest'),

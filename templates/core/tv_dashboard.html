@@ -1019,7 +1019,10 @@ html, body {
                 if (!d || !d.success) return;
                 elValid.textContent = d.valid;
                 elNotreg.textContent = d.not_registered;
-                elNotatt.textContent = d.not_attended;
+                // Chưa điểm danh = not_attended + người chưa có hồ sơ chưa quét (bypass)
+                elNotatt.textContent = (d.not_attended_total !== undefined)
+                    ? d.not_attended_total
+                    : d.not_attended;
                 if (elGuest) elGuest.textContent = d.guest_qty || 0;
             })
             .catch(() => {});
