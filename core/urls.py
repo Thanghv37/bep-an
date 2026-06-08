@@ -2,6 +2,7 @@ from django.urls import path
 from .views import (
     dashboard,
     tv_dashboard,
+    tv_lite,
     birthday_pending_api,
     meal_price_list,
     meal_price_create,
@@ -17,6 +18,7 @@ from .views import (
 urlpatterns = [
     path('', dashboard, name='dashboard'),
     path('tv/', tv_dashboard, name='tv_dashboard'),
+    path('tv/lite/', tv_lite, name='tv_lite'),
     path('birthday/pending/', birthday_pending_api, name='birthday_pending_api'),
     path('meal-prices/', meal_price_list, name='meal_price_list'),
     path('meal-prices/create/', meal_price_create, name='meal_price_create'),

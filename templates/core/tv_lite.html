@@ -1,0 +1,174 @@
+{% load currency_filters %}<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TV — Bếp ăn KV2 (lite)</title>
+<style>
+/* ===== Tối giản tuyệt đối cho Samsung TV: không ảnh, không animation, không
+   box-shadow, không gradient, không filter, không webfont ngoài. Chỉ màu đặc +
+   border + chữ hệ thống. Mục tiêu: renderer Tizen không tràn bộ nhớ. ===== */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+    width: 100%; height: 100%;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #111827;
+    background: #ffffff;
+}
+body { padding: 22px 26px; overflow: hidden; }
+
+.top {
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 3px solid #1d4ed8;
+    padding-bottom: 12px; margin-bottom: 18px;
+}
+.brand { font-size: 40px; font-weight: bold; color: #1d4ed8; }
+.brand small { display: block; font-size: 18px; color: #6b7280; font-weight: normal; }
+.clock { text-align: right; }
+#t { font-size: 48px; font-weight: bold; color: #0f172a; line-height: 1; }
+#d { font-size: 20px; color: #6b7280; margin-top: 4px; }
+
+.stats {
+    display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 20px;
+}
+.stat {
+    flex: 1; min-width: 150px;
+    border: 1px solid #d1d5db; border-radius: 12px; padding: 12px 16px;
+}
+.stat .lbl { font-size: 18px; color: #6b7280; font-weight: bold; }
+.stat .num { font-size: 40px; font-weight: bold; color: #1d4ed8; margin-top: 2px; }
+.stat .num.g { color: #16a34a; }
+.stat .num.o { color: #d97706; }
+.stat .num.r { color: #dc2626; }
+
+.cols { display: flex; gap: 18px; }
+.col-today { flex: 0 0 38%; }
+.col-week { flex: 1; }
+
+.h { font-size: 28px; font-weight: bold; color: #1d4ed8; margin-bottom: 10px; }
+.h small { font-size: 18px; color: #6b7280; font-weight: normal; }
+
+.grp { margin-bottom: 12px; }
+.grp-t {
+    font-size: 18px; color: #ffffff; font-weight: bold;
+    display: inline-block; padding: 2px 12px; border-radius: 6px; margin-bottom: 6px;
+}
+.grp-t.main { background: #2563eb; }
+.grp-t.side { background: #7c3aed; }
+.grp-t.soup { background: #059669; }
+.grp-t.dessert { background: #d97706; }
+.grp ul { list-style: none; }
+.grp li { font-size: 26px; padding: 3px 0; color: #111827; }
+.empty { font-size: 26px; color: #9ca3af; }
+
+.week { display: flex; gap: 10px; }
+.day {
+    flex: 1; border: 1px solid #d1d5db; border-radius: 10px; padding: 10px 10px 12px;
+}
+.day.today { border: 2px solid #1d4ed8; background: #eff6ff; }
+.day-h { font-size: 19px; font-weight: bold; color: #0f172a; }
+.day-d { font-size: 14px; color: #6b7280; margin-bottom: 6px; }
+.day ul { list-style: none; }
+.day li { font-size: 16px; padding: 2px 0; color: #374151; line-height: 1.3; }
+.day .none { font-size: 15px; color: #9ca3af; }
+.tag { font-size: 12px; background: #1d4ed8; color: #fff; padding: 1px 8px; border-radius: 999px; margin-left: 6px; }
+</style>
+</head>
+<body>
+
+<div class="top">
+    <div class="brand">🍱 Bếp ăn KV2 — VT NET<small>Bảng tin nhà ăn</small></div>
+    <div class="clock">
+        <div id="t">--:--</div>
+        <div id="d">{{ selected_date|date:"l, d/m/Y" }}</div>
+    </div>
+</div>
+
+<div class="stats">
+    <div class="stat"><div class="lbl">Đăng ký</div><div class="num">{{ registered_count|default:0 }}</div></div>
+    <div class="stat"><div class="lbl">Đã điểm danh</div><div class="num g" id="s-valid">—</div></div>
+    <div class="stat"><div class="lbl">Chưa đăng ký</div><div class="num o" id="s-notreg">—</div></div>
+    <div class="stat"><div class="lbl">Chưa điểm danh</div><div class="num r" id="s-notatt">—</div></div>
+    <div class="stat"><div class="lbl">Khách ngoài</div><div class="num" id="s-guest">—</div></div>
+</div>
+
+<div class="cols">
+    <div class="col-today">
+        <div class="h">Thực đơn hôm nay <small>· {{ selected_date|date:"d/m/Y" }}</small></div>
+        {% if ordered_menu_items %}
+            {% if grouped_menu_items.main %}
+            <div class="grp"><div class="grp-t main">Món chính</div><ul>{% for it in grouped_menu_items.main %}<li>{{ it.dish.name }}</li>{% endfor %}</ul></div>
+            {% endif %}
+            {% if grouped_menu_items.side %}
+            <div class="grp"><div class="grp-t side">Món phụ</div><ul>{% for it in grouped_menu_items.side %}<li>{{ it.dish.name }}</li>{% endfor %}</ul></div>
+            {% endif %}
+            {% if grouped_menu_items.soup %}
+            <div class="grp"><div class="grp-t soup">Món canh</div><ul>{% for it in grouped_menu_items.soup %}<li>{{ it.dish.name }}</li>{% endfor %}</ul></div>
+            {% endif %}
+            {% if grouped_menu_items.dessert %}
+            <div class="grp"><div class="grp-t dessert">Tráng miệng</div><ul>{% for it in grouped_menu_items.dessert %}<li>{{ it.dish.name }}</li>{% endfor %}</ul></div>
+            {% endif %}
+        {% else %}
+            <div class="empty">Chưa có thực đơn hôm nay</div>
+        {% endif %}
+    </div>
+
+    <div class="col-week">
+        <div class="h">Thực đơn trong tuần</div>
+        <div class="week">
+            {% for day in week_data %}
+            <div class="day {% if day.date == selected_date %}today{% endif %}">
+                <div class="day-h">{{ day.label }}{% if day.date == selected_date %}<span class="tag">HÔM NAY</span>{% endif %}</div>
+                <div class="day-d">{{ day.date|date:"d/m" }}</div>
+                {% if day.menu_items %}
+                    <ul>
+                        {% for grp in day.menu_groups %}{% for it in grp.items %}<li>{{ it.dish.name }}</li>{% endfor %}{% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="none">Chưa có menu</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+/* Đồng hồ */
+(function () {
+    var elT = document.getElementById('t'), elD = document.getElementById('d');
+    var DAYS = ['Chủ nhật','Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
+    function p(n){ return n < 10 ? '0'+n : ''+n; }
+    function tick(){
+        var d = new Date();
+        elT.textContent = p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+        elD.textContent = DAYS[d.getDay()]+', '+p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear();
+    }
+    tick(); setInterval(tick, 1000);
+})();
+
+/* Poll số người ăn (nhẹ, chỉ cập nhật text) */
+(function () {
+    var dateParam = '{{ selected_date|date:"Y-m-d" }}';
+    function set(id, v){ var e = document.getElementById(id); if (e) e.textContent = v; }
+    function poll(){
+        fetch('/registrations/participation/counts/?date=' + dateParam, { headers: { 'Accept': 'application/json' } })
+            .then(function(r){ return r.ok ? r.json() : null; })
+            .then(function(d){
+                if (!d || !d.success) return;
+                set('s-valid', d.valid);
+                set('s-notreg', d.not_registered);
+                set('s-notatt', d.not_attended_total !== undefined ? d.not_attended_total : d.not_attended);
+                set('s-guest', d.guest_qty || 0);
+            })
+            .catch(function(){});
+    }
+    poll(); setInterval(poll, 10000);
+})();
+
+/* Reload mỗi 15 phút để xả bộ nhớ (an toàn dù trang nhẹ) */
+setTimeout(function(){ window.location.reload(); }, 15 * 60 * 1000);
+</script>
+
+</body>
+</html>

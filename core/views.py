@@ -396,6 +396,15 @@ def tv_dashboard(request):
 
 @login_required
 @user_passes_test(can_manage_menu)
+def tv_lite(request):
+    """Trang TV TỐI GIẢN — template riêng (core/tv_lite.html), không ảnh/animation/
+    shadow/gradient/carousel, dùng cùng dữ liệu dashboard. Mục đích: chạy ổn định
+    trên Samsung TV bộ nhớ yếu khi bản /tv/ đầy đủ gây crash renderer Tizen."""
+    return _render_dashboard(request, 'core/tv_lite.html')
+
+
+@login_required
+@user_passes_test(can_manage_menu)
 def birthday_pending_api(request):
     """Trả về danh sách nhân viên cần chiếu màn chúc mừng sinh nhật NGAY BÂY GIỜ.
     Điều kiện: sinh nhật trùng ngày+tháng hôm nay, đã điểm danh hôm nay, và đã
