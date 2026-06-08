@@ -41,7 +41,10 @@ html, body {
 }
 .brand .t1 { font-size: 40px; font-weight: bold; color: #0f172a; line-height: 1.1; }
 .brand .t2 { font-size: 22px; color: #64748b; font-weight: bold; }
+.hd-right { display: flex; align-items: center; gap: 18px; }
 .clock { text-align: right; }
+.exit { text-decoration: none; color: #475569; font-size: 20px; font-weight: bold; padding: 10px 20px; border: 1px solid #cbd5e1; border-radius: 999px; background: #fff; white-space: nowrap; }
+.exit:hover { color: #0f172a; border-color: #94a3b8; }
 #t { font-size: 60px; font-weight: bold; color: #0891b2; line-height: 1; }
 #d { font-size: 22px; color: #64748b; font-weight: bold; margin-top: 4px; }
 
@@ -206,9 +209,12 @@ html, body {
                 <div class="t2">Bảng tin nhà ăn · tự động cập nhật</div>
             </div>
         </div>
-        <div class="clock">
-            <div id="t">--:--</div>
-            <div id="d">{{ selected_date|date:"l, d/m/Y" }}</div>
+        <div class="hd-right">
+            <div class="clock">
+                <div id="t">--:--</div>
+                <div id="d">{{ selected_date|date:"l, d/m/Y" }}</div>
+            </div>
+            <a class="exit" href="{% url 'dashboard' %}" title="Thoát TV SHOW (ESC)">✕ Thoát</a>
         </div>
     </div>
 
@@ -574,6 +580,11 @@ function loadNutrition(){
         }, 1500);
     }
 })();
+
+/* ESC để thoát về dashboard */
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') window.location.href = "{% url 'dashboard' %}";
+});
 
 /* Reload mỗi 8 phút để xả bộ nhớ renderer Tizen */
 setTimeout(function(){ window.location.reload(); }, 8 * 60 * 1000);

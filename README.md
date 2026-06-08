@@ -87,6 +87,8 @@ Hệ thống Quản lý Bếp ăn là giải pháp toàn diện giúp tự độ
 ## 📝 Nhật ký thay đổi
 
 ### 2026-06-08
+- **Bỏ nút TV SHOW trên dashboard + thêm nút Thoát trong TV SHOW** ([templates/core/dashboard.html](templates/core/dashboard.html), [templates/core/tv_lite.html](templates/core/tv_lite.html)). Gỡ hẳn block `page_title_action` (nút "TV SHOW" ở header dashboard) vì đã có mục TV SHOW ngoài sidebar. Trang TV SHOW thêm nút **"✕ Thoát"** ở góc phải header (cạnh đồng hồ) + phím **ESC** để quay về dashboard. Chỉ template, không cần migrate.
+
 - **TV SHOW: nền sinh động cho panel Hôm nay + AI** ([templates/core/tv_lite.html](templates/core/tv_lite.html)). Panel "Thực đơn hôm nay" (nền cam→lá) và "AI dinh dưỡng" (nền tím→cyan) thêm **gradient nhiều lớp** (2 radial + 1 linear) cho có chiều sâu; các card (danh sách, stage món, card AI) làm **hơi trong suốt** (`rgba(255,255,255,.66-.7)`) để màu nền ánh qua. Gradient đều **TĨNH** (không animate nền → không tốn GPU/crash). Chỉ template, không cần migrate.
 
 - **TV SHOW: tinh chỉnh panel tuần + hôm nay** ([templates/core/tv_lite.html](templates/core/tv_lite.html)). (1) Panel **Thực đơn tuần** hiện **lần lượt rõ T2→T6** (mỗi card cách nhau 0.25s); ô món **cao hơn, dãn đều lấp đầy** chiều cao ô ngày (`ul` flex + `li` flex:1, padding to hơn). (2) Panel **Thực đơn hôm nay**: danh sách bên trái **hiện dần từng món** đúng nhịp món đang chiếu bên phải (thêm dần thay vì dựng sẵn cả list), món mới nổi bật + tự cuộn theo. Chỉ template, không cần migrate.

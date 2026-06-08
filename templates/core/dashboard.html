@@ -4,60 +4,6 @@
 {% block title %}Dashboard{% endblock %}
 {% block page_title %}Dashboard chung{% endblock %}
 
-{% block page_title_action %}
-    {% if request.user.is_authenticated %}
-        {% if request.user.is_superuser or request.user.profile.role == 'admin' or request.user.profile.role == 'kitchen' %}
-            <a href="{% url 'tv_lite' %}" class="btn-tv-mode" title="Mở TV SHOW (toàn màn hình, chiếu ở nhà ăn)">
-                <i class="bi bi-display"></i>
-                <span>TV SHOW</span>
-                <span class="btn-tv-pulse"></span>
-            </a>
-        {% endif %}
-    {% endif %}
-    <style>
-        .btn-tv-mode {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 9px 18px;
-            border-radius: 999px;
-            font-weight: 700;
-            font-size: 13px;
-            text-decoration: none;
-            color: #ffffff;
-            background: linear-gradient(135deg, #6366f1 0%, #06b6d4 50%, #10b981 100%);
-            box-shadow: 0 6px 18px rgba(99, 102, 241, 0.32);
-            transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
-            overflow: hidden;
-        }
-        .btn-tv-mode:hover {
-            color: #fff;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 24px rgba(99, 102, 241, 0.42);
-            filter: brightness(1.06);
-        }
-        .btn-tv-mode i { font-size: 16px; }
-        .btn-tv-pulse {
-            position: absolute;
-            inset: 0;
-            border-radius: 999px;
-            border: 2px solid rgba(255, 255, 255, .55);
-            opacity: 0;
-            animation: tvPulse 2.4s ease-out infinite;
-            pointer-events: none;
-        }
-        @keyframes tvPulse {
-            0%   { opacity: .7; transform: scale(1); }
-            100% { opacity: 0;  transform: scale(1.18); }
-        }
-        @media (max-width: 768px) {
-            .btn-tv-mode span:not(.btn-tv-pulse) { display: none; }
-            .btn-tv-mode { padding: 9px 12px; }
-        }
-    </style>
-{% endblock %}
-
 {% block content %}
 
 
