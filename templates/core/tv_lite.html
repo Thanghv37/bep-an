@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TV SHOW — Bếp ăn KV2</title>
 <style>
-/* ===== TV-SAFE: giữ bố cục giàu (KPI + carousel 3 panel) nhưng tránh thứ làm
-   crash renderer Tizen: KHÔNG box-shadow lớn/animate, KHÔNG gradient-text, KHÔNG
-   animation infinite, KHÔNG Bootstrap/webfont ngoài, panel ẩn dùng display:none
-   (chỉ 1 panel được paint), cỡ chữ vừa phải. ===== */
+/* ===== TV-SAFE: bố cục giàu nhưng tránh thứ làm crash renderer Tizen.
+   Cho phép: animation 1 LẦN (fade khi panel/món xuất hiện), gradient nhỏ trên
+   card/badge. CẤM: animation infinite, gradient-text, box-shadow lớn/animate,
+   3 panel paint cùng lúc (panel ẩn = display:none), webfont ngoài/Bootstrap. ===== */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
     width: 100%; height: 100%;
@@ -22,7 +22,8 @@ html, body {
 .hd { display: flex; justify-content: space-between; align-items: center; }
 .brand { display: flex; align-items: center; gap: 14px; }
 .brand .logo {
-    width: 64px; height: 64px; border-radius: 16px; background: #06b6d4;
+    width: 64px; height: 64px; border-radius: 16px;
+    background: linear-gradient(135deg, #06b6d4, #10b981);
     color: #fff; font-size: 34px; display: flex; align-items: center; justify-content: center;
 }
 .brand .t1 { font-size: 34px; font-weight: bold; color: #0f172a; line-height: 1.1; }
@@ -33,7 +34,10 @@ html, body {
 
 /* ===== KPI row ===== */
 .kpis { display: grid; grid-template-columns: 1.15fr 1fr 1fr 1fr; gap: 12px; flex-shrink: 0; }
-.kpi { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 14px 18px; }
+.kpi { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 14px 18px; position: relative; overflow: hidden; }
+.kpi::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; }
+.kpi-people::before { background: #2563eb; } .kpi-income::before { background: #10b981; }
+.kpi-expense::before { background: #ef4444; } .kpi-balance::before { background: #6366f1; }
 .kpi-h { font-size: 17px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
 .kpi-v { font-size: 52px; font-weight: bold; color: #1d4ed8; line-height: 1; }
 .kpi-v .u { font-size: 22px; font-weight: bold; color: #94a3b8; margin-left: 4px; }
@@ -54,20 +58,26 @@ html, body {
 .stage { flex: 1 1 auto; position: relative; background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; overflow: hidden; min-height: 0; }
 .panel { position: absolute; inset: 0; padding: 18px 22px; display: none; flex-direction: column; overflow: hidden; }
 .panel.active { display: flex; }
+.panel.in { animation: panelFade .5s ease both; }   /* fade 1 lần khi panel xuất hiện */
+@keyframes panelFade { from { opacity: 0; } to { opacity: 1; } }
 .ph { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0; }
 .ph .ttl { font-size: 36px; font-weight: bold; color: #0f172a; display: flex; align-items: center; gap: 12px; }
-.ph .ttl .ic { width: 54px; height: 54px; border-radius: 14px; background: #06b6d4; color: #fff; font-size: 28px; display: flex; align-items: center; justify-content: center; }
+.ph .ttl .ic { width: 54px; height: 54px; border-radius: 14px; background: linear-gradient(135deg, #06b6d4, #10b981); color: #fff; font-size: 28px; display: flex; align-items: center; justify-content: center; }
 .ph .meta { font-size: 18px; color: #64748b; font-weight: bold; }
 
 .dots { position: absolute; top: 22px; right: 26px; display: flex; gap: 8px; z-index: 3; }
-.dot { width: 12px; height: 12px; border-radius: 999px; background: #e2e8f0; border: 1px solid #cbd5e1; }
+.dot { width: 12px; height: 12px; border-radius: 999px; background: #e2e8f0; border: 1px solid #cbd5e1; transition: width .3s ease, background .3s ease; }
 .dot.active { width: 34px; background: #06b6d4; border-color: #06b6d4; }
 .prog { position: absolute; bottom: 12px; left: 26px; right: 26px; height: 5px; background: #f1f5f9; border-radius: 999px; overflow: hidden; z-index: 3; }
-.prog .fill { height: 100%; width: 0; background: #06b6d4; }
+.prog .fill { height: 100%; width: 0; background: linear-gradient(90deg, #06b6d4, #10b981); }
 
 /* Panel 1: week */
 .week { flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; min-height: 0; }
 .day { border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px 10px; display: flex; flex-direction: column; overflow: hidden; }
+.panel.in .day { animation: cardUp .5s ease both; }
+.panel.in .day:nth-child(2) { animation-delay: .08s; } .panel.in .day:nth-child(3) { animation-delay: .16s; }
+.panel.in .day:nth-child(4) { animation-delay: .24s; } .panel.in .day:nth-child(5) { animation-delay: .32s; }
+@keyframes cardUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 .day.has { background: #f0fdf4; border-color: #bbf7d0; }
 .day.today { background: #eff6ff; border: 2px solid #2563eb; }
 .day-h { font-size: 24px; font-weight: bold; color: #0f172a; }
@@ -79,23 +89,33 @@ html, body {
 .day li.soup { border-left-color: #10b981; } .day li.dessert { border-left-color: #f59e0b; }
 .day .none { font-size: 16px; color: #9ca3af; margin-top: 6px; }
 
-/* Panel 2: today grid (có ảnh) */
-.today { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; min-height: 0; overflow-y: auto; align-content: start; }
-.dish { border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
-.dish .img { width: 100%; height: 150px; background: #f1f5f9; }
-.dish .img img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.dish .noimg { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 56px; }
-.dish .info { padding: 10px 12px; }
-.dish .nm { font-size: 23px; font-weight: bold; color: #0f172a; line-height: 1.2; }
-.dish .bd { font-size: 15px; font-weight: bold; padding: 2px 10px; border-radius: 999px; display: inline-block; margin-top: 6px; }
-.bd.main { background: #dbeafe; color: #1e40af; } .bd.side { background: #ede9fe; color: #5b21b6; }
-.bd.soup { background: #dcfce7; color: #166534; } .bd.dessert { background: #ffedd5; color: #9a3412; }
+/* Panel 2: today — giới thiệu từng món (list trái + stage ảnh to phải) */
+.today2 { flex: 1; display: grid; grid-template-columns: 32fr 68fr; gap: 16px; min-height: 0; }
+.t-list { border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+.t-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 22px; color: #334155; }
+.t-item .num { width: 32px; height: 32px; border-radius: 50%; background: #e2e8f0; color: #0f172a; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.t-item.cur { border-color: #2563eb; background: #eff6ff; color: #0f172a; font-weight: bold; }
+.t-item.cur .num { background: #2563eb; color: #fff; }
+.t-stage { border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; display: flex; min-height: 0; }
+.ds { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; animation: panelFade .4s ease both; }
+.ds .imgwrap { background: #f1f5f9; }
+.ds .imgwrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ds .imgwrap .noimg { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 96px; }
+.ds .txt { padding: 26px 30px; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.ds .nm { font-size: 54px; font-weight: bold; color: #1e3a8a; line-height: 1.1; margin-bottom: 14px; }
+.ds .bd { font-size: 18px; font-weight: bold; padding: 4px 16px; border-radius: 999px; width: fit-content; margin-bottom: 18px; }
+.bd-main { background: #dbeafe; color: #1e40af; } .bd-side { background: #ede9fe; color: #5b21b6; }
+.bd-soup { background: #dcfce7; color: #166534; } .bd-dessert { background: #ffedd5; color: #9a3412; }
+.ds .desc { font-size: 26px; color: #475569; line-height: 1.5; overflow: hidden; }
+.ds .nodesc { font-size: 22px; color: #94a3b8; font-style: italic; }
 .big-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9ca3af; font-size: 30px; gap: 14px; }
 .big-empty .ic { font-size: 90px; }
 
 /* Panel 3: AI */
 .ai { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; min-height: 0; }
 .ai-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px 26px; display: flex; flex-direction: column; justify-content: center; }
+.panel.in .ai-card { animation: cardUp .5s ease both; }
+.panel.in .ai-card.right { animation-delay: .1s; }
 .ai-lbl { font-size: 20px; letter-spacing: .1em; text-transform: uppercase; color: #4f46e5; font-weight: bold; margin-bottom: 14px; }
 .ai-card.right .ai-lbl { color: #d97706; }
 .ai-kcal { font-size: 100px; font-weight: bold; color: #4f46e5; line-height: 1; }
@@ -170,7 +190,7 @@ html, body {
         <div class="prog"><div class="fill" id="prog"></div></div>
 
         {# Panel 1: Thực đơn tuần #}
-        <div class="panel active" data-p="0">
+        <div class="panel active in" data-p="0">
             <div class="ph">
                 <div class="ttl"><span class="ic">📅</span> Thực đơn trong tuần</div>
                 <div class="meta">Thứ 2 → Thứ 6 · HÔM NAY nổi bật</div>
@@ -192,30 +212,21 @@ html, body {
             </div>
         </div>
 
-        {# Panel 2: Thực đơn hôm nay (có ảnh) #}
+        {# Panel 2: Thực đơn hôm nay — giới thiệu từng món #}
         <div class="panel" data-p="1">
             <div class="ph">
                 <div class="ttl"><span class="ic">🍽️</span> Thực đơn hôm nay</div>
                 <div class="meta">{{ selected_date|date:"d/m/Y" }}{% if menu_item_count %} · {{ menu_item_count }} món{% endif %}</div>
             </div>
             {% if ordered_menu_items %}
-            <div class="today">
-                {% for it in ordered_menu_items %}
-                <div class="dish">
-                    <div class="img">
-                        {% if it.dish.image %}<img src="{{ it.dish.image.url }}" alt="" loading="lazy">{% else %}<div class="noimg">🍴</div>{% endif %}
-                    </div>
-                    <div class="info">
-                        <div class="nm">{{ it.dish.name }}</div>
-                        <span class="bd {{ it.dish.dish_type }}">
-                            {% if it.dish.dish_type == 'main' %}Món chính{% elif it.dish.dish_type == 'side' %}Món phụ{% elif it.dish.dish_type == 'soup' %}Món canh{% elif it.dish.dish_type == 'dessert' %}Tráng miệng{% else %}Món ăn{% endif %}
-                        </span>
-                    </div>
-                </div>
-                {% endfor %}
+            <div class="today2">
+                <div class="t-list" id="todayList"></div>
+                <div class="t-stage" id="todayStage"></div>
             </div>
+            <script id="dishes-json" type="application/json">[{% for it in ordered_menu_items %}{"name":"{{ it.dish.name|escapejs }}","type":"{{ it.dish.dish_type }}","image":"{% if it.dish.image %}{{ it.dish.image.url|escapejs }}{% endif %}","desc":"{{ it.dish.description|default:''|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]</script>
             {% else %}
             <div class="big-empty"><div class="ic">🍽️</div><div>Chưa có thực đơn cho ngày hôm nay</div></div>
+            <script id="dishes-json" type="application/json">[]</script>
             {% endif %}
         </div>
 
@@ -275,33 +286,80 @@ html, body {
     poll(); setInterval(poll, 10000);
 })();
 
-/* Carousel 3 panel — chỉ panel active được display (không paint 3 màn cùng lúc) */
+/* ===== Carousel + giới thiệu từng món ===== */
 (function () {
     var panels = document.querySelectorAll('.panel');
     var dots = document.querySelectorAll('.dot');
     var prog = document.getElementById('prog');
-    var DUR = [16000, 20000, 16000];   // ms mỗi panel
-    var i = 0, timer = null;
+    var DUR_WEEK = 16000, DUR_AI = 16000;       // panel tĩnh
+    var PER_DISH = 5000, HOLD_END = 2500;        // panel hôm nay: mỗi món + giữ cuối
+    var i = 0, timer = null, dishTimer = null;
+
+    var dishes = [];
+    try { dishes = JSON.parse((document.getElementById('dishes-json') || {}).textContent || '[]'); }
+    catch (e) { dishes = []; }
+
+    function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function typeLabel(t){ return ({main:'Món chính',side:'Món phụ',soup:'Món canh',dessert:'Tráng miệng'})[t] || 'Món ăn'; }
 
     function resetProgress(ms){
         prog.style.transition = 'none'; prog.style.width = '0%';
-        // ép reflow rồi chạy
         void prog.offsetWidth;
         prog.style.transition = 'width ' + ms + 'ms linear';
         prog.style.width = '100%';
     }
+
+    function buildList(){
+        var list = document.getElementById('todayList'); if (!list) return;
+        var html = '';
+        for (var k = 0; k < dishes.length; k++)
+            html += '<div class="t-item" data-k="'+k+'"><span class="num">'+(k+1)+'</span><span>'+esc(dishes[k].name)+'</span></div>';
+        list.innerHTML = html;
+    }
+    function highlight(k){
+        var items = document.querySelectorAll('#todayList .t-item');
+        for (var j = 0; j < items.length; j++) items[j].classList.toggle('cur', j === k);
+    }
+    function renderDish(d){
+        var stage = document.getElementById('todayStage'); if (!stage) return;
+        var img = d.image ? '<img src="'+d.image+'" alt="">' : '<div class="noimg">🍴</div>';
+        var desc = (d.desc && d.desc.trim()) ? '<div class="desc">'+esc(d.desc)+'</div>' : '<div class="nodesc">(Chưa có mô tả món)</div>';
+        stage.innerHTML = '<div class="ds"><div class="imgwrap">'+img+'</div><div class="txt">'+
+            '<div class="nm">'+esc(d.name)+'</div>'+
+            '<div class="bd bd-'+(d.type||'main')+'">'+typeLabel(d.type)+'</div>'+desc+'</div></div>';
+    }
+
+    function startToday(){
+        if (!dishes.length || !document.getElementById('todayStage')) {
+            resetProgress(5000);
+            timer = setTimeout(function(){ show(2); }, 5000);
+            return;
+        }
+        resetProgress(dishes.length * PER_DISH + HOLD_END);
+        buildList();
+        var di = 0;
+        (function nextDish(){
+            if (di >= dishes.length) { timer = setTimeout(function(){ show(2); }, HOLD_END); return; }
+            renderDish(dishes[di]); highlight(di); di++;
+            dishTimer = setTimeout(nextDish, PER_DISH);
+        })();
+    }
+
     function show(n){
         i = n;
-        for (var k = 0; k < panels.length; k++) panels[k].classList.toggle('active', k === n);
+        clearTimeout(timer); clearTimeout(dishTimer);
+        for (var k = 0; k < panels.length; k++) { panels[k].classList.toggle('active', k === n); panels[k].classList.remove('in'); }
         for (var j = 0; j < dots.length; j++) dots[j].classList.toggle('active', j === n);
-        resetProgress(DUR[n]);
-        if (n === 2) loadNutrition();
-        clearTimeout(timer);
-        timer = setTimeout(function(){ show((i + 1) % panels.length); }, DUR[n]);
+        var el = panels[n]; void el.offsetWidth; el.classList.add('in');
+
+        if (n === 0) { resetProgress(DUR_WEEK); timer = setTimeout(function(){ show(1); }, DUR_WEEK); }
+        else if (n === 1) { startToday(); }
+        else { loadNutrition(); resetProgress(DUR_AI); timer = setTimeout(function(){ show(0); }, DUR_AI); }
     }
-    for (var d = 0; d < dots.length; d++) {
+
+    for (var d = 0; d < dots.length; d++)
         (function(idx){ dots[idx].addEventListener('click', function(){ show(idx); }); })(d);
-    }
+
     show(0);
 })();
 
