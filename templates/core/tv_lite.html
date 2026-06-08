@@ -3,132 +3,241 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TV — Bếp ăn KV2 (lite)</title>
+<title>TV SHOW — Bếp ăn KV2</title>
 <style>
-/* ===== Tối giản tuyệt đối cho Samsung TV: không ảnh, không animation, không
-   box-shadow, không gradient, không filter, không webfont ngoài. Chỉ màu đặc +
-   border + chữ hệ thống. Mục tiêu: renderer Tizen không tràn bộ nhớ. ===== */
+/* ===== TV-SAFE: giữ bố cục giàu (KPI + carousel 3 panel) nhưng tránh thứ làm
+   crash renderer Tizen: KHÔNG box-shadow lớn/animate, KHÔNG gradient-text, KHÔNG
+   animation infinite, KHÔNG Bootstrap/webfont ngoài, panel ẩn dùng display:none
+   (chỉ 1 panel được paint), cỡ chữ vừa phải. ===== */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
     width: 100%; height: 100%;
     font-family: Arial, Helvetica, sans-serif;
-    color: #111827;
-    background: #ffffff;
+    color: #0f172a; background: #f5f7fb;
+    overflow: hidden;
 }
-body { padding: 22px 26px; overflow: hidden; }
+.app { display: flex; flex-direction: column; height: 100vh; padding: 16px 20px; gap: 12px; }
 
-.top {
-    display: flex; justify-content: space-between; align-items: center;
-    border-bottom: 3px solid #1d4ed8;
-    padding-bottom: 12px; margin-bottom: 18px;
+/* ===== Header ===== */
+.hd { display: flex; justify-content: space-between; align-items: center; }
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand .logo {
+    width: 64px; height: 64px; border-radius: 16px; background: #06b6d4;
+    color: #fff; font-size: 34px; display: flex; align-items: center; justify-content: center;
 }
-.brand { font-size: 40px; font-weight: bold; color: #1d4ed8; }
-.brand small { display: block; font-size: 18px; color: #6b7280; font-weight: normal; }
+.brand .t1 { font-size: 34px; font-weight: bold; color: #0f172a; line-height: 1.1; }
+.brand .t2 { font-size: 18px; color: #64748b; font-weight: bold; }
 .clock { text-align: right; }
-#t { font-size: 48px; font-weight: bold; color: #0f172a; line-height: 1; }
-#d { font-size: 20px; color: #6b7280; margin-top: 4px; }
+#t { font-size: 50px; font-weight: bold; color: #0891b2; line-height: 1; }
+#d { font-size: 18px; color: #64748b; font-weight: bold; margin-top: 4px; }
 
-.stats {
-    display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 20px;
-}
-.stat {
-    flex: 1; min-width: 150px;
-    border: 1px solid #d1d5db; border-radius: 12px; padding: 12px 16px;
-}
-.stat .lbl { font-size: 18px; color: #6b7280; font-weight: bold; }
-.stat .num { font-size: 40px; font-weight: bold; color: #1d4ed8; margin-top: 2px; }
-.stat .num.g { color: #16a34a; }
-.stat .num.o { color: #d97706; }
-.stat .num.r { color: #dc2626; }
+/* ===== KPI row ===== */
+.kpis { display: grid; grid-template-columns: 1.15fr 1fr 1fr 1fr; gap: 12px; flex-shrink: 0; }
+.kpi { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 14px 18px; }
+.kpi-h { font-size: 17px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+.kpi-v { font-size: 52px; font-weight: bold; color: #1d4ed8; line-height: 1; }
+.kpi-v .u { font-size: 22px; font-weight: bold; color: #94a3b8; margin-left: 4px; }
+.pstats { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; margin-top: 10px; font-size: 18px; }
+.pstat { display: flex; justify-content: space-between; gap: 6px; }
+.pstat .l { color: #64748b; font-weight: bold; }
+.pstat .n { font-weight: bold; }
+.n.g { color: #16a34a; } .n.o { color: #d97706; } .n.r { color: #dc2626; } .n.b { color: #2563eb; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.split .c { border: 1px solid #eef2f7; border-radius: 10px; padding: 8px 12px; background: #fafcff; }
+.split .l { font-size: 16px; color: #64748b; font-weight: bold; }
+.split .v { font-size: 30px; font-weight: bold; margin-top: 2px; line-height: 1.05; }
+.split .v .u { font-size: 17px; font-weight: bold; color: #94a3b8; }
+.kpi-income .v { color: #047857; } .kpi-expense .v { color: #be123c; }
+.kpi-balance .v.pos { color: #4338ca; } .kpi-balance .v.neg { color: #c2410c; } .kpi-balance .v.muted { color: #94a3b8; }
 
-.cols { display: flex; gap: 18px; }
-.col-today { flex: 0 0 38%; }
-.col-week { flex: 1; }
+/* ===== Stage carousel ===== */
+.stage { flex: 1 1 auto; position: relative; background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; overflow: hidden; min-height: 0; }
+.panel { position: absolute; inset: 0; padding: 18px 22px; display: none; flex-direction: column; overflow: hidden; }
+.panel.active { display: flex; }
+.ph { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0; }
+.ph .ttl { font-size: 36px; font-weight: bold; color: #0f172a; display: flex; align-items: center; gap: 12px; }
+.ph .ttl .ic { width: 54px; height: 54px; border-radius: 14px; background: #06b6d4; color: #fff; font-size: 28px; display: flex; align-items: center; justify-content: center; }
+.ph .meta { font-size: 18px; color: #64748b; font-weight: bold; }
 
-.h { font-size: 28px; font-weight: bold; color: #1d4ed8; margin-bottom: 10px; }
-.h small { font-size: 18px; color: #6b7280; font-weight: normal; }
+.dots { position: absolute; top: 22px; right: 26px; display: flex; gap: 8px; z-index: 3; }
+.dot { width: 12px; height: 12px; border-radius: 999px; background: #e2e8f0; border: 1px solid #cbd5e1; }
+.dot.active { width: 34px; background: #06b6d4; border-color: #06b6d4; }
+.prog { position: absolute; bottom: 12px; left: 26px; right: 26px; height: 5px; background: #f1f5f9; border-radius: 999px; overflow: hidden; z-index: 3; }
+.prog .fill { height: 100%; width: 0; background: #06b6d4; }
 
-.grp { margin-bottom: 12px; }
-.grp-t {
-    font-size: 18px; color: #ffffff; font-weight: bold;
-    display: inline-block; padding: 2px 12px; border-radius: 6px; margin-bottom: 6px;
-}
-.grp-t.main { background: #2563eb; }
-.grp-t.side { background: #7c3aed; }
-.grp-t.soup { background: #059669; }
-.grp-t.dessert { background: #d97706; }
-.grp ul { list-style: none; }
-.grp li { font-size: 26px; padding: 3px 0; color: #111827; }
-.empty { font-size: 26px; color: #9ca3af; }
-
-.week { display: flex; gap: 10px; }
-.day {
-    flex: 1; border: 1px solid #d1d5db; border-radius: 10px; padding: 10px 10px 12px;
-}
-.day.today { border: 2px solid #1d4ed8; background: #eff6ff; }
-.day-h { font-size: 19px; font-weight: bold; color: #0f172a; }
-.day-d { font-size: 14px; color: #6b7280; margin-bottom: 6px; }
+/* Panel 1: week */
+.week { flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; min-height: 0; }
+.day { border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px 10px; display: flex; flex-direction: column; overflow: hidden; }
+.day.has { background: #f0fdf4; border-color: #bbf7d0; }
+.day.today { background: #eff6ff; border: 2px solid #2563eb; }
+.day-h { font-size: 24px; font-weight: bold; color: #0f172a; }
+.day-h .tag { font-size: 13px; background: #2563eb; color: #fff; padding: 2px 9px; border-radius: 999px; margin-left: 6px; }
+.day-d { font-size: 15px; color: #64748b; font-weight: bold; margin-bottom: 8px; }
 .day ul { list-style: none; }
-.day li { font-size: 16px; padding: 2px 0; color: #374151; line-height: 1.3; }
-.day .none { font-size: 15px; color: #9ca3af; }
-.tag { font-size: 12px; background: #1d4ed8; color: #fff; padding: 1px 8px; border-radius: 999px; margin-left: 6px; }
+.day li { font-size: 19px; color: #1e293b; padding: 4px 8px; border-left: 4px solid #cbd5e1; margin-bottom: 4px; background: #f8fafc; border-radius: 6px; line-height: 1.25; }
+.day li.main { border-left-color: #3b82f6; } .day li.side { border-left-color: #a78bfa; }
+.day li.soup { border-left-color: #10b981; } .day li.dessert { border-left-color: #f59e0b; }
+.day .none { font-size: 16px; color: #9ca3af; margin-top: 6px; }
+
+/* Panel 2: today grid (có ảnh) */
+.today { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; min-height: 0; overflow-y: auto; align-content: start; }
+.dish { border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
+.dish .img { width: 100%; height: 150px; background: #f1f5f9; }
+.dish .img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dish .noimg { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 56px; }
+.dish .info { padding: 10px 12px; }
+.dish .nm { font-size: 23px; font-weight: bold; color: #0f172a; line-height: 1.2; }
+.dish .bd { font-size: 15px; font-weight: bold; padding: 2px 10px; border-radius: 999px; display: inline-block; margin-top: 6px; }
+.bd.main { background: #dbeafe; color: #1e40af; } .bd.side { background: #ede9fe; color: #5b21b6; }
+.bd.soup { background: #dcfce7; color: #166534; } .bd.dessert { background: #ffedd5; color: #9a3412; }
+.big-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9ca3af; font-size: 30px; gap: 14px; }
+.big-empty .ic { font-size: 90px; }
+
+/* Panel 3: AI */
+.ai { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; min-height: 0; }
+.ai-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px 26px; display: flex; flex-direction: column; justify-content: center; }
+.ai-lbl { font-size: 20px; letter-spacing: .1em; text-transform: uppercase; color: #4f46e5; font-weight: bold; margin-bottom: 14px; }
+.ai-card.right .ai-lbl { color: #d97706; }
+.ai-kcal { font-size: 100px; font-weight: bold; color: #4f46e5; line-height: 1; }
+.ai-kcal .u { font-size: 30px; color: #64748b; font-weight: bold; }
+.ai-level { display: inline-flex; align-items: center; gap: 10px; padding: 10px 22px; border-radius: 999px; font-size: 26px; font-weight: bold; border: 2px solid; margin: 16px 0; width: fit-content; }
+.lv-bal { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+.lv-low { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+.lv-high { background: #fef2f2; color: #be123c; border-color: #fecdd3; }
+.ai-sum { font-size: 26px; line-height: 1.5; color: #334155; overflow: hidden; }
+.ai-tip-ic { font-size: 90px; margin-bottom: 14px; }
+.ai-tip { font-size: 36px; line-height: 1.4; color: #92400e; font-weight: bold; }
 </style>
 </head>
 <body>
 
-<div class="top">
-    <div class="brand">🍱 Bếp ăn KV2 — VT NET<small>Bảng tin nhà ăn</small></div>
-    <div class="clock">
-        <div id="t">--:--</div>
-        <div id="d">{{ selected_date|date:"l, d/m/Y" }}</div>
-    </div>
-</div>
+<div class="app">
 
-<div class="stats">
-    <div class="stat"><div class="lbl">Đăng ký</div><div class="num">{{ registered_count|default:0 }}</div></div>
-    <div class="stat"><div class="lbl">Đã điểm danh</div><div class="num g" id="s-valid">—</div></div>
-    <div class="stat"><div class="lbl">Chưa đăng ký</div><div class="num o" id="s-notreg">—</div></div>
-    <div class="stat"><div class="lbl">Chưa điểm danh</div><div class="num r" id="s-notatt">—</div></div>
-    <div class="stat"><div class="lbl">Khách ngoài</div><div class="num" id="s-guest">—</div></div>
-</div>
-
-<div class="cols">
-    <div class="col-today">
-        <div class="h">Thực đơn hôm nay <small>· {{ selected_date|date:"d/m/Y" }}</small></div>
-        {% if ordered_menu_items %}
-            {% if grouped_menu_items.main %}
-            <div class="grp"><div class="grp-t main">Món chính</div><ul>{% for it in grouped_menu_items.main %}<li>{{ it.dish.name }}</li>{% endfor %}</ul></div>
-            {% endif %}
-            {% if grouped_menu_items.side %}
-            <div class="grp"><div class="grp-t side">Món phụ</div><ul>{% for it in grouped_menu_items.side %}<li>{{ it.dish.name }}</li>{% endfor %}</ul></div>
-            {% endif %}
-            {% if grouped_menu_items.soup %}
-            <div class="grp"><div class="grp-t soup">Món canh</div><ul>{% for it in grouped_menu_items.soup %}<li>{{ it.dish.name }}</li>{% endfor %}</ul></div>
-            {% endif %}
-            {% if grouped_menu_items.dessert %}
-            <div class="grp"><div class="grp-t dessert">Tráng miệng</div><ul>{% for it in grouped_menu_items.dessert %}<li>{{ it.dish.name }}</li>{% endfor %}</ul></div>
-            {% endif %}
-        {% else %}
-            <div class="empty">Chưa có thực đơn hôm nay</div>
-        {% endif %}
-    </div>
-
-    <div class="col-week">
-        <div class="h">Thực đơn trong tuần</div>
-        <div class="week">
-            {% for day in week_data %}
-            <div class="day {% if day.date == selected_date %}today{% endif %}">
-                <div class="day-h">{{ day.label }}{% if day.date == selected_date %}<span class="tag">HÔM NAY</span>{% endif %}</div>
-                <div class="day-d">{{ day.date|date:"d/m" }}</div>
-                {% if day.menu_items %}
-                    <ul>
-                        {% for grp in day.menu_groups %}{% for it in grp.items %}<li>{{ it.dish.name }}</li>{% endfor %}{% endfor %}
-                    </ul>
-                {% else %}
-                    <div class="none">Chưa có menu</div>
-                {% endif %}
+    <div class="hd">
+        <div class="brand">
+            <div class="logo">🍱</div>
+            <div>
+                <div class="t1">Bếp ăn KV2 — VT NET</div>
+                <div class="t2">Bảng tin nhà ăn · tự động cập nhật</div>
             </div>
-            {% endfor %}
+        </div>
+        <div class="clock">
+            <div id="t">--:--</div>
+            <div id="d">{{ selected_date|date:"l, d/m/Y" }}</div>
+        </div>
+    </div>
+
+    <div class="kpis">
+        <div class="kpi kpi-people">
+            <div class="kpi-h">Đăng ký</div>
+            <div class="kpi-v">{{ registered_count|default:0 }}<span class="u">suất</span></div>
+            <div class="pstats">
+                <div class="pstat"><span class="l">Đã điểm danh</span><span class="n g" id="s-valid">—</span></div>
+                <div class="pstat"><span class="l">Chưa đăng ký</span><span class="n o" id="s-notreg">—</span></div>
+                <div class="pstat"><span class="l">Chưa điểm danh</span><span class="n r" id="s-notatt">—</span></div>
+                <div class="pstat"><span class="l">Khách ngoài</span><span class="n b" id="s-guest">—</span></div>
+            </div>
+        </div>
+        <div class="kpi kpi-income">
+            <div class="kpi-h">Thu</div>
+            <div class="split">
+                <div class="c"><div class="l">🍖 Thực phẩm</div><div class="v">{% if income_food != None %}{{ income_food|vnd }}<span class="u"> đ</span>{% else %}—{% endif %}</div></div>
+                <div class="c"><div class="l">🧂 Gia vị</div><div class="v">{% if income_spice != None %}{{ income_spice|vnd }}<span class="u"> đ</span>{% else %}—{% endif %}</div></div>
+            </div>
+        </div>
+        <div class="kpi kpi-expense">
+            <div class="kpi-h">Chi</div>
+            <div class="split">
+                <div class="c"><div class="l">🍖 Thực phẩm</div><div class="v">{{ expense_food|vnd }}<span class="u"> đ</span></div></div>
+                <div class="c"><div class="l">🧂 Gia vị</div><div class="v">{{ expense_spice|vnd }}<span class="u"> đ</span></div></div>
+            </div>
+        </div>
+        <div class="kpi kpi-balance">
+            <div class="kpi-h">Chênh lệch</div>
+            <div class="split">
+                <div class="c"><div class="l">🍖 Thực phẩm</div><div class="v {% if balance_food != None %}{% if balance_food >= 0 %}pos{% else %}neg{% endif %}{% else %}muted{% endif %}">{% if balance_food != None %}{{ balance_food|vnd }}<span class="u"> đ</span>{% else %}—{% endif %}</div></div>
+                <div class="c"><div class="l">🧂 Gia vị</div><div class="v {% if balance_spice != None %}{% if balance_spice >= 0 %}pos{% else %}neg{% endif %}{% else %}muted{% endif %}">{% if balance_spice != None %}{{ balance_spice|vnd }}<span class="u"> đ</span>{% else %}—{% endif %}</div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="stage">
+        <div class="dots">
+            <span class="dot active" data-i="0"></span>
+            <span class="dot" data-i="1"></span>
+            <span class="dot" data-i="2"></span>
+        </div>
+        <div class="prog"><div class="fill" id="prog"></div></div>
+
+        {# Panel 1: Thực đơn tuần #}
+        <div class="panel active" data-p="0">
+            <div class="ph">
+                <div class="ttl"><span class="ic">📅</span> Thực đơn trong tuần</div>
+                <div class="meta">Thứ 2 → Thứ 6 · HÔM NAY nổi bật</div>
+            </div>
+            <div class="week">
+                {% for day in week_data %}
+                <div class="day {% if day.date == selected_date %}today{% elif day.menu_items %}has{% endif %}">
+                    <div class="day-h">{{ day.label }}{% if day.date == selected_date %}<span class="tag">HÔM NAY</span>{% endif %}</div>
+                    <div class="day-d">{{ day.date|date:"d/m/Y" }}</div>
+                    {% if day.menu_items %}
+                        <ul>
+                            {% for grp in day.menu_groups %}{% for it in grp.items %}<li class="{{ grp.type }}">{{ it.dish.name }}</li>{% endfor %}{% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="none">🌱 Chưa có menu</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {# Panel 2: Thực đơn hôm nay (có ảnh) #}
+        <div class="panel" data-p="1">
+            <div class="ph">
+                <div class="ttl"><span class="ic">🍽️</span> Thực đơn hôm nay</div>
+                <div class="meta">{{ selected_date|date:"d/m/Y" }}{% if menu_item_count %} · {{ menu_item_count }} món{% endif %}</div>
+            </div>
+            {% if ordered_menu_items %}
+            <div class="today">
+                {% for it in ordered_menu_items %}
+                <div class="dish">
+                    <div class="img">
+                        {% if it.dish.image %}<img src="{{ it.dish.image.url }}" alt="" loading="lazy">{% else %}<div class="noimg">🍴</div>{% endif %}
+                    </div>
+                    <div class="info">
+                        <div class="nm">{{ it.dish.name }}</div>
+                        <span class="bd {{ it.dish.dish_type }}">
+                            {% if it.dish.dish_type == 'main' %}Món chính{% elif it.dish.dish_type == 'side' %}Món phụ{% elif it.dish.dish_type == 'soup' %}Món canh{% elif it.dish.dish_type == 'dessert' %}Tráng miệng{% else %}Món ăn{% endif %}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="big-empty"><div class="ic">🍽️</div><div>Chưa có thực đơn cho ngày hôm nay</div></div>
+            {% endif %}
+        </div>
+
+        {# Panel 3: AI dinh dưỡng #}
+        <div class="panel" data-p="2">
+            <div class="ph">
+                <div class="ttl"><span class="ic">🤖</span> AI dinh dưỡng</div>
+                <div class="meta">Phân tích menu hôm nay · {{ selected_date|date:"d/m/Y" }}</div>
+            </div>
+            <div class="ai">
+                <div class="ai-card">
+                    <div class="ai-lbl">Tổng năng lượng / suất</div>
+                    <div class="ai-kcal"><span id="kcal">0</span> <span class="u">kcal</span></div>
+                    <div id="levelWrap"></div>
+                    <div class="ai-sum" id="summary">Đang tải phân tích...</div>
+                </div>
+                <div class="ai-card right">
+                    <div class="ai-lbl">💡 Mẹo dinh dưỡng</div>
+                    <div class="ai-tip-ic">💡</div>
+                    <div class="ai-tip" id="tip">Uống đủ nước giúp cơ thể trao đổi chất tốt hơn.</div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -147,7 +256,7 @@ body { padding: 22px 26px; overflow: hidden; }
     tick(); setInterval(tick, 1000);
 })();
 
-/* Poll số người ăn (nhẹ, chỉ cập nhật text) */
+/* Poll số người ăn */
 (function () {
     var dateParam = '{{ selected_date|date:"Y-m-d" }}';
     function set(id, v){ var e = document.getElementById(id); if (e) e.textContent = v; }
@@ -166,8 +275,57 @@ body { padding: 22px 26px; overflow: hidden; }
     poll(); setInterval(poll, 10000);
 })();
 
-/* Reload mỗi 15 phút để xả bộ nhớ (an toàn dù trang nhẹ) */
-setTimeout(function(){ window.location.reload(); }, 15 * 60 * 1000);
+/* Carousel 3 panel — chỉ panel active được display (không paint 3 màn cùng lúc) */
+(function () {
+    var panels = document.querySelectorAll('.panel');
+    var dots = document.querySelectorAll('.dot');
+    var prog = document.getElementById('prog');
+    var DUR = [16000, 20000, 16000];   // ms mỗi panel
+    var i = 0, timer = null;
+
+    function resetProgress(ms){
+        prog.style.transition = 'none'; prog.style.width = '0%';
+        // ép reflow rồi chạy
+        void prog.offsetWidth;
+        prog.style.transition = 'width ' + ms + 'ms linear';
+        prog.style.width = '100%';
+    }
+    function show(n){
+        i = n;
+        for (var k = 0; k < panels.length; k++) panels[k].classList.toggle('active', k === n);
+        for (var j = 0; j < dots.length; j++) dots[j].classList.toggle('active', j === n);
+        resetProgress(DUR[n]);
+        if (n === 2) loadNutrition();
+        clearTimeout(timer);
+        timer = setTimeout(function(){ show((i + 1) % panels.length); }, DUR[n]);
+    }
+    for (var d = 0; d < dots.length; d++) {
+        (function(idx){ dots[idx].addEventListener('click', function(){ show(idx); }); })(d);
+    }
+    show(0);
+})();
+
+/* AI dinh dưỡng — tải 1 lần */
+var nutritionLoaded = false;
+function loadNutrition(){
+    if (nutritionLoaded) return;
+    nutritionLoaded = true;
+    fetch('/nutrition-analysis/')
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+            if (data.error) { document.getElementById('summary').textContent = data.error; return; }
+            document.getElementById('kcal').textContent = (data.total_kcal || 0).toLocaleString('vi-VN');
+            var lv = (data.level || '').toLowerCase(), cls = 'lv-bal', ic = '⚖️';
+            if (lv.indexOf('thiếu') >= 0 || lv.indexOf('thấp') >= 0) { cls = 'lv-low'; ic = '⬇️'; }
+            else if (lv.indexOf('dư') >= 0 || lv.indexOf('cao') >= 0 || lv.indexOf('nhiều') >= 0) { cls = 'lv-high'; ic = '⬆️'; }
+            document.getElementById('levelWrap').innerHTML = '<div class="ai-level ' + cls + '">' + ic + ' Mức: <b>' + (data.level || '') + '</b></div>';
+            document.getElementById('summary').textContent = data.summary || '';
+        })
+        .catch(function(){ document.getElementById('summary').textContent = 'Không tải được phân tích AI.'; });
+}
+
+/* Reload mỗi 8 phút để xả bộ nhớ renderer Tizen */
+setTimeout(function(){ window.location.reload(); }, 8 * 60 * 1000);
 </script>
 
 </body>
