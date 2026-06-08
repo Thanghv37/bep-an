@@ -1,4 +1,5 @@
 import pandas as pd
+from datetime import datetime
 from django.contrib.auth.models import User
 from accounts.models import UserProfile
 
@@ -17,6 +18,24 @@ def clean_value(value):
     if pd.isna(value):
         return ''
     return str(value).strip()
+
+
+def parse_dob(value):
+    """Đọc ngày sinh từ ô Excel. Trả (date|None, is_error).
+    - rỗng -> (None, False): bỏ qua, không coi là lỗi
+    - đọc được -> (date, False)
+    - có giá trị nhưng sai định dạng -> (None, True)
+    Nhận: dd/mm/yyyy, yyyy-mm-dd, dd-mm-yyyy (và chuỗi datetime của Excel kèm giờ)."""
+    s = clean_value(value)
+    if not s:
+        return None, False
+    s = s.split(' ')[0].strip()   # bỏ phần giờ nếu Excel lưu dạng datetime
+    for fmt in ('%d/%m/%Y', '%Y-%m-%d', '%d-%m-%Y'):
+        try:
+            return datetime.strptime(s, fmt).date(), False
+        except ValueError:
+            continue
+    return None, True
 
 
 def normalize_columns(df):
@@ -46,6 +65,7 @@ def import_users_from_excel(file):
             department = clean_value(row.get('Phòng ban'))
             position = clean_value(row.get('Chức vụ'))
             phone = clean_value(row.get('Số điện thoại'))
+            dob, dob_error = parse_dob(row.get('Ngày sinh'))
 
             role_raw = clean_value(row.get('Role')).upper()
             role = ROLE_MAP.get(role_raw, UserProfile.ROLE_DINER)
@@ -78,7 +98,12 @@ def import_users_from_excel(file):
             profile.position = position
             profile.phone = phone
             profile.role = role
+            if dob:
+                profile.date_of_birth = dob   # chỉ set khi đọc được, ô trống thì giữ nguyên
             profile.save()
+
+            if dob_error:
+                errors.append(f"Dòng {index + 2}: Ngày sinh sai định dạng (dùng dd/mm/yyyy), đã bỏ qua ngày sinh.")
 
             if created_flag:
                 created += 1
