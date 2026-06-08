@@ -545,7 +545,7 @@
             </div>
 
             {% if menu %}
-                <div class="today-dish-grid" id="todayDishGrid">
+                <div class="today-dish-grid{% if ordered_menu_items|length > 4 %} today-dish-grid--row{% endif %}" id="todayDishGrid"{% if ordered_menu_items|length > 4 %} style="grid-template-columns: repeat({{ ordered_menu_items|length }}, minmax(140px, 1fr));"{% endif %}>
                     {% for item in ordered_menu_items %}
                     <div class="today-dish-card" style="--idx: {{ forloop.counter0 }};">
                         <div class="today-dish-stage">
@@ -977,6 +977,12 @@
         grid-template-columns: repeat(auto-fit, minmax(240px, 340px));
         justify-content: center;
         gap: 16px;
+    }
+    /* >4 món: dồn tất cả lên 1 hàng ngang (số cột = số món, set inline trong template).
+       Card co lại cho vừa bề rộng; màn hẹp thì cuộn ngang thay vì xuống dòng. */
+    .today-dish-grid--row {
+        justify-content: stretch;
+        overflow-x: auto;
     }
     .today-dish-card {
         position: relative;
