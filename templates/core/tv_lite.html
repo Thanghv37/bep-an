@@ -1,4 +1,4 @@
-{% load currency_filters %}<!DOCTYPE html>
+{% load currency_filters %}{% load static %}<!DOCTYPE html>
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
@@ -203,6 +203,10 @@ html, body {
 @keyframes bdayFall { from { transform: translateY(0) rotate(0); opacity: 1; } to { transform: translateY(110vh) rotate(540deg); opacity: .9; } }
 .bday-bl { position: absolute; bottom: -150px; font-size: 72px; animation: bdayRise linear forwards; }
 @keyframes bdayRise { from { transform: translateY(0) rotate(-8deg); opacity: 0; } 12% { opacity: 1; } to { transform: translateY(-128vh) rotate(8deg); opacity: 0; } }
+
+/* Nút bật âm thanh (mở khóa autoplay khi trình duyệt chặn) */
+.snd-btn { position: fixed; right: 18px; bottom: 16px; z-index: 50; background: #2563eb; color: #fff; border: none; border-radius: 10px; padding: 12px 18px; font-size: 18px; font-weight: bold; cursor: pointer; }
+.snd-btn.hide { display: none; }
 </style>
 </head>
 <body>
@@ -217,6 +221,10 @@ html, body {
         <div class="bday-msg">Kính chúc bạn một ngày sinh nhật thật vui vẻ, hạnh phúc và tràn đầy năng lượng!</div>
     </div>
 </div>
+
+{# Nhạc chúc mừng (file admin upload ở Profile, fallback static) #}
+<audio id="bdayAudio" src="{% if birthday_audio_url %}{{ birthday_audio_url }}{% else %}{% static 'audio/birthday.mp3' %}{% endif %}" preload="auto" loop></audio>
+<button id="sndBtn" class="snd-btn">🔊 Bật âm thanh</button>
 
 <div class="app">
 
@@ -550,8 +558,22 @@ function loadNutrition(){
     if (!overlay) return;
     var peopleEl = document.getElementById('bdayPeople');
     var fxEl = document.getElementById('bdayFx');
+    var audio = document.getElementById('bdayAudio');
+    var sndBtn = document.getElementById('sndBtn');
     var SHOW_MS = 25000, POLL_MS = 15000;
     var showing = false;
+
+    /* Mở khóa âm thanh: thử autoplay ngầm khi tải; nếu bị chặn thì chờ bấm nút */
+    function tryUnlock(hideBtn){
+        if (!audio) return;
+        var p = audio.play();
+        if (p && p.then) p.then(function(){ audio.pause(); audio.currentTime = 0; if (hideBtn && sndBtn) sndBtn.classList.add('hide'); })
+                          .catch(function(){});
+    }
+    if (audio) tryUnlock(false);                       // thử tự mở khóa (kiosk cho phép thì hết cần bấm)
+    if (sndBtn) sndBtn.addEventListener('click', function(){ tryUnlock(true); });
+    function playMusic(){ if (audio) { try { audio.currentTime = 0; var p = audio.play(); if (p && p.catch) p.catch(function(){}); } catch(e){} } }
+    function stopMusic(){ if (audio) { try { audio.pause(); audio.currentTime = 0; } catch(e){} } }
 
     function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -585,9 +607,11 @@ function loadNutrition(){
         }).join('');
         spawn();
         overlay.classList.add('show');
+        playMusic();
         setTimeout(function(){
             overlay.classList.remove('show');
             fxEl.innerHTML = '';   // gỡ confetti khỏi DOM
+            stopMusic();
             showing = false;
         }, SHOW_MS);
     }
