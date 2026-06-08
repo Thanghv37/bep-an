@@ -12,7 +12,9 @@
 html, body {
     width: 100%; height: 100%;
     font-family: Arial, Helvetica, sans-serif;
-    color: #0f172a; background: #f5f7fb;
+    color: #0f172a;
+    /* Nền gradient TĨNH (không animate) cho đỡ nhạt */
+    background: linear-gradient(160deg, #eef2ff 0%, #f8fafc 42%, #ecfeff 100%);
     overflow: hidden;
 }
 .app { display: flex; flex-direction: column; height: 100vh; padding: 16px 20px; gap: 12px; }
@@ -27,6 +29,7 @@ html, body {
 @keyframes dotPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
 @keyframes tagPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
 @keyframes bump { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
+@keyframes grow { to { width: 180px; } }
 
 /* ===== Header ===== */
 .hd { display: flex; justify-content: space-between; align-items: center; }
@@ -47,6 +50,10 @@ html, body {
 .kpi { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 14px 18px 14px 22px; position: relative; overflow: hidden; animation: cardUp .5s ease both; }
 .kpi:nth-child(2) { animation-delay: .08s; } .kpi:nth-child(3) { animation-delay: .16s; } .kpi:nth-child(4) { animation-delay: .24s; }
 .kpi::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; }
+.kpi-people { background: linear-gradient(135deg, #eff6ff, #ffffff 70%); border-color: #bfdbfe; }
+.kpi-income { background: linear-gradient(135deg, #f0fdf4, #ffffff 70%); border-color: #bbf7d0; }
+.kpi-expense { background: linear-gradient(135deg, #fef2f2, #ffffff 70%); border-color: #fecdd3; }
+.kpi-balance { background: linear-gradient(135deg, #eef2ff, #ffffff 70%); border-color: #c7d2fe; }
 .kpi-people::before { background: #2563eb; } .kpi-income::before { background: #10b981; }
 .kpi-expense::before { background: #ef4444; } .kpi-balance::before { background: #6366f1; }
 .kpi-h { font-size: 20px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
@@ -71,9 +78,12 @@ html, body {
 .panel { position: absolute; inset: 0; padding: 18px 22px; display: none; flex-direction: column; overflow: hidden; }
 .panel.active { display: flex; }
 .panel.in { animation: panelFade .5s ease both; }
-.ph { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0; }
+.ph { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-shrink: 0; border-bottom: 3px solid #e2e8f0; padding-bottom: 12px; }
 .ph .ttl { font-size: 43px; font-weight: bold; color: #0f172a; display: flex; align-items: center; gap: 14px; }
 .ph .ttl .ic { width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(135deg, #06b6d4, #10b981); color: #fff; font-size: 34px; display: flex; align-items: center; justify-content: center; }
+.panel[data-p="0"] .ph { border-color: #6366f1; } .panel[data-p="0"] .ic { background: linear-gradient(135deg, #6366f1, #06b6d4); }
+.panel[data-p="1"] .ph { border-color: #10b981; } .panel[data-p="1"] .ic { background: linear-gradient(135deg, #10b981, #84cc16); }
+.panel[data-p="2"] .ph { border-color: #8b5cf6; } .panel[data-p="2"] .ic { background: linear-gradient(135deg, #8b5cf6, #ec4899); }
 .panel.in .ph .ic { animation: pop .55s ease; }
 .ph .meta { font-size: 22px; color: #64748b; font-weight: bold; }
 
@@ -119,6 +129,7 @@ html, body {
 .ds .imgwrap .noimg { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 110px; }
 .ds .txt { padding: 28px 32px; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
 .ds .nm { font-size: 64px; font-weight: bold; color: #1e3a8a; line-height: 1.1; margin-bottom: 14px; animation: up .5s ease both; }
+.ds .nm::after { content: ''; display: block; height: 6px; width: 0; margin-top: 12px; border-radius: 999px; background: linear-gradient(90deg, #06b6d4, #10b981); animation: grow .6s .35s ease forwards; }
 .ds .bd { font-size: 22px; font-weight: bold; padding: 5px 18px; border-radius: 999px; width: fit-content; margin-bottom: 18px; animation: up .5s .15s ease both; }
 .bd-main { background: #dbeafe; color: #1e40af; } .bd-side { background: #ede9fe; color: #5b21b6; }
 .bd-soup { background: #dcfce7; color: #166534; } .bd-dessert { background: #ffedd5; color: #9a3412; }
@@ -143,7 +154,9 @@ html, body {
 .lv-high { background: #fef2f2; color: #be123c; border-color: #fecdd3; }
 .ai-sum { font-size: 31px; line-height: 1.5; color: #334155; overflow: hidden; }
 .ai-tip-ic { font-size: 108px; margin-bottom: 14px; }
-.ai-tip { font-size: 43px; line-height: 1.4; color: #92400e; font-weight: bold; }
+.ai-tip { font-size: 43px; line-height: 1.4; color: #92400e; font-weight: bold; transition: transform .4s ease, opacity .4s ease; }
+.ai-tip.leaving { opacity: 0; transform: translateX(-30px); }
+.ai-tip.entering { opacity: 0; transform: translateX(30px); }
 
 /* ===== Chúc mừng sinh nhật (overlay) — TV-safe: confetti HỮU HẠN (forwards) rồi gỡ DOM ===== */
 .bday { position: fixed; inset: 0; z-index: 9999; display: none; align-items: center; justify-content: center; background: rgba(255,251,235,.97); overflow: hidden; }
@@ -311,6 +324,45 @@ function countUp(el, target, dur){
     requestAnimationFrame(step);
 }
 
+/* Gõ chữ lần lượt (typewriter) */
+function typewriter(el, text){
+    if (!el) return;
+    text = text || ''; el.textContent = '';
+    var i = 0;
+    (function step(){
+        if (i >= text.length) return;
+        el.textContent += text.charAt(i++);
+        setTimeout(step, 18);
+    })();
+}
+
+/* Lời khuyên dinh dưỡng tự đổi luân phiên (panel AI) */
+(function () {
+    var tips = [
+        "Uống đủ nước giúp cơ thể trao đổi chất tốt hơn.",
+        "Ăn chậm, nhai kỹ giúp hệ tiêu hóa hoạt động hiệu quả hơn.",
+        "Rau xanh cung cấp chất xơ, hỗ trợ kiểm soát đường huyết.",
+        "Đi bộ nhẹ sau ăn giúp giảm cảm giác đầy bụng.",
+        "Ngủ đủ giấc giúp cơ thể phục hồi và giảm mệt mỏi.",
+        "Trái cây tươi là lựa chọn tráng miệng tốt hơn đồ ngọt.",
+        "Hạn chế đồ chiên rán giúp giảm gánh nặng tiêu hóa.",
+        "Bổ sung đạm (thịt, cá, trứng, đậu) giúp no lâu hơn.",
+        "Giảm muối trong bữa ăn tốt cho tim mạch và huyết áp.",
+    ];
+    var el = document.getElementById('tip');
+    if (!el) return;
+    var k = 0;
+    setInterval(function () {
+        k = (k + 1) % tips.length;
+        el.classList.add('leaving');
+        setTimeout(function () {
+            el.textContent = tips[k];
+            el.classList.remove('leaving'); el.classList.add('entering');
+            void el.offsetWidth; el.classList.remove('entering');
+        }, 400);
+    }, 6000);
+})();
+
 /* Đồng hồ */
 (function () {
     var elT = document.getElementById('t'), elD = document.getElementById('d');
@@ -454,7 +506,7 @@ function loadNutrition(){
             if (lv.indexOf('thiếu') >= 0 || lv.indexOf('thấp') >= 0) { cls = 'lv-low'; ic = '⬇️'; }
             else if (lv.indexOf('dư') >= 0 || lv.indexOf('cao') >= 0 || lv.indexOf('nhiều') >= 0) { cls = 'lv-high'; ic = '⬆️'; }
             document.getElementById('levelWrap').innerHTML = '<div class="ai-level ' + cls + '">' + ic + ' Mức: <b>' + (data.level || '') + '</b></div>';
-            document.getElementById('summary').textContent = data.summary || '';
+            typewriter(document.getElementById('summary'), data.summary || '');
         })
         .catch(function(){ document.getElementById('summary').textContent = 'Không tải được phân tích AI.'; });
 }
