@@ -79,27 +79,38 @@ def import_users_from_excel(file):
 
             user, created_flag = User.objects.get_or_create(username=employee_code)
 
-            user.first_name = full_name
-            user.email = email
-            user.is_staff = role in [UserProfile.ROLE_ADMIN, UserProfile.ROLE_KITCHEN]
-
+            # Upsert AN TOÀN: chỉ cập nhật cột có điền, ô trống thì giữ nguyên giá trị cũ
+            # (tránh import file gọn — chỉ Mã NV + Ngày sinh — làm xoá trắng tên/email/role).
+            if full_name:
+                user.first_name = full_name
+            if email:
+                user.email = email
+            if role_raw:
+                user.is_staff = role in [UserProfile.ROLE_ADMIN, UserProfile.ROLE_KITCHEN]
             if created_flag:
                 user.set_unusable_password()
-
             user.save()
 
             profile, _ = UserProfile.objects.get_or_create(user=user)
             profile.employee_code = employee_code
-            profile.full_name = full_name
-            profile.email = email
-            profile.gender = gender
-            profile.unit = unit
-            profile.department = department
-            profile.position = position
-            profile.phone = phone
-            profile.role = role
+            if full_name:
+                profile.full_name = full_name
+            if email:
+                profile.email = email
+            if gender:
+                profile.gender = gender
+            if unit:
+                profile.unit = unit
+            if department:
+                profile.department = department
+            if position:
+                profile.position = position
+            if phone:
+                profile.phone = phone
+            if role_raw:
+                profile.role = role
             if dob:
-                profile.date_of_birth = dob   # chỉ set khi đọc được, ô trống thì giữ nguyên
+                profile.date_of_birth = dob
             profile.save()
 
             if dob_error:
