@@ -572,6 +572,10 @@ function loadNutrition(){
     }
     if (audio) tryUnlock(false);                       // thử tự mở khóa (kiosk cho phép thì hết cần bấm)
     if (sndBtn) sndBtn.addEventListener('click', function(){ tryUnlock(true); });
+    // Mở khóa khi có BẤT KỲ thao tác nào (bấm phím trên remote / click / chạm) — đỡ phải tìm đúng nút
+    ['keydown', 'click', 'touchstart', 'pointerdown'].forEach(function(ev){
+        document.addEventListener(ev, function(){ tryUnlock(true); }, { once: true });
+    });
     function playMusic(){ if (audio) { try { audio.currentTime = 0; var p = audio.play(); if (p && p.catch) p.catch(function(){}); } catch(e){} } }
     function stopMusic(){ if (audio) { try { audio.pause(); audio.currentTime = 0; } catch(e){} } }
 

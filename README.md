@@ -87,6 +87,8 @@ Hệ thống Quản lý Bếp ăn là giải pháp toàn diện giúp tự độ
 ## 📝 Nhật ký thay đổi
 
 ### 2026-06-08
+- **TV SHOW: mở khóa âm thanh khi có BẤT KỲ thao tác nào** ([templates/core/tv_lite.html](templates/core/tv_lite.html)). Ngoài nút "🔊 Bật âm thanh", giờ bất kỳ phím remote / click / chạm đầu tiên cũng mở khóa audio (listener `once`). Trình duyệt vẫn chặn auto-play hoàn toàn bằng script (chính sách user-gesture) → không thể tự bấm; muốn 0-chạm phải bật autoplay trong cài đặt trình duyệt TV. Chỉ template, không cần migrate.
+
 - **Màn chúc mừng sinh nhật: kéo dài 25s → 60s + bắn confetti lặp lại** ([templates/core/tv_lite.html](templates/core/tv_lite.html)). Tăng `SHOW_MS` lên 60 giây; thêm `setInterval(spawn, 7000)` để confetti + bóng bay bắn lại định kỳ suốt thời gian hiển thị (không bị im sau vài giây đầu), clear khi tắt. Chỉ template, không cần migrate.
 
 - **Nhạc cho màn chúc mừng sinh nhật trên TV SHOW** ([templates/core/tv_lite.html](templates/core/tv_lite.html)). Thêm `<audio loop>` (src = nhạc admin upload ở Profile, fallback `static/audio/birthday.mp3`): **phát khi overlay chúc mừng hiện, dừng khi tắt**. Xử lý chặn autoplay của trình duyệt: tự thử mở khóa ngầm khi tải trang (kiosk cho phép thì chạy luôn), kèm nút **"🔊 Bật âm thanh"** để bấm 1 lần nếu bị chặn. Lưu ý: trang tự reload 8 phút nên nếu trình duyệt TV chặn autoplay, cần bật autoplay trong cài đặt trình duyệt TV hoặc bấm nút lại sau reload. Chỉ template, không cần migrate.
