@@ -870,6 +870,13 @@
                     <span>Dashboard</span>
                 </a>
 
+                {% if request.user.is_superuser or request.user.profile.role == 'admin' or request.user.profile.role == 'kitchen' %}
+                    <a class="nav-link {% if '/tv/' in request.path %}active{% endif %}" href="{% url 'tv_lite' %}">
+                        <i class="bi bi-tv-fill"></i>
+                        <span>TV SHOW</span>
+                    </a>
+                {% endif %}
+
                 <a class="nav-link {% if '/reviews/' in request.path %}active{% endif %}" href="/reviews/">
                     <i class="bi bi-star-half"></i>
                     <span>Đánh giá bữa ăn</span>

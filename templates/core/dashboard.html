@@ -7,9 +7,9 @@
 {% block page_title_action %}
     {% if request.user.is_authenticated %}
         {% if request.user.is_superuser or request.user.profile.role == 'admin' or request.user.profile.role == 'kitchen' %}
-            <a href="{% url 'tv_dashboard' %}" class="btn-tv-mode" title="Mở chế độ TV (toàn màn hình, chiếu ở nhà ăn)">
+            <a href="{% url 'tv_lite' %}" class="btn-tv-mode" title="Mở TV SHOW (toàn màn hình, chiếu ở nhà ăn)">
                 <i class="bi bi-display"></i>
-                <span>Chế độ TV</span>
+                <span>TV SHOW</span>
                 <span class="btn-tv-pulse"></span>
             </a>
         {% endif %}
