@@ -170,21 +170,39 @@ html, body {
 .ai-tip.leaving { opacity: 0; transform: translateX(-30px); }
 .ai-tip.entering { opacity: 0; transform: translateX(30px); }
 
-/* ===== Chúc mừng sinh nhật (overlay) — TV-safe: confetti HỮU HẠN (forwards) rồi gỡ DOM ===== */
-.bday { position: fixed; inset: 0; z-index: 9999; display: none; align-items: center; justify-content: center; background: rgba(255,251,235,.97); overflow: hidden; }
+/* ===== Chúc mừng sinh nhật (overlay) — TV-safe: confetti/bóng bay HỮU HẠN (forwards) rồi gỡ DOM ===== */
+.bday {
+    position: fixed; inset: 0; z-index: 9999; display: none; align-items: center; justify-content: center; overflow: hidden;
+    background:
+        radial-gradient(900px 620px at 14% 12%, rgba(244,63,94,.20), transparent 60%),
+        radial-gradient(900px 620px at 86% 88%, rgba(139,92,246,.20), transparent 60%),
+        radial-gradient(720px 520px at 88% 14%, rgba(245,158,11,.20), transparent 60%),
+        linear-gradient(135deg, #fff7ed 0%, #fdf2f8 50%, #f5f3ff 100%);
+}
 .bday.show { display: flex; }
-.bday-card { position: relative; z-index: 2; text-align: center; background: #fff; border: 4px solid #f59e0b; border-radius: 28px; padding: 48px 72px; max-width: 86vw; animation: bdayPop .6s ease; }
-@keyframes bdayPop { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
-.bday-ttl { font-size: 64px; font-weight: bold; color: #d97706; margin-bottom: 26px; }
-.bday-people { display: flex; gap: 48px; justify-content: center; flex-wrap: wrap; margin-bottom: 26px; }
-.bday-p { display: flex; flex-direction: column; align-items: center; gap: 14px; }
-.bday-av { width: 200px; height: 200px; border-radius: 50%; object-fit: cover; border: 6px solid #fbbf24; background: #fef3c7; }
-.bday-av-f { width: 200px; height: 200px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 100px; background: #fef3c7; border: 6px solid #fbbf24; }
-.bday-nm { font-size: 46px; font-weight: bold; color: #0f172a; }
-.bday-msg { font-size: 32px; color: #92400e; font-weight: bold; }
+.bday-card {
+    position: relative; z-index: 2; text-align: center;
+    background: rgba(255,255,255,.92); border: 5px solid #f59e0b; border-radius: 36px;
+    padding: 50px 84px; max-width: 88vw; box-shadow: 0 20px 60px rgba(245,158,11,.28);
+    animation: bdayPop .7s cubic-bezier(.18,.89,.32,1.28);
+}
+@keyframes bdayPop { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: scale(1); } }
+.bday-cake { font-size: 96px; line-height: 1; margin-bottom: 6px; animation: bdayCake 1.3s ease-in-out infinite; }
+@keyframes bdayCake { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-14px) rotate(3deg); } }
+.bday-ttl { font-size: 72px; font-weight: bold; color: #d97706; margin-bottom: 30px; letter-spacing: 1px; }
+.bday-people { display: flex; gap: 56px; justify-content: center; flex-wrap: wrap; margin-bottom: 30px; }
+.bday-p { display: flex; flex-direction: column; align-items: center; gap: 16px; animation: bdayUp .7s .2s ease both; }
+@keyframes bdayUp { from { opacity: 0; transform: translateY(34px); } to { opacity: 1; transform: none; } }
+.bday-av, .bday-av-f { width: 220px; height: 220px; border-radius: 50%; border: 8px solid #fbbf24; box-shadow: 0 0 0 8px rgba(251,191,36,.25); background: #fef3c7; }
+.bday-av { object-fit: cover; }
+.bday-av-f { display: flex; align-items: center; justify-content: center; font-size: 116px; }
+.bday-nm { font-size: 54px; font-weight: bold; color: #0f172a; }
+.bday-msg { font-size: 34px; color: #92400e; font-weight: bold; max-width: 980px; margin: 0 auto; }
 .bday-fx { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
 .bday-cf { position: absolute; top: -30px; width: 14px; height: 20px; border-radius: 3px; animation: bdayFall linear forwards; }
 @keyframes bdayFall { from { transform: translateY(0) rotate(0); opacity: 1; } to { transform: translateY(110vh) rotate(540deg); opacity: .9; } }
+.bday-bl { position: absolute; bottom: -150px; font-size: 72px; animation: bdayRise linear forwards; }
+@keyframes bdayRise { from { transform: translateY(0) rotate(-8deg); opacity: 0; } 12% { opacity: 1; } to { transform: translateY(-128vh) rotate(8deg); opacity: 0; } }
 </style>
 </head>
 <body>
@@ -193,6 +211,7 @@ html, body {
 <div class="bday" id="bday">
     <div class="bday-fx" id="bdayFx"></div>
     <div class="bday-card">
+        <div class="bday-cake">🎂</div>
         <div class="bday-ttl">🎉 CHÚC MỪNG SINH NHẬT 🎉</div>
         <div class="bday-people" id="bdayPeople"></div>
         <div class="bday-msg">Kính chúc bạn một ngày sinh nhật thật vui vẻ, hạnh phúc và tràn đầy năng lượng!</div>
@@ -538,12 +557,21 @@ function loadNutrition(){
 
     function spawn(){
         var COLORS = ['#f43f5e','#f59e0b','#10b981','#3b82f6','#a855f7','#ec4899','#facc15'];
+        var BALLOONS = ['🎈','🎉','🎊','🎁','🥳','⭐'];
         var html = '';
-        for (var k = 0; k < 18; k++) {
+        // Confetti rơi (hữu hạn)
+        for (var k = 0; k < 24; k++) {
             var left = Math.round(Math.random() * 98);
             var dur = (3 + Math.random() * 2.5).toFixed(1);
-            var delay = (Math.random() * 1.5).toFixed(1);
+            var delay = (Math.random() * 2).toFixed(1);
             html += '<span class="bday-cf" style="left:'+left+'%;background:'+COLORS[k % COLORS.length]+';animation-duration:'+dur+'s;animation-delay:'+delay+'s"></span>';
+        }
+        // Bóng bay bay lên (hữu hạn)
+        for (var b = 0; b < 10; b++) {
+            var bl = Math.round(Math.random() * 92) + 2;
+            var bdur = (5 + Math.random() * 4).toFixed(1);
+            var bdelay = (Math.random() * 3).toFixed(1);
+            html += '<span class="bday-bl" style="left:'+bl+'%;animation-duration:'+bdur+'s;animation-delay:'+bdelay+'s">'+BALLOONS[b % BALLOONS.length]+'</span>';
         }
         fxEl.innerHTML = html;
     }

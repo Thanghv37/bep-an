@@ -87,6 +87,8 @@ Hệ thống Quản lý Bếp ăn là giải pháp toàn diện giúp tự độ
 ## 📝 Nhật ký thay đổi
 
 ### 2026-06-08
+- **Màn chúc mừng sinh nhật: nâng cấp hoành tráng (TV-safe)** ([templates/core/tv_lite.html](templates/core/tv_lite.html)). Overlay đẹp hơn: nền **gradient party nhiều lớp** (hồng/tím/cam), card bo tròn lớn + bóng đổ + **pop bounce**, thêm **bánh kem 🎂 nhún nhẹ** trên tiêu đề, ảnh đại diện to (220px) có vòng sáng, tên 54px, người hiện **trượt lên lần lượt**. Hiệu ứng: **confetti rơi (24) + bóng bay bay lên (10)** — đều HỮU HẠN (`forwards`) và gỡ DOM sau 25s; chỉ bánh kem nhún infinite nhưng bị giới hạn (overlay `display:none` khi tắt → không vẽ). Chỉ template, không cần migrate. *(Phần sinh nhật thật cần đã `migrate` trên server; xem thử: `/tv/lite/?bday=1`.)*
+
 - **Bỏ nút TV SHOW trên dashboard + thêm nút Thoát trong TV SHOW** ([templates/core/dashboard.html](templates/core/dashboard.html), [templates/core/tv_lite.html](templates/core/tv_lite.html)). Gỡ hẳn block `page_title_action` (nút "TV SHOW" ở header dashboard) vì đã có mục TV SHOW ngoài sidebar. Trang TV SHOW thêm nút **"✕ Thoát"** ở góc phải header (cạnh đồng hồ) + phím **ESC** để quay về dashboard. Chỉ template, không cần migrate.
 
 - **TV SHOW: nền sinh động cho panel Hôm nay + AI** ([templates/core/tv_lite.html](templates/core/tv_lite.html)). Panel "Thực đơn hôm nay" (nền cam→lá) và "AI dinh dưỡng" (nền tím→cyan) thêm **gradient nhiều lớp** (2 radial + 1 linear) cho có chiều sâu; các card (danh sách, stage món, card AI) làm **hơi trong suốt** (`rgba(255,255,255,.66-.7)`) để màu nền ánh qua. Gradient đều **TĨNH** (không animate nền → không tốn GPU/crash). Chỉ template, không cần migrate.
