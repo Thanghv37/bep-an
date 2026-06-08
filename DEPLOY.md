@@ -260,6 +260,47 @@ sudo rm /etc/systemd/system/participation-report.timer /etc/systemd/system/parti
 sudo systemctl daemon-reload
 ```
 
+### `camera-offline-alert.timer` — cảnh báo camera tắt giờ trưa qua NetChat
+
+Mỗi phút check: nếu đang trong khung **11:00–12:30 (giờ VN)** mà camera nhận diện không gửi heartbeat > 2 phút (coi như tắt) → gửi tin NetChat DM cảnh báo cho user **thanghv37**. Có cooldown 30 phút để không spam. Mọi tham số fix cứng trong [core/management/commands/alert_camera_offline.py](core/management/commands/alert_camera_offline.py).
+
+**Setup lần đầu (chạy 1 lần trên server, sau khi pull về có folder scripts/):**
+
+```bash
+# 1. Symlink unit files vào systemd
+sudo ln -sf /home/ipcdkv2/thanghv37/scripts/camera-offline-alert.service /etc/systemd/system/camera-offline-alert.service
+sudo ln -sf /home/ipcdkv2/thanghv37/scripts/camera-offline-alert.timer /etc/systemd/system/camera-offline-alert.timer
+
+# 2. Reload systemd
+sudo systemctl daemon-reload
+
+# 3. Test thủ công ngay:
+cd ~/thanghv37
+DB_PASSWORD=thanghv37 venv/bin/python manage.py alert_camera_offline --test    # gửi 1 tin test cho thanghv37
+DB_PASSWORD=thanghv37 venv/bin/python manage.py alert_camera_offline --force   # check & gửi ngay nếu camera đang tắt (bỏ qua khung giờ)
+
+# 4. Bật timer chạy mỗi phút
+sudo systemctl enable --now camera-offline-alert.timer
+
+# 5. Verify timer
+sudo systemctl list-timers | grep camera-offline-alert
+```
+
+**Debug:**
+```bash
+sudo journalctl -u camera-offline-alert.service -n 50 --no-pager
+sudo systemctl status camera-offline-alert.timer
+```
+
+**Tắt tạm / Gỡ hoàn toàn:**
+```bash
+sudo systemctl stop camera-offline-alert.timer
+sudo systemctl disable camera-offline-alert.timer
+# gỡ hẳn:
+sudo rm /etc/systemd/system/camera-offline-alert.timer /etc/systemd/system/camera-offline-alert.service
+sudo systemctl daemon-reload
+```
+
 ### `poll-feedback` (đã gỡ bỏ 2026-05-12)
 
 Nếu service vẫn còn trên server, xoá:

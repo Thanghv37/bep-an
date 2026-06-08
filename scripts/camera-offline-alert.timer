@@ -1,0 +1,13 @@
+[Unit]
+Description=Check recognition camera offline every minute (only acts in 11:00-12:30)
+Requires=camera-offline-alert.service
+
+[Timer]
+# Fire mỗi 1 phút. Command tự check khung giờ 11:00-12:30 + cooldown nên đa số
+# lần fire sẽ no-op (~1s).
+OnCalendar=*-*-* *:*:00
+Persistent=true
+Unit=camera-offline-alert.service
+
+[Install]
+WantedBy=timers.target

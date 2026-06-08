@@ -1,0 +1,14 @@
+[Unit]
+Description=Alert when recognition camera is offline during lunch (NetChat to thanghv37)
+Wants=postgresql.service
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=ipcdkv2
+WorkingDirectory=/home/ipcdkv2/thanghv37
+# DB_PASSWORD bắt buộc — shell user không có sẵn (xem DEPLOY.md).
+Environment="DB_PASSWORD=thanghv37"
+ExecStart=/home/ipcdkv2/thanghv37/venv/bin/python manage.py alert_camera_offline
+StandardOutput=journal
+StandardError=journal
