@@ -560,7 +560,7 @@ function loadNutrition(){
     var fxEl = document.getElementById('bdayFx');
     var audio = document.getElementById('bdayAudio');
     var sndBtn = document.getElementById('sndBtn');
-    var SHOW_MS = 25000, POLL_MS = 15000;
+    var SHOW_MS = 60000, POLL_MS = 15000;   // hiển thị màn chúc mừng 60 giây
     var showing = false;
 
     /* Mở khóa âm thanh: thử autoplay ngầm khi tải; nếu bị chặn thì chờ bấm nút */
@@ -608,7 +608,9 @@ function loadNutrition(){
         spawn();
         overlay.classList.add('show');
         playMusic();
+        var fxTimer = setInterval(spawn, 7000);   // bắn lại confetti/bóng bay cho rộn ràng suốt thời gian hiển thị
         setTimeout(function(){
+            clearInterval(fxTimer);
             overlay.classList.remove('show');
             fxEl.innerHTML = '';   // gỡ confetti khỏi DOM
             stopMusic();

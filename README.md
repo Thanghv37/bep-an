@@ -87,6 +87,8 @@ Hệ thống Quản lý Bếp ăn là giải pháp toàn diện giúp tự độ
 ## 📝 Nhật ký thay đổi
 
 ### 2026-06-08
+- **Màn chúc mừng sinh nhật: kéo dài 25s → 60s + bắn confetti lặp lại** ([templates/core/tv_lite.html](templates/core/tv_lite.html)). Tăng `SHOW_MS` lên 60 giây; thêm `setInterval(spawn, 7000)` để confetti + bóng bay bắn lại định kỳ suốt thời gian hiển thị (không bị im sau vài giây đầu), clear khi tắt. Chỉ template, không cần migrate.
+
 - **Nhạc cho màn chúc mừng sinh nhật trên TV SHOW** ([templates/core/tv_lite.html](templates/core/tv_lite.html)). Thêm `<audio loop>` (src = nhạc admin upload ở Profile, fallback `static/audio/birthday.mp3`): **phát khi overlay chúc mừng hiện, dừng khi tắt**. Xử lý chặn autoplay của trình duyệt: tự thử mở khóa ngầm khi tải trang (kiosk cho phép thì chạy luôn), kèm nút **"🔊 Bật âm thanh"** để bấm 1 lần nếu bị chặn. Lưu ý: trang tự reload 8 phút nên nếu trình duyệt TV chặn autoplay, cần bật autoplay trong cài đặt trình duyệt TV hoặc bấm nút lại sau reload. Chỉ template, không cần migrate.
 
 - **Màn chúc mừng sinh nhật: nâng cấp hoành tráng (TV-safe)** ([templates/core/tv_lite.html](templates/core/tv_lite.html)). Overlay đẹp hơn: nền **gradient party nhiều lớp** (hồng/tím/cam), card bo tròn lớn + bóng đổ + **pop bounce**, thêm **bánh kem 🎂 nhún nhẹ** trên tiêu đề, ảnh đại diện to (220px) có vòng sáng, tên 54px, người hiện **trượt lên lần lượt**. Hiệu ứng: **confetti rơi (24) + bóng bay bay lên (10)** — đều HỮU HẠN (`forwards`) và gỡ DOM sau 25s; chỉ bánh kem nhún infinite nhưng bị giới hạn (overlay `display:none` khi tắt → không vẽ). Chỉ template, không cần migrate. *(Phần sinh nhật thật cần đã `migrate` trên server; xem thử: `/tv/lite/?bday=1`.)*
