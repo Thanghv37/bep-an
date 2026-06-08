@@ -644,8 +644,8 @@ document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') window.location.href = "{% url 'dashboard' %}";
 });
 
-/* Reload mỗi 8 phút để xả bộ nhớ renderer Tizen */
-setTimeout(function(){ window.location.reload(); }, 8 * 60 * 1000);
+/* Reload mỗi 30 phút để xả bộ nhớ renderer Tizen (giãn ra để 1 lần mở khóa nhạc dùng được lâu) */
+setTimeout(function(){ window.location.reload(); }, 30 * 60 * 1000);
 </script>
 
 </body>
