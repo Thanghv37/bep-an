@@ -70,6 +70,7 @@
                         <th>Mã NV</th>
                         <th>Role</th>
                         <th>Giới tính</th>
+                        <th>Ngày sinh</th>
                         <th>Đơn vị</th>
                         <th>Phòng ban</th>
                         <th>Chức vụ</th>
@@ -117,6 +118,7 @@
                         </td>
 
                         <td>{{ user.profile.gender|default:"-" }}</td>
+                        <td>{{ user.profile.date_of_birth|date:"d/m/Y"|default:"-" }}</td>
                         <td>{{ user.profile.unit|default:"-" }}</td>
                         <td>{{ user.profile.department|default:"-" }}</td>
                         <td>{{ user.profile.position|default:"-" }}</td>
@@ -133,7 +135,7 @@
 
                     {% if can_manage %}
                     <tr class="user-action-row d-none" id="actions-{{ user.id }}">
-                        <td colspan="9">
+                        <td colspan="10">
                             <div class="d-flex justify-content-end gap-2">
                                 <a href="{% url 'user_update' user.id %}" class="btn btn-sm btn-outline-primary">
                                     Sửa

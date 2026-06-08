@@ -4,6 +4,7 @@ import secrets
 import requests
 
 from django.contrib import messages
+from django.core.files.storage import default_storage
 from django.contrib.auth import login as auth_login
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
@@ -30,6 +31,7 @@ from core.message_templates import (
     render_template,
 )
 from core.models import SystemConfig
+from core.views import BIRTHDAY_AUDIO_KEY, get_birthday_audio_url
 
 from .forms import ImportUserForm, UserCreateForm, UserUpdateForm
 from .import_utils import import_users_from_excel
@@ -274,6 +276,7 @@ def user_create(request):
             full_name = form.cleaned_data['full_name']
             email = form.cleaned_data.get('email', '')
             gender = form.cleaned_data.get('gender', '')
+            date_of_birth = form.cleaned_data.get('date_of_birth')
             unit = form.cleaned_data.get('unit', '')
             phone = form.cleaned_data.get('phone', '')
             position = form.cleaned_data['position']
@@ -295,6 +298,7 @@ def user_create(request):
             profile.full_name = full_name
             profile.email = email
             profile.gender = gender
+            profile.date_of_birth = date_of_birth
             profile.unit = unit
             profile.department = department
             profile.position = position
@@ -464,6 +468,41 @@ def user_profile(request):
             messages.success(request, 'Đã lưu cấu hình AI Gemini.')
             return redirect('user_profile')
 
+        # 6. XỬ LÝ UPLOAD NHẠC CHÚC MỪNG SINH NHẬT (chiếu ở trang TV)
+        if action == 'save_birthday_audio' and is_admin:
+            audio_file = request.FILES.get('birthday_audio')
+            if not audio_file:
+                messages.error(request, 'Vui lòng chọn file nhạc.')
+                return redirect('user_profile')
+
+            ext = (audio_file.name.rsplit('.', 1)[-1] if '.' in audio_file.name else '').lower()
+            if ext not in ('mp3', 'wav', 'ogg', 'm4a'):
+                messages.error(request, 'File không hợp lệ. Chỉ nhận .mp3, .wav, .ogg, .m4a.')
+                return redirect('user_profile')
+
+            # Xóa file cũ (nếu có) rồi lưu file mới với tên cố định theo đuôi.
+            old = SystemConfig.objects.filter(key=BIRTHDAY_AUDIO_KEY).first()
+            if old and old.value and default_storage.exists(old.value):
+                default_storage.delete(old.value)
+            target = f'birthday_audio/birthday.{ext}'
+            if default_storage.exists(target):
+                default_storage.delete(target)
+            saved_name = default_storage.save(target, audio_file)
+            SystemConfig.objects.update_or_create(
+                key=BIRTHDAY_AUDIO_KEY, defaults={'value': saved_name})
+            messages.success(request, 'Đã cập nhật nhạc chúc mừng sinh nhật.')
+            return redirect('user_profile')
+
+        # 7. XÓA NHẠC CHÚC MỪNG SINH NHẠT (quay về dùng file mặc định)
+        if action == 'delete_birthday_audio' and is_admin:
+            old = SystemConfig.objects.filter(key=BIRTHDAY_AUDIO_KEY).first()
+            if old:
+                if old.value and default_storage.exists(old.value):
+                    default_storage.delete(old.value)
+                old.delete()
+            messages.success(request, 'Đã xóa nhạc chúc mừng đã upload.')
+            return redirect('user_profile')
+
     # 5. TRUY VẤN DỮ LIỆU ĐỂ HIỂN THỊ
     config_url = SystemConfig.objects.filter(key='netchat_url').first()
     config_token = SystemConfig.objects.filter(key='netchat_token').first()
@@ -509,6 +548,7 @@ def user_profile(request):
         'msg_templates': msg_templates,
         'ai_config': ai_config,
         'recognition_token': recognition_token,
+        'birthday_audio_url': get_birthday_audio_url(),
         'my_transfers': my_transfers,
         'received_transfers': received_transfers,
         'today_iso': _date.today().isoformat(),

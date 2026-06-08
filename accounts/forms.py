@@ -9,6 +9,7 @@ class UserCreateForm(forms.Form):
     full_name = forms.CharField(label='Họ và tên', widget=forms.TextInput(attrs={'class': 'form-control'}))
     email = forms.EmailField(label='Email', required=False, widget=forms.EmailInput(attrs={'class': 'form-control'}))
     gender = forms.ChoiceField(label='Giới tính', required=False, choices=[('', '---------')] + UserProfile.GENDER_CHOICES, widget=forms.Select(attrs={'class': 'form-select'}))
+    date_of_birth = forms.DateField(label='Ngày sinh', required=False, widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'))
     unit = forms.CharField(label='Đơn vị', required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'list': 'unit_choices', 'autocomplete': 'off', 'placeholder': 'Chọn hoặc nhập mới'}))
     department = forms.CharField(label='Phòng ban', required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'list': 'department_choices', 'autocomplete': 'off', 'placeholder': 'Chọn hoặc nhập mới'}))
     position = forms.CharField(label='Chức vụ', required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'list': 'position_choices', 'autocomplete': 'off', 'placeholder': 'Chọn hoặc nhập mới'}))
@@ -30,6 +31,7 @@ class UserUpdateForm(forms.ModelForm):
             'full_name',
             'email',
             'gender',
+            'date_of_birth',
             'unit',
             'department',
             'position',
@@ -42,6 +44,7 @@ class UserUpdateForm(forms.ModelForm):
             'full_name': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
             'gender': forms.Select(attrs={'class': 'form-select'}),
+            'date_of_birth': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'),
             'unit': forms.TextInput(attrs={'class': 'form-control', 'list': 'unit_choices', 'autocomplete': 'off', 'placeholder': 'Chọn hoặc nhập mới'}),
             'department': forms.TextInput(attrs={'class': 'form-control', 'list': 'department_choices', 'autocomplete': 'off', 'placeholder': 'Chọn hoặc nhập mới'}),
             'position': forms.TextInput(attrs={'class': 'form-control', 'list': 'position_choices', 'autocomplete': 'off', 'placeholder': 'Chọn hoặc nhập mới'}),

@@ -213,3 +213,19 @@ class CameraStatusLog(models.Model):
 
     def __str__(self):
         return f"{self.camera_id} → {self.status} @ {self.changed_at:%d/%m/%Y %H:%M:%S}"
+
+
+class BirthdayGreetingLog(models.Model):
+    """Đánh dấu một nhân viên đã được chiếu màn chúc mừng sinh nhật trong ngày,
+    để màn TV không chiếu lặp lại mỗi nhịp poll. Mỗi (mã NV, ngày) chỉ 1 dòng."""
+    employee_code = models.CharField(max_length=50, verbose_name='Mã nhân viên')
+    greeting_date = models.DateField(db_index=True, verbose_name='Ngày chúc mừng')
+    shown_at = models.DateTimeField(auto_now_add=True, verbose_name='Thời điểm chiếu')
+
+    class Meta:
+        unique_together = ('employee_code', 'greeting_date')
+        verbose_name = 'Log chúc mừng sinh nhật'
+        verbose_name_plural = 'Log chúc mừng sinh nhật'
+
+    def __str__(self):
+        return f"{self.employee_code} @ {self.greeting_date:%d/%m/%Y}"

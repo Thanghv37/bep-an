@@ -462,6 +462,53 @@
         </div>
     </form>
 </div>
+
+<!-- NHẠC CHÚC MỪNG SINH NHẬT (chiếu ở trang TV) -->
+<div class="profile-card mt-4 p-4">
+    <div class="d-flex align-items-center gap-2 mb-2">
+        <h5 class="fw-bold mb-0">🎂 Nhạc chúc mừng sinh nhật</h5>
+    </div>
+    <div class="form-text mb-3" style="font-size: 13px;">
+        File nhạc sẽ tự phát trên trang <strong>TV (/tv/)</strong> khi hiện màn
+        chúc mừng sinh nhật. Chấp nhận <code>.mp3</code>, <code>.wav</code>,
+        <code>.ogg</code>, <code>.m4a</code>. Nếu để trống sẽ dùng file mặc định
+        <code>static/audio/birthday.mp3</code> (nếu có).
+    </div>
+
+    {% if birthday_audio_url %}
+    <div class="mb-3">
+        <div class="mb-2" style="font-size: 13px; color: #16a34a; font-weight: 600;">
+            ✅ Đang dùng nhạc đã upload:
+        </div>
+        <audio controls src="{{ birthday_audio_url }}" style="width: 100%; max-width: 420px;"></audio>
+    </div>
+    {% else %}
+    <div class="mb-3" style="font-size: 13px; color: #64748b;">
+        Chưa có nhạc upload — đang dùng file mặc định (nếu có).
+    </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_birthday_audio">
+        <input type="file" name="birthday_audio" accept="audio/*,.mp3,.wav,.ogg,.m4a"
+               class="form-control" style="max-width: 420px;" required>
+        <div class="d-flex gap-2 mt-3 justify-content-end align-items-center">
+            {% if birthday_audio_url %}
+            <button type="submit" form="deleteBirthdayAudioForm"
+                    class="btn btn-outline-danger fw-bold"
+                    onclick="return confirm('Xóa nhạc đã upload và quay về file mặc định?');">Xóa nhạc</button>
+            {% endif %}
+            <button type="submit" class="btn btn-primary fw-bold">Lưu nhạc</button>
+        </div>
+    </form>
+    {% if birthday_audio_url %}
+    <form method="post" id="deleteBirthdayAudioForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete_birthday_audio">
+    </form>
+    {% endif %}
+</div>
 {% endif %}
 
 <style>

@@ -28,9 +28,27 @@ from django.http import JsonResponse
 import json
 from .models import (
     AttendanceLog, RecognitionHeartbeat, CameraStatusLog, SystemConfig,
-    AttendanceCapture,
+    AttendanceCapture, BirthdayGreetingLog,
 )
+from accounts.models import UserProfile
 from django.utils.dateparse import parse_datetime
+from django.core.files.storage import default_storage
+
+# Key SystemConfig lưu tên file nhạc chúc mừng sinh nhật (admin upload ở trang Profile)
+BIRTHDAY_AUDIO_KEY = 'birthday_audio'
+
+
+def get_birthday_audio_url():
+    """URL file nhạc chúc mừng do admin upload (trong media/). Rỗng nếu chưa có
+    → TV tự fallback sang file static/audio/birthday.mp3."""
+    cfg = SystemConfig.objects.filter(key=BIRTHDAY_AUDIO_KEY).first()
+    if cfg and cfg.value and default_storage.exists(cfg.value):
+        try:
+            return default_storage.url(cfg.value)
+        except Exception:
+            return ''
+    return ''
+
 
 def get_registered_count(target_date):
     total = MealRegistration.objects.filter(
@@ -356,6 +374,7 @@ def _render_dashboard(request, template_name):
         'week_menu_cards': week_menu_cards,
         'purchase_list': purchases_today,
         'week_data': week_data,
+        'birthday_audio_url': get_birthday_audio_url(),
     }
     return render(request, template_name, context)
 
@@ -373,6 +392,65 @@ def tv_dashboard(request):
     """Trang TV fullscreen — chỉ admin + kitchen, dùng để show trên màn TV
     ở khu vực nhà ăn cho mọi người xem từ xa."""
     return _render_dashboard(request, 'core/tv_dashboard.html')
+
+
+@login_required
+@user_passes_test(can_manage_menu)
+def birthday_pending_api(request):
+    """Trả về danh sách nhân viên cần chiếu màn chúc mừng sinh nhật NGAY BÂY GIỜ.
+    Điều kiện: sinh nhật trùng ngày+tháng hôm nay, đã điểm danh hôm nay, và đã
+    qua >= 10 phút kể từ lần điểm danh ĐẦU TIÊN, và chưa từng được chiếu hôm nay.
+    Khi trả về thì đánh dấu đã chiếu luôn (mỗi người chỉ chúc 1 lần/ngày).
+    TV poll endpoint này cùng nhịp 10 giây."""
+    DELAY = timedelta(minutes=10)
+    now = timezone.localtime()
+    today = now.date()
+
+    profiles = UserProfile.objects.filter(
+        date_of_birth__isnull=False,
+        date_of_birth__month=today.month,
+        date_of_birth__day=today.day,
+    ).exclude(employee_code='')
+
+    if not profiles:
+        return JsonResponse({'success': True, 'celebrate': []})
+
+    already_shown = set(
+        BirthdayGreetingLog.objects.filter(greeting_date=today)
+        .values_list('employee_code', flat=True)
+    )
+
+    celebrate = []
+    for profile in profiles:
+        code = profile.employee_code
+        if code in already_shown:
+            continue
+
+        first_scan = (
+            AttendanceLog.objects.filter(employee_code=code, scan_time__date=today)
+            .order_by('scan_time')
+            .values_list('scan_time', flat=True)
+            .first()
+        )
+        if not first_scan:
+            continue
+        if now < first_scan + DELAY:
+            continue
+
+        # Đủ điều kiện → đánh dấu đã chiếu (chống lặp), rồi đưa vào danh sách.
+        _, created = BirthdayGreetingLog.objects.get_or_create(
+            employee_code=code, greeting_date=today
+        )
+        if not created:
+            continue
+
+        celebrate.append({
+            'employee_code': code,
+            'full_name': profile.full_name or code,
+            'avatar': profile.avatar.url if profile.avatar else '',
+        })
+
+    return JsonResponse({'success': True, 'celebrate': celebrate})
 
 
 @login_required

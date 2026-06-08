@@ -73,6 +73,12 @@ class UserProfile(models.Model):
         verbose_name='Giới tính'
     )
 
+    date_of_birth = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Ngày sinh'
+    )
+
     unit = models.CharField(
         max_length=255,
         blank=True,
