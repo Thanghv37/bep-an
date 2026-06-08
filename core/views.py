@@ -408,10 +408,10 @@ def tv_lite(request):
 def birthday_pending_api(request):
     """Trả về danh sách nhân viên cần chiếu màn chúc mừng sinh nhật NGAY BÂY GIỜ.
     Điều kiện: sinh nhật trùng ngày+tháng hôm nay, đã điểm danh hôm nay, và đã
-    qua >= 10 phút kể từ lần điểm danh ĐẦU TIÊN, và chưa từng được chiếu hôm nay.
+    qua >= 5 phút kể từ lần điểm danh ĐẦU TIÊN, và chưa từng được chiếu hôm nay.
     Khi trả về thì đánh dấu đã chiếu luôn (mỗi người chỉ chúc 1 lần/ngày).
     TV poll endpoint này cùng nhịp 10 giây."""
-    DELAY = timedelta(minutes=10)
+    DELAY = timedelta(minutes=5)
     now = timezone.localtime()
     today = now.date()
 
