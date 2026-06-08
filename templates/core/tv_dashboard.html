@@ -177,24 +177,21 @@ html, body {
     background: #ffffff;
     border: 1px solid #e2e8f0;
     overflow: hidden;
-    box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);  /* giảm blur 40px->8px: nhẹ paint 4K */
     min-height: 0;
 }
 .tv-panel {
     position: absolute; inset: 0;
     padding: 22px 26px;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity .7s ease, transform .7s ease;
-    transform: scale(.96);
-    display: flex;
+    /* Panel KHÔNG active dùng display:none để TV không phải layout+paint cả 3 màn
+       4K cùng lúc (đây là thủ phạm crash ngay khi mở trên Samsung TV). Chỉ 1 panel
+       tồn tại trong bộ nhớ tại một thời điểm. Bỏ fade scale/opacity cho nhẹ. */
+    display: none;
     flex-direction: column;
     overflow: hidden;
 }
 .tv-panel.is-active {
-    opacity: 1;
-    visibility: visible;
-    transform: scale(1);
+    display: flex;
 }
 .tv-panel-header {
     display: flex;
@@ -807,16 +804,12 @@ html, body {
 }
 </style>
 
-{# ===== Nút bật âm thanh chúc mừng (mở khóa autoplay 1 lần khi mở TV) ===== #}
+{% comment %} === Phần chúc mừng sinh nhật TẠM TẮT trên TV để loại biến số khi sửa
+crash. Sẽ bật lại sau khi tối ưu nhẹ cho TV. (Markup: nút âm thanh, nút test,
+audio preload, overlay confetti.) ===
 <button id="bdaySoundBtn" class="bday-sound-btn">🔊 Bật âm thanh chúc mừng</button>
-
-{# ===== Nút TEST: bấm để xem thử màn chúc mừng (gỡ khi chạy thật) ===== #}
 <button id="bdayTestBtn" class="bday-test-btn">🎂 Test chúc mừng</button>
-
-{# ===== Audio chúc mừng sinh nhật — ưu tiên file admin upload (Profile), fallback static ===== #}
-<audio id="bdayAudio" src="{% if birthday_audio_url %}{{ birthday_audio_url }}{% else %}{% static 'audio/birthday.mp3' %}{% endif %}" preload="auto"></audio>
-
-{# ===== Overlay chúc mừng sinh nhật ===== #}
+<audio id="bdayAudio" src="{% if birthday_audio_url %}{{ birthday_audio_url }}{% else %}{% static 'audio/birthday.mp3' %}{% endif %}" preload="none"></audio>
 <div id="bdayOverlay" class="bday-overlay" aria-hidden="true">
     <div class="bday-balloons" id="bdayBalloons"></div>
     <div class="bday-card">
@@ -826,6 +819,7 @@ html, body {
         <div class="bday-msg">Kính chúc bạn một ngày sinh nhật thật vui vẻ, hạnh phúc và tràn đầy năng lượng!</div>
     </div>
 </div>
+{% endcomment %}
 
 <div class="tv-app">
 
@@ -1378,6 +1372,7 @@ setTimeout(() => window.location.reload(), 5 * 60 * 1000);
 
 /* ============== Chúc mừng sinh nhật ============== */
 (function () {
+    return;  /* TẠM TẮT trên TV (loại biến số khi sửa crash). Bật lại sau khi tối ưu nhẹ. */
     const overlay = document.getElementById('bdayOverlay');
     const peopleEl = document.getElementById('bdayPeople');
     const balloonsEl = document.getElementById('bdayBalloons');
