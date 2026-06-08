@@ -97,29 +97,25 @@ html, body {
 .week { flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; min-height: 0; }
 .day { border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px 10px; display: flex; flex-direction: column; overflow: hidden; }
 .panel.in .day { animation: cardUp .5s ease both; }
-.panel.in .day:nth-child(2) { animation-delay: .08s; } .panel.in .day:nth-child(3) { animation-delay: .16s; }
-.panel.in .day:nth-child(4) { animation-delay: .24s; } .panel.in .day:nth-child(5) { animation-delay: .32s; }
+.panel.in .day:nth-child(2) { animation-delay: .25s; } .panel.in .day:nth-child(3) { animation-delay: .5s; }
+.panel.in .day:nth-child(4) { animation-delay: .75s; } .panel.in .day:nth-child(5) { animation-delay: 1s; }
 .day.has { background: #f0fdf4; border-color: #bbf7d0; }
 .day.today { background: #eff6ff; border: 2px solid #2563eb; }
 .day-h { font-size: 29px; font-weight: bold; color: #0f172a; }
 .day-h .tag { font-size: 15px; background: #2563eb; color: #fff; padding: 2px 9px; border-radius: 999px; margin-left: 6px; display: inline-block; animation: tagPulse 1.6s ease-in-out infinite; }
 .day-d { font-size: 18px; color: #64748b; font-weight: bold; margin-bottom: 8px; }
-.day ul { list-style: none; }
-.day li { font-size: 23px; color: #1e293b; padding: 5px 9px; border-left: 4px solid #cbd5e1; margin-bottom: 4px; background: #f8fafc; border-radius: 6px; line-height: 1.25; }
+.day ul { list-style: none; flex: 1; display: flex; flex-direction: column; }
+.day li { font-size: 23px; color: #1e293b; padding: 11px 12px; border-left: 5px solid #cbd5e1; margin-bottom: 6px; background: #f8fafc; border-radius: 8px; line-height: 1.25; flex: 1; display: flex; align-items: center; }
 .day li.main { border-left-color: #3b82f6; } .day li.side { border-left-color: #a78bfa; }
 .day li.soup { border-left-color: #10b981; } .day li.dessert { border-left-color: #f59e0b; }
-.panel.in .day li { animation: up .4s ease both; }
-.panel.in .day li:nth-child(2) { animation-delay: .06s; } .panel.in .day li:nth-child(3) { animation-delay: .12s; }
-.panel.in .day li:nth-child(4) { animation-delay: .18s; } .panel.in .day li:nth-child(5) { animation-delay: .24s; }
-.panel.in .day li:nth-child(n+6) { animation-delay: .3s; }
 .day .none { font-size: 19px; color: #9ca3af; margin-top: 6px; }
 
 /* Panel 2: today — giới thiệu từng món */
 .today2 { flex: 1; display: grid; grid-template-columns: 32fr 68fr; gap: 16px; min-height: 0; }
 .t-list { border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
-.t-item { display: flex; align-items: center; gap: 12px; padding: 11px 13px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 26px; color: #334155; }
+.t-item { display: flex; align-items: center; gap: 12px; padding: 11px 13px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 26px; color: #334155; animation: up .4s ease both; }
 .t-item .num { width: 38px; height: 38px; border-radius: 50%; background: #e2e8f0; color: #0f172a; font-size: 19px; font-weight: bold; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.t-item.cur { border-color: #2563eb; background: #eff6ff; color: #0f172a; font-weight: bold; animation: pop .4s ease; }
+.t-item.cur { border-color: #2563eb; background: #eff6ff; color: #0f172a; font-weight: bold; }
 .t-item.cur .num { background: #2563eb; color: #fff; }
 .t-stage { border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; display: flex; min-height: 0; }
 .ds { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
@@ -430,17 +426,16 @@ function typewriter(el, text){
         prog.style.width = '100%';
     }
 
-    function buildList(){
+    function clearList(){ var l = document.getElementById('todayList'); if (l) l.innerHTML = ''; }
+    function addToList(d, idx){
         var list = document.getElementById('todayList'); if (!list) return;
-        var html = '';
-        for (var k = 0; k < dishes.length; k++)
-            html += '<div class="t-item" data-k="'+k+'"><span class="num">'+(k+1)+'</span><span>'+esc(dishes[k].name)+'</span></div>';
-        list.innerHTML = html;
-    }
-    function highlight(k){
-        var items = document.querySelectorAll('#todayList .t-item');
-        for (var j = 0; j < items.length; j++) items[j].classList.toggle('cur', j === k);
-        var cur = items[k]; if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest' });
+        var prev = list.querySelectorAll('.t-item.cur');
+        for (var p = 0; p < prev.length; p++) prev[p].classList.remove('cur');   // bỏ nổi bật món trước
+        var item = document.createElement('div');
+        item.className = 't-item cur';
+        item.innerHTML = '<span class="num">'+(idx+1)+'</span><span>'+esc(d.name)+'</span>';
+        list.appendChild(item);
+        if (item.scrollIntoView) item.scrollIntoView({ block: 'nearest' });
     }
     function descHtml(text){
         if (!text || !text.trim()) return '<div class="nodesc">(Chưa có mô tả món)</div>';
@@ -465,11 +460,11 @@ function typewriter(el, text){
             return;
         }
         resetProgress(dishes.length * PER_DISH + HOLD_END);
-        buildList();
+        clearList();
         var di = 0;
         (function nextDish(){
             if (di >= dishes.length) { timer = setTimeout(function(){ show(2); }, HOLD_END); return; }
-            renderDish(dishes[di]); highlight(di); di++;
+            renderDish(dishes[di]); addToList(dishes[di], di); di++;
             dishTimer = setTimeout(nextDish, PER_DISH);
         })();
     }
