@@ -132,9 +132,35 @@ html, body {
 .ai-sum { font-size: 31px; line-height: 1.5; color: #334155; overflow: hidden; }
 .ai-tip-ic { font-size: 108px; margin-bottom: 14px; }
 .ai-tip { font-size: 43px; line-height: 1.4; color: #92400e; font-weight: bold; }
+
+/* ===== Chúc mừng sinh nhật (overlay) — TV-safe: confetti HỮU HẠN (forwards) rồi gỡ DOM ===== */
+.bday { position: fixed; inset: 0; z-index: 9999; display: none; align-items: center; justify-content: center; background: rgba(255,251,235,.97); overflow: hidden; }
+.bday.show { display: flex; }
+.bday-card { position: relative; z-index: 2; text-align: center; background: #fff; border: 4px solid #f59e0b; border-radius: 28px; padding: 48px 72px; max-width: 86vw; animation: bdayPop .6s ease; }
+@keyframes bdayPop { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
+.bday-ttl { font-size: 64px; font-weight: bold; color: #d97706; margin-bottom: 26px; }
+.bday-people { display: flex; gap: 48px; justify-content: center; flex-wrap: wrap; margin-bottom: 26px; }
+.bday-p { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.bday-av { width: 200px; height: 200px; border-radius: 50%; object-fit: cover; border: 6px solid #fbbf24; background: #fef3c7; }
+.bday-av-f { width: 200px; height: 200px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 100px; background: #fef3c7; border: 6px solid #fbbf24; }
+.bday-nm { font-size: 46px; font-weight: bold; color: #0f172a; }
+.bday-msg { font-size: 32px; color: #92400e; font-weight: bold; }
+.bday-fx { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+.bday-cf { position: absolute; top: -30px; width: 14px; height: 20px; border-radius: 3px; animation: bdayFall linear forwards; }
+@keyframes bdayFall { from { transform: translateY(0) rotate(0); opacity: 1; } to { transform: translateY(110vh) rotate(540deg); opacity: .9; } }
 </style>
 </head>
 <body>
+
+{# Overlay chúc mừng sinh nhật #}
+<div class="bday" id="bday">
+    <div class="bday-fx" id="bdayFx"></div>
+    <div class="bday-card">
+        <div class="bday-ttl">🎉 CHÚC MỪNG SINH NHẬT 🎉</div>
+        <div class="bday-people" id="bdayPeople"></div>
+        <div class="bday-msg">Kính chúc bạn một ngày sinh nhật thật vui vẻ, hạnh phúc và tràn đầy năng lượng!</div>
+    </div>
+</div>
 
 <div class="app">
 
@@ -407,6 +433,62 @@ function loadNutrition(){
         })
         .catch(function(){ document.getElementById('summary').textContent = 'Không tải được phân tích AI.'; });
 }
+
+/* ===== Chúc mừng sinh nhật — overlay nhẹ, confetti hữu hạn rồi gỡ DOM ===== */
+(function () {
+    var overlay = document.getElementById('bday');
+    if (!overlay) return;
+    var peopleEl = document.getElementById('bdayPeople');
+    var fxEl = document.getElementById('bdayFx');
+    var SHOW_MS = 25000, POLL_MS = 15000;
+    var showing = false;
+
+    function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    function spawn(){
+        var COLORS = ['#f43f5e','#f59e0b','#10b981','#3b82f6','#a855f7','#ec4899','#facc15'];
+        var html = '';
+        for (var k = 0; k < 18; k++) {
+            var left = Math.round(Math.random() * 98);
+            var dur = (3 + Math.random() * 2.5).toFixed(1);
+            var delay = (Math.random() * 1.5).toFixed(1);
+            html += '<span class="bday-cf" style="left:'+left+'%;background:'+COLORS[k % COLORS.length]+';animation-duration:'+dur+'s;animation-delay:'+delay+'s"></span>';
+        }
+        fxEl.innerHTML = html;
+    }
+
+    function celebrate(list){
+        if (showing || !list.length) return;
+        showing = true;
+        peopleEl.innerHTML = list.map(function(p){
+            var av = p.avatar ? '<img class="bday-av" src="'+p.avatar+'" alt="">' : '<div class="bday-av-f">🎂</div>';
+            return '<div class="bday-p">'+av+'<div class="bday-nm">'+esc(p.full_name)+'</div></div>';
+        }).join('');
+        spawn();
+        overlay.classList.add('show');
+        setTimeout(function(){
+            overlay.classList.remove('show');
+            fxEl.innerHTML = '';   // gỡ confetti khỏi DOM
+            showing = false;
+        }, SHOW_MS);
+    }
+
+    function poll(){
+        if (showing) return;
+        fetch('/birthday/pending/', { headers: { 'Accept': 'application/json' } })
+            .then(function(r){ return r.ok ? r.json() : null; })
+            .then(function(d){ if (d && d.success && d.celebrate && d.celebrate.length) celebrate(d.celebrate); })
+            .catch(function(){});
+    }
+    poll(); setInterval(poll, POLL_MS);
+
+    /* Xem thử ngay: mở /tv/lite/?bday=1 */
+    if (location.search.indexOf('bday=1') >= 0) {
+        setTimeout(function(){
+            celebrate([{ full_name: 'Nguyễn Văn A (TEST)', avatar: '' }, { full_name: 'Trần Thị B (TEST)', avatar: '' }]);
+        }, 1500);
+    }
+})();
 
 /* Reload mỗi 8 phút để xả bộ nhớ renderer Tizen */
 setTimeout(function(){ window.location.reload(); }, 8 * 60 * 1000);
