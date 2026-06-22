@@ -60,7 +60,11 @@
       "Bash(sed -n '1,120p' DEPLOY.md)",
       "Bash(awk -F= '/^DB_PASSWORD/{print $2}' .env)",
       "Bash(PYTHONIOENCODING=utf-8 PYTHONUTF8=1 DB_PASSWORD=$\\(awk -F= '/^DB_PASSWORD/{print $2}' .env\\) venv/Scripts/python.exe manage.py check)",
-      "Bash(python -m py_compile core/management/commands/alert_camera_offline.py registrations/views.py)"
+      "Bash(python -m py_compile core/management/commands/alert_camera_offline.py registrations/views.py)",
+      "Bash(ssh -o BatchMode=yes -o ConnectTimeout=12 -o StrictHostKeyChecking=accept-new ipcdkv2@171.232.250.6 \"echo CONNECTED && hostname\")",
+      "Bash(./venv/Scripts/python.exe -c \"import docx; print\\('python-docx OK', docx.__version__\\)\")",
+      "Bash(./venv/Scripts/python.exe -m pip install python-docx)",
+      "Bash(./venv/Scripts/python.exe gen_mota_hethong.py)"
     ]
   }
 }
