@@ -50,7 +50,17 @@
       "Bash(git -C \"d:/Thanghv37/CDS/bếp ăn/4_5/thanghv37\" status --short)",
       "Bash(git -C \"d:/Thanghv37/CDS/bếp ăn/4_5/thanghv37\" log --oneline -5)",
       "Bash(git -C \"d:/Thanghv37/CDS/bếp ăn/4_5/thanghv37\" diff .claude/settings.json)",
-      "Bash(git -C \"d:/Thanghv37/CDS/bếp ăn/4_5/thanghv37\" add .claude/settings.json README.md meals/templatetags/unit_filters.py meals/views.py reports/views.py reviews/models.py reviews/views.py reviews/migrations/0008_dishreview_star_rating.py templates/core/dashboard.html templates/meals/approval_dashboard.html templates/meals/dish_form.html templates/meals/dish_list.html templates/reviews/public_review.html templates/reviews/review_dashboard.html)"
+      "Bash(git -C \"d:/Thanghv37/CDS/bếp ăn/4_5/thanghv37\" add .claude/settings.json README.md meals/templatetags/unit_filters.py meals/views.py reports/views.py reviews/models.py reviews/views.py reviews/migrations/0008_dishreview_star_rating.py templates/core/dashboard.html templates/meals/approval_dashboard.html templates/meals/dish_form.html templates/meals/dish_list.html templates/reviews/public_review.html templates/reviews/review_dashboard.html)",
+      "Bash(xargs grep -l \"websocket\\\\|socket\\\\|Consumer\\\\|channels\")",
+      "Bash(xargs grep -l \"JsonResponse.*registration\")",
+      "Bash(awk -F= '/DB_PASSWORD/{print \"DB_PASSWORD length:\", length\\($2\\)} {print \"key:\", $1}' .env)",
+      "Bash(venv/Scripts/python.exe scripts/test_netchat_button.py)",
+      "Bash(PYTHONIOENCODING=utf-8 PYTHONUTF8=1 venv/Scripts/python.exe scripts/test_netchat_button.py)",
+      "Bash(ls *.md)",
+      "Bash(sed -n '1,120p' DEPLOY.md)",
+      "Bash(awk -F= '/^DB_PASSWORD/{print $2}' .env)",
+      "Bash(PYTHONIOENCODING=utf-8 PYTHONUTF8=1 DB_PASSWORD=$\\(awk -F= '/^DB_PASSWORD/{print $2}' .env\\) venv/Scripts/python.exe manage.py check)",
+      "Bash(python -m py_compile core/management/commands/alert_camera_offline.py registrations/views.py)"
     ]
   }
 }

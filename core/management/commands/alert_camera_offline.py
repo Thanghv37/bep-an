@@ -1,9 +1,13 @@
 """
 Cảnh báo camera nhận diện TẮT trong giờ ăn trưa qua NetChat.
 
-Chạy định kỳ mỗi phút (systemd timer). Nếu đang trong khung 11:00–12:30 (giờ VN)
+Chạy định kỳ mỗi phút (systemd timer). Nếu đang trong khung 11:03–12:30 (giờ VN)
 mà camera nhận diện không gửi heartbeat (coi như tắt) thì gửi tin NetChat DM cho
-user 'thanghv37'. Có cooldown chống spam (nhắc lại tối đa mỗi 30 phút khi vẫn tắt).
+user 'thanghv37'. Có cooldown chống spam (nhắc lại tối đa mỗi 2 phút khi vẫn tắt).
+
+(Bắt đầu từ 11:03 vì client nhận diện 11:00 mới khởi động — chừa ~3 phút cho client
+lên heartbeat lần đầu, tránh báo nhầm. Nhắc lại mỗi 2 phút để khi mất heartbeat
+mình biết ngay, thay vì 30 phút quá lâu không kịp xử lý.)
 
 Mọi tham số (khung giờ, người nhận, ngưỡng) FIX CỨNG theo yêu cầu — không cấu hình UI.
 Cách chạy thủ công để test:
@@ -20,10 +24,10 @@ from accounts.models import UserProfile
 from core.models import RecognitionHeartbeat, SystemConfig
 
 # ===== CẤU HÌNH FIX CỨNG =====
-WINDOW_START = time(11, 0)        # 11:00
+WINDOW_START = time(11, 3)        # 11:03 (client 11:00 mới khởi động, chừa ~3 phút lên heartbeat)
 WINDOW_END = time(12, 30)         # 12:30
 OFFLINE_SECONDS = 120            # > 2 phút không heartbeat => coi camera TẮT (tránh báo nhầm khi blip vài giây)
-ALERT_COOLDOWN_MINUTES = 30      # khi vẫn tắt, nhắc lại tối đa mỗi 30 phút
+ALERT_COOLDOWN_MINUTES = 2       # khi vẫn tắt, nhắc lại mỗi 2 phút để biết ngay (30 phút quá lâu)
 ALERT_USERNAME = 'thanghv37'     # user nhận cảnh báo
 LAST_ALERT_KEY = 'camera_offline_alert_last_at'  # SystemConfig: thời điểm báo gần nhất
 
