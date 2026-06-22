@@ -86,6 +86,9 @@ Hệ thống Quản lý Bếp ăn là giải pháp toàn diện giúp tự độ
 
 ## 📝 Nhật ký thay đổi
 
+### 2026-06-22 (cập nhật chiều)
+- **API danh sách đăng ký: áp lại schema mới** ([registrations/views.py](registrations/views.py) — `registrations_by_date_api`). Client đã sẵn sàng nên triển khai lại schema mới đã fallback hồi trưa: trả thêm `total_portions` (tổng số suất, cộng dồn `quantity`), `total_attended_portions`, và mảng `employees` (mỗi phần tử `employee_code`, `full_name`, `portions`, `attended` bool, `status`: `attended`=đã điểm danh / `registered`=mới đăng ký; trạng thái lấy từ `AttendanceLog` theo ngày). Vẫn giữ `dict_registered_today` (deprecated) cho tương thích ngược. Không cần migrate; chỉ restart `bep-an`.
+
 ### 2026-06-22
 - **Cảnh báo camera tắt: bắt đầu 11:03, nhắc lại mỗi 2 phút** ([core/management/commands/alert_camera_offline.py](core/management/commands/alert_camera_offline.py)). `WINDOW_START` 11:00 → **11:03** (client nhận diện 11:00 mới khởi động, chừa ~3 phút lên heartbeat lần đầu, tránh báo nhầm). `ALERT_COOLDOWN_MINUTES` 30 → **2** (mất heartbeat thì nhắc lại mỗi 2 phút để biết ngay; 30 phút trước đây quá lâu, không kịp xử lý). Chỉ sửa hằng số trong command, không cần migrate; trên server restart timer là xong.
 - **API danh sách đăng ký gửi client: thêm số suất + trạng thái tham gia → ĐÃ FALLBACK** ([registrations/views.py](registrations/views.py) — `registrations_by_date_api`). Định làm: trả thêm `total_portions` (tổng số suất, cộng dồn `quantity`), `total_attended_portions`, và mảng `employees` (mỗi phần tử `employee_code`, `full_name`, `portions`, `attended`, `status`: `attended`=đã điểm danh / `registered`=mới đăng ký; trạng thái lấy từ `AttendanceLog` theo ngày để client restart giữa chừng vẫn biết ai đã ăn). **Đã revert về luồng cũ** (chỉ trả `dict_registered_today` mã NV → tên) vì client nhận diện chưa kịp cập nhật theo schema mới trước giờ điểm danh trưa. Sẽ áp dụng lại schema mới sau khi client sẵn sàng.

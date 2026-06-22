@@ -466,20 +466,60 @@ def registrations_by_date_api(request):
         employee_code=''
     )
 
-    dict_registered_today = {}
+    # Mã NV đã ĐIỂM DANH (tham gia ăn) trong ngày → để gắn trạng thái cho client.
+    # Client restart giữa chừng vẫn lấy lại được ai đã ăn rồi (không reset về 0).
+    attended_codes = {
+        (c or '').strip()
+        for c in AttendanceLog.objects.filter(
+            scan_time__date=target_date
+        ).values_list('employee_code', flat=True)
+        if c and c.strip()
+    }
 
+    # 1 người có thể có nhiều dòng đăng ký (đặt giúp người khác / nhiều bữa) →
+    # cộng dồn số suất theo mã NV để client biết tổng suất của từng người.
+    employees_map = {}
     for reg in registrations:
         employee_code = str(reg.employee_code).strip()
-
         if not employee_code:
             continue
+        info = employees_map.get(employee_code)
+        if info is None:
+            info = {
+                'employee_code': employee_code,
+                'full_name': reg.full_name or '',
+                'portions': 0,
+            }
+            employees_map[employee_code] = info
+        info['portions'] += reg.quantity or 0
+        if not info['full_name'] and reg.full_name:
+            info['full_name'] = reg.full_name
 
-        dict_registered_today[employee_code] = reg.full_name or ''
+    employees = []
+    total_portions = 0
+    total_attended_portions = 0
+    for code in sorted(employees_map):
+        info = employees_map[code]
+        attended = code in attended_codes
+        info['attended'] = attended
+        # 'attended' = đã tham gia ăn (đã điểm danh); 'registered' = mới đăng ký, chưa điểm danh.
+        info['status'] = 'attended' if attended else 'registered'
+        total_portions += info['portions']
+        if attended:
+            total_attended_portions += info['portions']
+        employees.append(info)
+
+    # Giữ tương thích ngược cho client bản cũ (chỉ cần map mã NV → tên).
+    dict_registered_today = {e['employee_code']: e['full_name'] for e in employees}
 
     return JsonResponse({
+        'success': True,
         'date': target_date.isoformat(),
-        'total_employees_registered': len(dict_registered_today),
-        'dict_registered_today': dict_registered_today,
+        'total_employees_registered': len(employees),   # số NGƯỜI đăng ký (distinct)
+        'total_portions': total_portions,               # tổng SỐ SUẤT (cộng dồn quantity)
+        'total_attended_portions': total_attended_portions,  # tổng suất của người đã điểm danh
+        'employees': employees,
+        'dict_registered_today': dict_registered_today,  # deprecated, giữ cho client cũ
     }, json_dumps_params={
         'ensure_ascii': False
     })
