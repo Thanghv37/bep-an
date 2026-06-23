@@ -231,12 +231,16 @@ def review_dashboard(request):
         'not_annoyed': invite_fb['not_annoyed_count'] or 0,
         'total': (invite_fb['annoyed_count'] or 0) + (invite_fb['not_annoyed_count'] or 0),
     }
+    # Card tổng hợp ý kiến chỉ admin được xem.
+    from accounts.permissions import is_admin
+    can_view_invite_feedback = is_admin(request.user)
 
     context = {
         'selected_date': selected_date,
         'selected_date_str': selected_date.isoformat(),
         'can_review': can_review,
         'invite_feedback': invite_feedback,
+        'can_view_invite_feedback': can_view_invite_feedback,
         'menu': menu,
         'form': form,
         'existing_review': existing_review,

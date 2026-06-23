@@ -414,6 +414,7 @@
     </div>
 </div>
 
+{% if can_view_invite_feedback %}
 <div class="dashboard-card mb-2">
     <div class="section-title mb-1">📨 Ý kiến về tin nhắn mời đánh giá</div>
     <div class="section-subtitle mb-3">
@@ -438,6 +439,7 @@
     <div class="text-muted small">Chưa có ý kiến nào.</div>
     {% endif %}
 </div>
+{% endif %}
 
 <div class="dashboard-card mb-2">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
