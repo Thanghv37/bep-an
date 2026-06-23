@@ -437,6 +437,42 @@
     </form>
 </div>
 
+<!-- CẤU HÌNH MẪU TIN NHẮN MỜI ĐÁNH GIÁ -->
+<div class="profile-card mt-4 p-4">
+    <div class="d-flex align-items-center gap-2 mb-2">
+        <h5 class="fw-bold mb-0">⭐ Cấu hình tin nhắn mời đánh giá</h5>
+    </div>
+    <div class="form-text mb-3" style="font-size: 13px;">
+        Tin gửi sau bữa trưa (mặc định 13h) cho người đã điểm danh, mời họ đánh giá món ăn.
+        Bật/tắt và giờ gửi đặt ở trang Tham gia → ⚙ Cài đặt.
+    </div>
+    <div class="msg-vars-box mb-3">
+        <div class="small text-muted mb-2">
+            Các biến có thể dùng (click để chèn vào nội dung):
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            {% for var_key, var_label in msg_templates.review_invite_vars %}
+                <button type="button" class="btn btn-sm btn-outline-primary msg-var-chip"
+                        data-target="msg_review_invite" data-var="{{ var_key }}"
+                        title="{{ var_label }}">
+                    <code>{% templatetag openbrace %}{{ var_key }}{% templatetag closebrace %}</code> — {{ var_label }}
+                </button>
+            {% endfor %}
+        </div>
+    </div>
+    <form method="post" class="msg-template-form" data-form="review_invite">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_msg_review_invite">
+        <textarea id="msg_review_invite" name="template_value" class="form-control msg-input"
+                  rows="6" disabled>{{ msg_templates.review_invite }}</textarea>
+        <div class="d-flex gap-2 mt-3 justify-content-end">
+            <button type="button" class="btn btn-secondary fw-bold msg-btn-edit">Sửa</button>
+            <button type="button" class="btn btn-outline-secondary fw-bold msg-btn-cancel" disabled>Hủy</button>
+            <button type="submit" class="btn btn-primary fw-bold msg-btn-save" disabled>Lưu</button>
+        </div>
+    </form>
+</div>
+
 <!-- CẤU HÌNH TOKEN HỆ THỐNG NHẬN DIỆN -->
 <div class="profile-card mt-4 p-4">
     <div class="d-flex align-items-center gap-2 mb-2">

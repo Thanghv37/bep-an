@@ -24,10 +24,13 @@ from core.ai_config import (
 from core.message_templates import (
     KEY_MEAL,
     KEY_OTP,
+    KEY_REVIEW_INVITE,
     VARS_MEAL,
     VARS_OTP,
+    VARS_REVIEW_INVITE,
     get_meal_template,
     get_otp_template,
+    get_review_invite_template,
     render_template,
 )
 from core.models import SystemConfig
@@ -436,11 +439,15 @@ def user_profile(request):
             messages.success(request, 'Đã lưu cấu hình BOT NetChat thành công.')
             return redirect('user_profile')
 
-        # 4. XỬ LÝ LƯU TEMPLATE TIN NHẮN OTP / ĐẶT CƠM
-        if action in ('save_msg_otp', 'save_msg_meal') and is_admin:
+        # 4. XỬ LÝ LƯU TEMPLATE TIN NHẮN OTP / ĐẶT CƠM / MỜI ĐÁNH GIÁ
+        if action in ('save_msg_otp', 'save_msg_meal', 'save_msg_review_invite') and is_admin:
             template_value = request.POST.get('template_value', '').strip()
-            cfg_key = KEY_OTP if action == 'save_msg_otp' else KEY_MEAL
-            label = 'OTP' if action == 'save_msg_otp' else 'đặt cơm'
+            cfg_map = {
+                'save_msg_otp': (KEY_OTP, 'OTP'),
+                'save_msg_meal': (KEY_MEAL, 'đặt cơm'),
+                'save_msg_review_invite': (KEY_REVIEW_INVITE, 'mời đánh giá'),
+            }
+            cfg_key, label = cfg_map[action]
 
             SystemConfig.objects.update_or_create(key=cfg_key, defaults={'value': template_value})
             messages.success(request, f'Đã lưu mẫu tin nhắn {label}.')
@@ -515,8 +522,10 @@ def user_profile(request):
     msg_templates = {
         'otp': get_otp_template(),
         'meal': get_meal_template(),
+        'review_invite': get_review_invite_template(),
         'otp_vars': VARS_OTP,
         'meal_vars': VARS_MEAL,
+        'review_invite_vars': VARS_REVIEW_INVITE,
     }
 
     ai_config = {
