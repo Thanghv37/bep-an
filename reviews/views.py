@@ -220,14 +220,16 @@ def review_dashboard(request):
 
     # Tổng hợp ý kiến về tin mời đánh giá (toàn bộ, không theo ngày) — để admin
     # quyết định có nên tiếp tục gửi tin mời 13h hay không.
+    # Lưu ý: tên alias KHÔNG được trùng tên field 'annoyed' dùng trong filter,
+    # nếu không Django báo "Cannot compute Count('annoyed'): 'annoyed' is an aggregate".
     invite_fb = ReviewInviteFeedback.objects.aggregate(
-        annoyed=Count('id', filter=Q(annoyed=True)),
-        not_annoyed=Count('id', filter=Q(annoyed=False)),
+        annoyed_count=Count('id', filter=Q(annoyed=True)),
+        not_annoyed_count=Count('id', filter=Q(annoyed=False)),
     )
     invite_feedback = {
-        'annoyed': invite_fb['annoyed'] or 0,
-        'not_annoyed': invite_fb['not_annoyed'] or 0,
-        'total': (invite_fb['annoyed'] or 0) + (invite_fb['not_annoyed'] or 0),
+        'annoyed': invite_fb['annoyed_count'] or 0,
+        'not_annoyed': invite_fb['not_annoyed_count'] or 0,
+        'total': (invite_fb['annoyed_count'] or 0) + (invite_fb['not_annoyed_count'] or 0),
     }
 
     context = {
