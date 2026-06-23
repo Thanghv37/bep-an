@@ -301,6 +301,48 @@ sudo rm /etc/systemd/system/camera-offline-alert.timer /etc/systemd/system/camer
 sudo systemctl daemon-reload
 ```
 
+### `review-invite.timer` — gửi tin mời đánh giá sau bữa trưa qua NetChat
+
+Mỗi phút check: nếu tính năng đang BẬT + giờ:phút VN khớp **giờ gửi cấu hình** (mặc định 13:00) + hôm nay nằm trong các ngày gửi (dùng chung `send_days` với báo cáo Tham gia) + hôm nay chưa gửi → gửi DM tin mời đánh giá (kèm link) cho **những người đã điểm danh hôm nay**. Bật/tắt + giờ gửi đổi qua trang `/registrations/participation/` → ⚙ Cài đặt (khối "⭐ Gửi tin mời đánh giá sau bữa ăn"). Idempotent qua SystemConfig `review_invite_last_sent_date`.
+
+**Setup lần đầu (chạy 1 lần trên server, sau khi pull về có folder scripts/):**
+
+```bash
+# 1. Symlink unit files vào systemd
+sudo ln -sf /home/ipcdkv2/thanghv37/scripts/review-invite.service /etc/systemd/system/review-invite.service
+sudo ln -sf /home/ipcdkv2/thanghv37/scripts/review-invite.timer /etc/systemd/system/review-invite.timer
+
+# 2. Reload systemd
+sudo systemctl daemon-reload
+
+# 3. Test thủ công ngay — --force bỏ qua check bật/tắt + giờ + ngày + last_sent
+cd ~/thanghv37
+DB_PASSWORD=thanghv37 venv/bin/python manage.py send_review_invite --force
+
+# 4. Bật timer chạy mỗi phút
+sudo systemctl enable --now review-invite.timer
+
+# 5. Verify timer
+sudo systemctl list-timers | grep review-invite
+```
+
+**Debug:**
+```bash
+sudo journalctl -u review-invite.service -n 50 --no-pager
+sudo systemctl status review-invite.timer
+```
+
+**Tắt tạm / Gỡ hoàn toàn:**
+```bash
+sudo systemctl stop review-invite.timer
+sudo systemctl disable review-invite.timer
+# gỡ hẳn:
+sudo rm /etc/systemd/system/review-invite.timer /etc/systemd/system/review-invite.service
+sudo systemctl daemon-reload
+```
+
+> Lưu ý: muốn tạm dừng gửi mà không gỡ timer → tắt công tắc trong ⚙ Cài đặt trang Tham gia (nhanh hơn, không cần SSH).
+
 ### `poll-feedback` (đã gỡ bỏ 2026-05-12)
 
 Nếu service vẫn còn trên server, xoá:

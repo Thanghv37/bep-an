@@ -290,6 +290,20 @@ img.user-list-avatar { object-fit: cover; }
             <div class="modal-body">
                 <div id="settings-alert" class="alert d-none" role="alert"></div>
 
+                <div class="mb-3 p-3 rounded" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="settings-invite-enabled">
+                        <label class="form-check-label fw-semibold" for="settings-invite-enabled">
+                            ⭐ Gửi tin mời đánh giá sau bữa ăn
+                        </label>
+                    </div>
+                    <label class="form-label mb-1">Giờ gửi tin mời (HH:MM)</label>
+                    <input type="time" id="settings-invite-time" class="form-control" value="13:00">
+                    <div class="form-text">Gửi cho người đã điểm danh hôm nay, kèm link đánh giá. Dùng chung "Ngày trong tuần gửi" ở dưới.</div>
+                </div>
+
+                <hr>
+
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Thời gian gửi tự động (HH:MM)</label>
                     <input type="time" id="settings-send-time" class="form-control" value="13:00">
@@ -495,6 +509,10 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(data => {
                 if (!data.success) return;
                 sendTimeInput.value = data.send_time || '13:00';
+                const inviteEnabled = document.getElementById('settings-invite-enabled');
+                const inviteTime = document.getElementById('settings-invite-time');
+                if (inviteEnabled) inviteEnabled.checked = data.review_invite_enabled !== false;
+                if (inviteTime) inviteTime.value = data.review_invite_send_time || '13:00';
                 channelInput.value = data.channel_id || '';
                 const mode = data.mode === 'channel' ? 'channel' : 'dm';
                 const modeInput = document.getElementById('mode-' + mode);
@@ -524,6 +542,10 @@ document.addEventListener('DOMContentLoaded', function () {
         fd.append('channel_id', channelInput.value.trim());
         const sendDays = Array.from(document.querySelectorAll('.send-day-cb:checked')).map(cb => cb.value);
         fd.append('send_days', sendDays.join(','));
+        const inviteEnabled = document.getElementById('settings-invite-enabled');
+        const inviteTime = document.getElementById('settings-invite-time');
+        fd.append('review_invite_enabled', (inviteEnabled && inviteEnabled.checked) ? '1' : '0');
+        fd.append('review_invite_send_time', inviteTime ? inviteTime.value : '13:00');
 
         btnSave.disabled = true;
         btnSave.textContent = 'Đang lưu...';

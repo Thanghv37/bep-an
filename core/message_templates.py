@@ -16,6 +16,7 @@ from .models import SystemConfig
 # Khóa SystemConfig
 KEY_OTP = 'msg_template_otp'
 KEY_MEAL = 'msg_template_meal'
+KEY_REVIEW_INVITE = 'msg_template_review_invite'
 
 
 # Template mặc định (dùng khi admin chưa lưu mẫu riêng trong DB).
@@ -38,6 +39,14 @@ DEFAULT_MEAL = (
     "Chúc bạn ngon miệng!"
 )
 
+# Tin mời đánh giá gửi SAU bữa trưa (mặc định 13h) cho người đã ăn.
+DEFAULT_REVIEW_INVITE = (
+    "Xin chào **{full_name}**,\n\n"
+    "Bữa trưa hôm nay có hợp khẩu vị bạn không? 😋\n\n"
+    "⭐ Dành 30 giây đánh giá món ăn giúp bếp ngày càng ngon hơn nhé: {review_link}\n\n"
+    "Cảm ơn bạn rất nhiều! 💚"
+)
+
 
 # Mô tả các biến cho UI cấu hình (key -> label tiếng Việt)
 VARS_OTP = [
@@ -54,6 +63,14 @@ VARS_MEAL = [
     ('target_date', 'Ngày ăn (định dạng DD-MM-YYYY)'),
     ('kitchen_name', 'Tên bếp'),
     ('menu_summary', 'Danh sách món ăn trong ngày (xuống dòng + emoji theo loại món)'),
+    ('review_link', 'Link đánh giá món ăn công khai'),
+]
+
+VARS_REVIEW_INVITE = [
+    ('full_name', 'Họ và tên người nhận'),
+    ('employee_code', 'Mã nhân viên'),
+    ('target_date', 'Ngày ăn (định dạng DD-MM-YYYY)'),
+    ('menu_summary', 'Danh sách món ăn trong ngày'),
     ('review_link', 'Link đánh giá món ăn công khai'),
 ]
 
@@ -93,3 +110,7 @@ def get_otp_template():
 
 def get_meal_template():
     return get_template(KEY_MEAL, DEFAULT_MEAL)
+
+
+def get_review_invite_template():
+    return get_template(KEY_REVIEW_INVITE, DEFAULT_REVIEW_INVITE)

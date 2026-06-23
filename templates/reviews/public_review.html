@@ -231,6 +231,38 @@
         }
         .footer-note .check { color: var(--c-success); font-weight: 800; }
 
+        /* ===== INVITE FEEDBACK VOTE ===== */
+        .invite-vote {
+            margin-top: 22px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 18px 16px;
+            text-align: center;
+            animation: fade-up .5s ease-out;
+        }
+        .iv-title { font-size: 14px; font-weight: 800; color: var(--c-text); }
+        .iv-sub { font-size: 13px; color: var(--c-muted); margin: 4px 0 14px; }
+        .iv-btns { display: flex; gap: 10px; justify-content: center; }
+        .iv-btn {
+            flex: 1;
+            max-width: 180px;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            color: var(--c-text);
+            font-size: 13px;
+            font-weight: 700;
+            padding: 10px 12px;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: transform .12s, background .15s, border-color .15s;
+        }
+        .iv-btn:active { transform: scale(0.96); }
+        .iv-btn.sel-no { background: var(--c-success-light); border-color: #6ee7b7; color: #047857; }
+        .iv-btn.sel-yes { background: var(--c-danger-light); border-color: #fda4af; color: #be123c; }
+        .iv-thanks { display: none; font-size: 13px; font-weight: 700; color: var(--c-success); margin-top: 12px; }
+        .invite-vote.done .iv-thanks { display: block; }
+
         /* ===== ANIMATIONS ===== */
         @keyframes wave {
             0%, 50%, 100% { transform: rotate(0deg); }
@@ -322,6 +354,17 @@
             </div>
         {% endif %}
 
+        <!-- VOTE: có thấy phiền với tin mời đánh giá không -->
+        <div class="invite-vote" id="inviteVote">
+            <div class="iv-title">📨 Tin nhắn mời đánh giá buổi trưa</div>
+            <div class="iv-sub">Bạn có thấy phiền khi nhận tin nhắn này không?</div>
+            <div class="iv-btns">
+                <button type="button" class="iv-btn" data-annoyed="0">😊 Không, vẫn ổn</button>
+                <button type="button" class="iv-btn" data-annoyed="1">😟 Có, hơi phiền</button>
+            </div>
+            <div class="iv-thanks">Cảm ơn ý kiến của bạn! 💚</div>
+        </div>
+
         <!-- CTA -->
         {% if not request.user.is_authenticated %}
         <div class="cta">
@@ -405,6 +448,32 @@
                 });
             });
         });
+
+        // ===== Vote: phiền với tin mời đánh giá? =====
+        (function () {
+            const box = document.getElementById('inviteVote');
+            if (!box) return;
+            const btns = box.querySelectorAll('.iv-btn');
+            btns.forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const annoyed = this.dataset.annoyed === '1';
+                    btns.forEach(b => b.classList.remove('sel-yes', 'sel-no'));
+                    this.classList.add(annoyed ? 'sel-yes' : 'sel-no');
+                    box.classList.add('done');
+                    fetch("{% url 'ajax_review_invite_feedback' %}", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "X-CSRFToken": csrftoken },
+                        body: JSON.stringify({ annoyed: annoyed })
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!data.success) showToast('Lỗi: ' + (data.message || ''), true);
+                        else showToast('💚 Đã ghi nhận ý kiến');
+                    })
+                    .catch(() => showToast('Lỗi kết nối', true));
+                });
+            });
+        })();
     </script>
 </body>
 </html>

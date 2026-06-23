@@ -1,0 +1,13 @@
+[Unit]
+Description=Check & send review-invite messages every minute
+Requires=review-invite.service
+
+[Timer]
+# Fire mỗi 1 phút. Command tự check bật/tắt, HH:MM = giờ gửi, ngày trong tuần
+# và idempotent (review_invite_last_sent_date) nên đa số lần fire no-op (~1s).
+OnCalendar=*-*-* *:*:00
+Persistent=true
+Unit=review-invite.service
+
+[Install]
+WantedBy=timers.target

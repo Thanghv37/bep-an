@@ -13,7 +13,10 @@ from meals.models import DailyMenu
 from django.core.paginator import Paginator
 
 from .forms import MealReviewForm
-from .models import MealReview, DishReview, DishSuggestion, DishSuggestionVote
+from .models import (
+    MealReview, DishReview, DishSuggestion, DishSuggestionVote,
+    ReviewInviteFeedback,
+)
 
 
 def can_review_date(target_date):
@@ -215,10 +218,23 @@ def review_dashboard(request):
 
         current_date += timedelta(days=1)
 
+    # Tổng hợp ý kiến về tin mời đánh giá (toàn bộ, không theo ngày) — để admin
+    # quyết định có nên tiếp tục gửi tin mời 13h hay không.
+    invite_fb = ReviewInviteFeedback.objects.aggregate(
+        annoyed=Count('id', filter=Q(annoyed=True)),
+        not_annoyed=Count('id', filter=Q(annoyed=False)),
+    )
+    invite_feedback = {
+        'annoyed': invite_fb['annoyed'] or 0,
+        'not_annoyed': invite_fb['not_annoyed'] or 0,
+        'total': (invite_fb['annoyed'] or 0) + (invite_fb['not_annoyed'] or 0),
+    }
+
     context = {
         'selected_date': selected_date,
         'selected_date_str': selected_date.isoformat(),
         'can_review': can_review,
+        'invite_feedback': invite_feedback,
         'menu': menu,
         'form': form,
         'existing_review': existing_review,
@@ -372,6 +388,38 @@ def ajax_public_review_dish(request):
         return JsonResponse({'success': True, 'rating': rating})
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)})
+
+
+@require_POST
+def ajax_review_invite_feedback(request):
+    """Nhận vote 'có thấy phiền với tin mời đánh giá không'.
+
+    Body JSON: {"annoyed": true|false}. Vote 1 lần/người (upsert): đăng nhập
+    khóa theo user, ẩn danh khóa theo session_key. Không cần login (đặt trên
+    trang công khai)."""
+    try:
+        data = json.loads(request.body or '{}')
+    except ValueError:
+        return JsonResponse({'success': False, 'message': 'Dữ liệu không hợp lệ.'}, status=400)
+
+    if 'annoyed' not in data:
+        return JsonResponse({'success': False, 'message': 'Thiếu lựa chọn.'}, status=400)
+    annoyed = bool(data.get('annoyed'))
+
+    if request.user.is_authenticated:
+        ReviewInviteFeedback.objects.update_or_create(
+            user=request.user,
+            defaults={'annoyed': annoyed, 'session_key': None},
+        )
+    else:
+        if not request.session.session_key:
+            request.session.create()
+        ReviewInviteFeedback.objects.update_or_create(
+            user=None, session_key=request.session.session_key,
+            defaults={'annoyed': annoyed},
+        )
+
+    return JsonResponse({'success': True, 'annoyed': annoyed})
 
 
 @login_required

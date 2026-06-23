@@ -917,6 +917,10 @@ def participation_settings(request):
         set_channel_id,
         get_send_days,
         set_send_days,
+        get_review_invite_enabled,
+        set_review_invite_enabled,
+        get_review_invite_send_time,
+        set_review_invite_send_time,
     )
 
     if request.method == 'POST':
@@ -925,15 +929,19 @@ def participation_settings(request):
         mode_raw = (request.POST.get('mode') or '').strip()
         channel_id_raw = (request.POST.get('channel_id') or '').strip()
         send_days_raw = request.POST.get('send_days', '')
+        invite_enabled_raw = request.POST.get('review_invite_enabled', '')
+        invite_time_raw = (request.POST.get('review_invite_send_time') or '').strip()
         codes = [line.strip() for line in recipients_raw.splitlines() if line.strip()]
         try:
             saved_time = set_send_time(send_time_raw)
+            saved_invite_time = set_review_invite_send_time(invite_time_raw)
         except ValueError as e:
             return JsonResponse({'success': False, 'message': str(e)}, status=400)
         saved_mode = set_send_mode(mode_raw)
         saved_codes = set_recipients(codes)
         saved_channel = set_channel_id(channel_id_raw)
         saved_days = set_send_days(send_days_raw)
+        saved_invite_enabled = set_review_invite_enabled(invite_enabled_raw)
         existing = set(UserProfile.objects.filter(employee_code__in=saved_codes).values_list('employee_code', flat=True))
         invalid = [c for c in saved_codes if c not in existing]
         return JsonResponse({
@@ -943,6 +951,8 @@ def participation_settings(request):
             'recipients': saved_codes,
             'channel_id': saved_channel,
             'send_days': saved_days,
+            'review_invite_enabled': saved_invite_enabled,
+            'review_invite_send_time': saved_invite_time,
             'invalid_codes': invalid,
         })
 
@@ -953,6 +963,8 @@ def participation_settings(request):
         'recipients': get_recipients(),
         'channel_id': get_channel_id(),
         'send_days': get_send_days(),
+        'review_invite_enabled': get_review_invite_enabled(),
+        'review_invite_send_time': get_review_invite_send_time(),
     })
 
 

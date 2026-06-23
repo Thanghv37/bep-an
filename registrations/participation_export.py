@@ -27,6 +27,10 @@ KEY_SEND_DAYS = 'participation_export_send_days'      # JSON list of int 0-6
 # Mặc định gửi T2-T6 (weekday 0..4), không gửi T7/CN.
 DEFAULT_SEND_DAYS = [0, 1, 2, 3, 4]
 
+# Tin MỜI ĐÁNH GIÁ gửi sau bữa trưa (mặc định 13:00) cho người đã điểm danh.
+KEY_REVIEW_INVITE_ENABLED = 'review_invite_enabled'      # '1' | '0'
+KEY_REVIEW_INVITE_SEND_TIME = 'review_invite_send_time'  # 'HH:MM'
+
 
 # ---------- Config trong SystemConfig ----------
 
@@ -119,6 +123,42 @@ def set_send_days(values):
         defaults={'value': json.dumps(cleaned)},
     )
     return cleaned
+
+
+def get_review_invite_enabled():
+    """Có bật gửi tin mời đánh giá lúc 13h không. Mặc định BẬT (True)."""
+    cfg = SystemConfig.objects.filter(key=KEY_REVIEW_INVITE_ENABLED).first()
+    if not cfg or cfg.value is None or cfg.value == '':
+        return True
+    return cfg.value.strip() == '1'
+
+
+def set_review_invite_enabled(value):
+    val = '1' if value in (True, '1', 'true', 'on', 'True') else '0'
+    SystemConfig.objects.update_or_create(
+        key=KEY_REVIEW_INVITE_ENABLED,
+        defaults={'value': val},
+    )
+    return val == '1'
+
+
+def get_review_invite_send_time():
+    cfg = SystemConfig.objects.filter(key=KEY_REVIEW_INVITE_SEND_TIME).first()
+    val = (cfg.value if cfg else '') or ''
+    if re.match(r'^\d{2}:\d{2}$', val):
+        return val
+    return '13:00'
+
+
+def set_review_invite_send_time(value):
+    val = (value or '').strip()
+    if not re.match(r'^\d{2}:\d{2}$', val):
+        raise ValueError('Thời gian phải có dạng HH:MM (24h).')
+    SystemConfig.objects.update_or_create(
+        key=KEY_REVIEW_INVITE_SEND_TIME,
+        defaults={'value': val},
+    )
+    return val
 
 
 def get_channel_id():

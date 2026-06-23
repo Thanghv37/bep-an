@@ -94,3 +94,45 @@ class DishSuggestionVote(models.Model):
         unique_together = ('suggestion', 'user')
         verbose_name = 'Vote đề xuất món'
         verbose_name_plural = 'Vote đề xuất món'
+
+
+class ReviewInviteFeedback(models.Model):
+    """Ý kiến của mọi người về tin nhắn MỜI ĐÁNH GIÁ gửi lúc 13h: có thấy
+    phiền không. Thu thập để quyết định có nên tiếp tục gửi tin mời hay không.
+
+    Vote 1 lần / người (latest thắng): nếu đăng nhập thì khóa theo `user`,
+    nếu ẩn danh (trang công khai) thì khóa theo `session_key`. `annoyed=True`
+    = thấy phiền, `False` = không phiền.
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        verbose_name='Người vote',
+    )
+    session_key = models.CharField(max_length=40, null=True, blank=True, verbose_name='Session ẩn danh')
+    annoyed = models.BooleanField(verbose_name='Thấy phiền?')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+        verbose_name = 'Ý kiến tin mời đánh giá'
+        verbose_name_plural = 'Ý kiến tin mời đánh giá'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user'],
+                condition=models.Q(user__isnull=False),
+                name='unique_invite_feedback_user',
+            ),
+            models.UniqueConstraint(
+                fields=['session_key'],
+                condition=models.Q(user__isnull=True, session_key__isnull=False),
+                name='unique_invite_feedback_session',
+            ),
+        ]
+
+    def __str__(self):
+        who = self.user.username if self.user else f'Ẩn danh ({self.session_key})'
+        return f'{who} - {"phiền" if self.annoyed else "không phiền"}'
