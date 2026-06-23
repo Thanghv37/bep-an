@@ -87,6 +87,7 @@ Hệ thống Quản lý Bếp ăn là giải pháp toàn diện giúp tự độ
 ## 📝 Nhật ký thay đổi
 
 ### 2026-06-22 (cập nhật chiều)
+- **AI dinh dưỡng: phân tích kỹ hơn thực đơn trong ngày** ([core/services/nutrition_ai.py](core/services/nutrition_ai.py) — `estimate_nutrition`). Nới prompt Gemini cho `summary` từ "tối đa 2 câu / 150 ký tự" → **~3 câu (250-300 ký tự)**, phân tích cụ thể thực đơn hôm đó (nhắc tên vài món, nhận xét cân đối đạm/rau/tinh bột, kèm lời khuyên), giọng thân thiện không nặng kỹ thuật. Lưu ý: kết quả AI **cache 1 lần/ngày** trong `DailyNutritionAnalysis` — muốn thấy format mới ngay trong ngày đã phân tích thì xoá bản ghi ngày đó để regenerate. Không cần migrate; chỉ restart `bep-an`.
 - **API danh sách đăng ký: áp lại schema mới** ([registrations/views.py](registrations/views.py) — `registrations_by_date_api`). Client đã sẵn sàng nên triển khai lại schema mới đã fallback hồi trưa: trả thêm `total_portions` (tổng số suất, cộng dồn `quantity`), `total_attended_portions`, và mảng `employees` (mỗi phần tử `employee_code`, `full_name`, `portions`, `attended` bool, `status`: `attended`=đã điểm danh / `registered`=mới đăng ký; trạng thái lấy từ `AttendanceLog` theo ngày). Vẫn giữ `dict_registered_today` (deprecated) cho tương thích ngược. Không cần migrate; chỉ restart `bep-an`.
 
 ### 2026-06-22

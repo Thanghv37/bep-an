@@ -28,16 +28,15 @@ def estimate_nutrition(menu_data):
     print(len(compact_menu))
 
     prompt = f"""
-Bạn là AI dinh dưỡng cho bếp ăn công ty.
+Bạn là AI dinh dưỡng thân thiện cho bếp ăn công ty.
 
-Ước tính tổng kcal/suất dựa trên nguyên liệu và gram/người.
+Ước tính tổng kcal/suất dựa trên nguyên liệu và gram/người, và nhận xét về thực đơn HÔM NAY.
 
 Yêu cầu:
-- Trả lời NGẮN GỌN
-- summary tối đa 2 câu
-- tối đa 150 ký tự
-- không giải thích dài dòng
-- không markdown
+- Giọng văn thân thiện, gần gũi, dễ hiểu cho người lao động; KHÔNG dùng thuật ngữ kỹ thuật.
+- summary: khoảng 3 câu, phân tích CỤ THỂ thực đơn hôm nay — nhắc tên vài món tiêu biểu,
+  nhận xét sự cân đối giữa chất đạm / rau xanh / tinh bột, và kèm một lời khuyên ăn uống ngắn.
+- summary khoảng 250-300 ký tự, viết liền 1 đoạn, KHÔNG xuống dòng, KHÔNG markdown.
 - chỉ trả JSON
 
 Menu:{compact_menu}
@@ -46,7 +45,7 @@ JSON:
 {{
   "total_kcal": number,
   "level": "Thấp|Cân bằng|Cao",
-  "summary": "ngắn gọn"
+  "summary": "khoảng 3 câu phân tích thực đơn hôm nay"
 }}
 """
 
