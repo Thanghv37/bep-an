@@ -61,6 +61,12 @@
                     </select>
                 </div>
 
+                <div class="filter-item">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search me-1"></i> Tìm
+                    </button>
+                </div>
+
                 <div class="filter-item filter-reset">
                     <a href="{% url 'registration_participation' %}" class="btn btn-outline-secondary w-100">
                         Reset
@@ -206,7 +212,7 @@
 .tab-btn.btn-secondary { background-color: #64748b; border: none; }
 .section-subtitle { color: #94a3b8; font-size: 14px; font-weight: 500; }
 .filter-card { background: #ffffff !important; border: 1px solid #f1f5f9; padding: 24px; border-radius: 16px; }
-.filter-grid-participation { display: grid; grid-template-columns: 180px minmax(250px, 1fr) 200px 100px; gap: 15px; align-items: end; }
+.filter-grid-participation { display: grid; grid-template-columns: 180px minmax(250px, 1fr) 200px 100px 100px; gap: 15px; align-items: end; }
 .filter-label { font-size: 13px; font-weight: 700; color: #64748b; margin-bottom: 6px; }
 .filter-card .form-control, .filter-card .form-select { height: 40px; border-radius: 10px; border: 1px solid #e2e8f0; }
 .user-list-card { border-radius: 16px; padding: 20px; border: 1px solid #f1f5f9; background: #fff; }
@@ -598,12 +604,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    const searchInput = form.querySelector('input[name="q_name"]');
-    let timeout = null;
-    searchInput.addEventListener('input', () => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => form.submit(), 800);
-    });
+    // KHÔNG tự submit khi đang gõ — chỉ tìm khi bấm nút "Tìm" (hoặc Enter).
 });
 </script>
 

@@ -53,6 +53,10 @@
                             {% endfor %}
                         </select>
 
+                        <button type="submit" class="btn w-100 btn-search-soft">
+                            <i class="bi bi-search me-1"></i> Tìm
+                        </button>
+
                         <a href="{% url 'registration_list' %}" class="btn w-100 btn-reset-soft">Reset</a>
                     </div>
                 </form>
@@ -363,9 +367,27 @@
 
     .filter-grid {
         display: grid;
-        grid-template-columns: 130px minmax(160px, 1.5fr) 110px 130px 130px 80px;
+        grid-template-columns: 130px minmax(160px, 1.5fr) 110px 130px 130px 90px 80px;
         gap: 10px;
         align-items: center;
+    }
+
+    .btn-search-soft {
+        height: 36px;
+        border-radius: 8px;
+        border: 1px solid #2563eb;
+        color: #fff;
+        background: #2563eb;
+        font-size: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-search-soft:hover {
+        background: #1d4ed8;
+        border-color: #1d4ed8;
+        color: #fff;
     }
 
     .filter-card .form-control,
@@ -632,12 +654,7 @@
             el.addEventListener('change', () => form.submit());
         });
 
-        const searchInput = form.querySelector('input[name="q"]');
-        let timeout = null;
-        searchInput.addEventListener('input', () => {
-            clearTimeout(timeout);
-            timeout = setTimeout(() => form.submit(), 800);
-        });
+        // KHÔNG tự submit khi đang gõ — chỉ tìm khi bấm nút "Tìm" (hoặc Enter).
     });
 </script>
 <script>

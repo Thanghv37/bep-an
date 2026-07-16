@@ -255,22 +255,5 @@
         });
     });
 </script>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const searchInput = document.getElementById('dish-search-input');
-    const filterForm = document.getElementById('dish-filter-form');
-
-    if (!searchInput || !filterForm) return;
-
-    let typingTimer = null;
-
-    searchInput.addEventListener('input', function () {
-        clearTimeout(typingTimer);
-
-        typingTimer = setTimeout(function () {
-            filterForm.submit();
-        }, 2000);
-    });
-});
-</script>
+{# Không tự submit khi đang gõ — chỉ tìm khi bấm nút "Lọc" (hoặc Enter). #}
 {% endblock %}
