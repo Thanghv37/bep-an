@@ -7,7 +7,7 @@ Hướng dẫn deploy code từ máy dev lên server production. **Bookmark file
 
 ## 📍 Thông tin server
 
-- **SSH**: `ssh ipcdkv2@171.232.250.6`
+- **SSH**: `ssh -p 7000 ipcdkv2@171.232.250.6` (SSH chạy ở **cổng 7000**, không phải 22)
 - **Project path**: `/home/ipcdkv2/thanghv37`
 - **Service**: `bep-an` (Gunicorn) chạy trên port 6011
 - **DB**: PostgreSQL local, password lưu trong systemd env var
@@ -31,7 +31,12 @@ Nếu push fail → trên dev có local change xung đột với remote → reso
 ### 1. SSH vào server + pull code mới
 
 ```bash
-ssh ipcdkv2@171.232.250.6
+ssh -p 7000 ipcdkv2@171.232.250.6
+```
+
+Sau khi vào được server (thấy prompt của server), MỚI gõ tiếp — **không dán cả cụm cùng lúc**:
+
+```bash
 cd ~/thanghv37
 source venv/bin/activate
 git pull origin main
