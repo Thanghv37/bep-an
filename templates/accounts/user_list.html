@@ -115,6 +115,9 @@
                             {% else %}
                                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Diner</span>
                             {% endif %}
+                            {% if user.profile.login_by_password %}
+                                <span class="badge bg-teal-subtle text-teal border" style="background:#ccfbf1;color:#0f766e;border-color:#99f6e4!important;" title="Đăng nhập bằng mật khẩu (SĐT)">Thuê ngoài</span>
+                            {% endif %}
                         </td>
 
                         <td>{{ user.profile.gender|default:"-" }}</td>
@@ -140,6 +143,17 @@
                                 <a href="{% url 'user_update' user.id %}" class="btn btn-sm btn-outline-primary">
                                     Sửa
                                 </a>
+
+                                {% if user.profile.login_by_password %}
+                                    <form method="post"
+                                          action="{% url 'reset_user_password' user.id %}"
+                                          onsubmit="return confirm('Reset mật khẩu của nhân viên này? Họ sẽ tự đặt lại mật khẩu ở lần đăng nhập kế tiếp.');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-warning">
+                                            Reset mật khẩu
+                                        </button>
+                                    </form>
+                                {% endif %}
 
                                 {% if user != request.user and not user.is_superuser %}
                                     <form method="post"

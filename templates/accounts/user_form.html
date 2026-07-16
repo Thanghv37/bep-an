@@ -74,4 +74,29 @@
     </datalist>
 </div>
 
+<script>
+// Khi tick "Nhân viên bếp thuê ngoài": ẩn ô Mã NV (dùng SĐT làm tài khoản),
+// đặt vai trò = Nhân viên bếp, nhắc SĐT là bắt buộc.
+(function () {
+    const cb = document.getElementById('id_login_by_password');
+    if (!cb) return;
+    const empCode = document.getElementById('id_employee_code');
+    const phone = document.getElementById('id_phone');
+    const role = document.getElementById('id_role');
+    const empCol = empCode ? empCode.closest('.col-md-4') : null;
+
+    function apply() {
+        const on = cb.checked;
+        if (empCol) empCol.style.display = on ? 'none' : '';
+        if (on && empCode) empCode.value = '';
+        if (phone) {
+            phone.placeholder = on ? 'SĐT — dùng làm tài khoản đăng nhập' : '';
+        }
+        if (on && role) role.value = 'kitchen';
+    }
+    cb.addEventListener('change', apply);
+    apply();
+})();
+</script>
+
 {% endblock %}

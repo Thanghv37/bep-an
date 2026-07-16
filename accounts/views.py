@@ -11,6 +11,7 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_GET
 
 from accounts.permissions import can_manage_user, can_view_user_list
@@ -211,6 +212,122 @@ def verify_otp(request):
         'resend_seconds_remaining': user_profile.otp_resend_seconds_remaining(),
     })
 
+
+# --- ĐĂNG NHẬP BẰNG MẬT KHẨU (nhân viên bếp thuê ngoài, username = SĐT) ---
+PASSWORD_MIN_LEN = 6
+
+
+def _login_user(request, user):
+    """Đăng nhập user qua ModelBackend (giống verify_otp)."""
+    if not hasattr(user, 'backend'):
+        user.backend = 'django.contrib.auth.backends.ModelBackend'
+    auth_login(request, user)
+    request.session.modified = True
+
+
+def password_login(request):
+    """Đăng nhập bằng SĐT + mật khẩu cho nhân viên bếp thuê ngoài.
+
+    Lần đầu: mật khẩu nhân viên nhập (kèm xác nhận) được LƯU làm mật khẩu.
+    Lần sau: kiểm tra mật khẩu. Sai nhiều lần thì khoá tạm (tái dùng cơ chế
+    lockout của OTP vì tài khoản này không dùng OTP).
+    """
+    if request.method != 'POST':
+        return redirect('login')
+
+    phone = (request.POST.get('phone') or '').strip()
+    password = request.POST.get('password') or ''
+    confirm = request.POST.get('confirm_password') or ''
+
+    # Giữ trạng thái mở panel mật khẩu khi quay lại trang login (?mode=pwd).
+    back = f"{reverse('login')}?mode=pwd"
+
+    if not phone or not password:
+        messages.error(request, 'Vui lòng nhập số điện thoại và mật khẩu.')
+        return redirect(back)
+
+    try:
+        user = User.objects.select_related('profile').get(username=phone)
+        profile = user.profile
+    except User.DoesNotExist:
+        messages.error(request, 'Số điện thoại chưa được cấp tài khoản. Liên hệ quản trị viên.')
+        return redirect(back)
+
+    if not getattr(profile, 'login_by_password', False):
+        messages.error(request, 'Tài khoản này không đăng nhập bằng mật khẩu.')
+        return redirect(back)
+
+    if profile.is_otp_locked():
+        secs = profile.otp_lock_seconds_remaining()
+        messages.error(
+            request,
+            f'Tài khoản tạm khoá do nhập sai nhiều lần. Thử lại sau {secs // 60} phút {secs % 60} giây.'
+        )
+        return redirect(back)
+
+    first_time = not user.has_usable_password()
+
+    if first_time:
+        # Lần đầu — thiết lập mật khẩu (nhập 2 lần cho khớp).
+        if len(password) < PASSWORD_MIN_LEN:
+            messages.error(request, f'Mật khẩu phải từ {PASSWORD_MIN_LEN} ký tự trở lên.')
+            return redirect(back)
+        if password != confirm:
+            messages.error(request, 'Hai lần nhập mật khẩu không khớp. Vui lòng nhập lại.')
+            return redirect(back)
+        user.set_password(password)
+        user.save(update_fields=['password'])
+        profile.reset_otp_attempts()
+        _login_user(request, user)
+        messages.success(request, 'Đã thiết lập mật khẩu và đăng nhập thành công.')
+        return redirect('/')
+
+    # Lần sau — kiểm tra mật khẩu.
+    if user.check_password(password):
+        profile.reset_otp_attempts()
+        _login_user(request, user)
+        return redirect('/')
+
+    profile.register_otp_failure()
+    profile.refresh_from_db()
+    if profile.is_otp_locked():
+        messages.error(
+            request,
+            f'Bạn đã nhập sai quá {UserProfile.OTP_MAX_FAILED} lần. '
+            f'Tài khoản bị tạm khoá {UserProfile.OTP_LOCK_MINUTES} phút.'
+        )
+    else:
+        remain = UserProfile.OTP_MAX_FAILED - profile.otp_failed_attempts
+        messages.error(request, f'Mật khẩu không đúng. Còn {remain} lần thử.')
+    return redirect(back)
+
+
+@login_required
+@user_passes_test(can_manage_user)
+def reset_user_password(request, pk):
+    """Admin reset mật khẩu của nhân viên thuê ngoài → xoá mật khẩu để họ tự
+    đặt lại ở lần đăng nhập kế tiếp."""
+    user = get_object_or_404(User.objects.select_related('profile'), pk=pk)
+    profile = user.profile
+
+    if request.method != 'POST':
+        return redirect('user_list')
+
+    if not getattr(profile, 'login_by_password', False):
+        messages.error(request, 'Tài khoản này không dùng đăng nhập bằng mật khẩu.')
+        return redirect('user_list')
+
+    user.set_unusable_password()
+    user.save(update_fields=['password'])
+    profile.reset_otp_attempts()
+    messages.success(
+        request,
+        f'Đã reset mật khẩu của "{profile.full_name or user.username}". '
+        f'Nhân viên sẽ tự đặt mật khẩu mới ở lần đăng nhập kế tiếp.'
+    )
+    return redirect('user_list')
+
+
 @login_required
 @user_passes_test(can_view_user_list)
 def user_list(request):
@@ -285,14 +402,26 @@ def user_create(request):
             position = form.cleaned_data['position']
             department = form.cleaned_data['department']
             role = form.cleaned_data['role']
+            login_by_password = form.cleaned_data.get('login_by_password')
+
+            if login_by_password:
+                # Nhân viên bếp thuê ngoài: tài khoản = SĐT, vai trò bếp, không
+                # có mã NV. Mật khẩu để nhân viên tự đặt ở lần đăng nhập đầu.
+                username = phone
+                role = UserProfile.ROLE_KITCHEN
+                employee_code = ''
+            else:
+                username = employee_code
 
             user = User.objects.create_user(
-                username=employee_code,
+                username=username,
                 first_name=full_name,
                 email=email,
                 is_staff=(role in [UserProfile.ROLE_ADMIN, UserProfile.ROLE_KITCHEN]),
                 is_superuser=False,
             )
+            # Chưa có mật khẩu dùng được: OTP user thì luôn vậy; thuê ngoài sẽ
+            # đặt mật khẩu ở lần đăng nhập đầu (has_usable_password() == False).
             user.set_unusable_password()
             user.save()
 
@@ -307,9 +436,17 @@ def user_create(request):
             profile.position = position
             profile.phone = phone
             profile.role = role
+            profile.login_by_password = bool(login_by_password)
             profile.save()
 
-            messages.success(request, f'Đã tạo người dùng {full_name}.')
+            if login_by_password:
+                messages.success(
+                    request,
+                    f'Đã tạo tài khoản nhân viên bếp thuê ngoài "{full_name}" '
+                    f'(đăng nhập bằng SĐT {phone}). Nhân viên tự đặt mật khẩu ở lần đăng nhập đầu.'
+                )
+            else:
+                messages.success(request, f'Đã tạo người dùng {full_name}.')
             return redirect('user_list')
     else:
         form = UserCreateForm()

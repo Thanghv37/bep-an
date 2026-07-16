@@ -110,6 +110,15 @@ class UserProfile(models.Model):
         verbose_name='Vai trò'
     )
 
+    # Nhân viên bếp thuê ngoài — không có mã NV / NetChat, đăng nhập bằng
+    # username = SĐT + mật khẩu (đặt ở lần đăng nhập đầu). True = dùng mật khẩu
+    # thay vì OTP. Tận dụng lại các field otp_* làm lockout khi nhập sai pass
+    # (tài khoản này không dùng OTP nên không xung đột).
+    login_by_password = models.BooleanField(
+        default=False,
+        verbose_name='Đăng nhập bằng mật khẩu (nhân viên thuê ngoài)'
+    )
+
     avatar = models.ImageField(
         upload_to=user_avatar_path,
         null=True,
