@@ -217,6 +217,21 @@ def registration_create(request):
         if local and locals_count[local] == 1:
             user_alias_map[local] = p.employee_code
 
+    # List đầy đủ cho popup "Chọn từ danh sách" — cho phép lọc theo Đơn vị /
+    # Phòng ban rồi tick chọn nhiều người thay vì gõ tay từng mã NV.
+    people_list = sorted(
+        (
+            {
+                'code': p.employee_code,
+                'name': p.full_name or '',
+                'unit': (p.unit or '').strip(),
+                'department': (p.department or '').strip(),
+            }
+            for p in profiles if p.employee_code
+        ),
+        key=lambda x: (x['unit'], x['department'], x['name'].lower()),
+    )
+
     if request.method == 'POST':
         date_raw = (request.POST.get('date') or '').strip()
         meal_name = (request.POST.get('meal_name') or '').strip()
@@ -352,6 +367,7 @@ def registration_create(request):
                 'kitchen_options': kitchen_options,
                 'user_map': user_map,
                 'user_alias_map': user_alias_map,
+                'people_list': people_list,
                 'form_errors': form_errors,
                 'sel_date': date_raw,
                 'sel_meal': meal_name,
@@ -402,6 +418,7 @@ def registration_create(request):
         'kitchen_options': kitchen_options,
         'user_map': user_map,
         'user_alias_map': user_alias_map,
+        'people_list': people_list,
         'form_errors': [],
         'sel_date': date.today().strftime('%Y-%m-%d'),
         'sel_meal': default_meal,

@@ -29,6 +29,25 @@
     }
     .reg-rows-table td { vertical-align: top; }
     .reg-rows-table .row-feedback:empty { display: none; }
+
+    /* Popup chọn người — mỗi hàng có ô tick bên trái; hàng đã chọn thì
+       highlight nền xanh + gạch xanh bên trái để biết đã chọn ai. */
+    #picker-list .picker-row {
+        border-radius: 8px;
+        cursor: pointer;
+        padding-left: 2rem;   /* chừa chỗ cho ô tick (thay cho form-check mặc định) */
+        transition: background-color .12s ease;
+    }
+    #picker-list .picker-row .form-check-input {
+        cursor: pointer;
+        margin-left: -1.5rem;
+    }
+    #picker-list .picker-row:hover { background-color: #f1f5f9; }
+    #picker-list .picker-row.is-picked {
+        background-color: #ecfdf5;
+        box-shadow: inset 3px 0 0 #10b981;
+    }
+    #picker-list .picker-row.is-picked .form-check-label strong { color: #047857; }
 </style>
 
 <div class="dashboard-card">
@@ -94,9 +113,14 @@
         {# --- Danh sách người (mỗi người 1 dòng) --- #}
         <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
             <div class="fw-semibold">Danh sách người đăng kí</div>
-            <button type="button" class="btn btn-outline-primary btn-sm" id="add-row-btn">
-                <i class="bi bi-plus-lg"></i> Thêm dòng
-            </button>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-primary btn-sm" id="open-picker-btn">
+                    <i class="bi bi-list-check"></i> Chọn từ danh sách
+                </button>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="add-row-btn">
+                    <i class="bi bi-plus-lg"></i> Thêm dòng
+                </button>
+            </div>
         </div>
 
         <div class="table-responsive">
@@ -220,6 +244,52 @@
     </div>
 </div>
 
+{# Popup chọn người từ danh sách — lọc theo Đơn vị / Phòng ban, tick nhiều người #}
+<div class="modal fade" id="pickerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-list-check me-1"></i> Chọn người từ danh sách</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-2 mb-2">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold mb-1">Đơn vị</label>
+                        <select class="form-select form-select-sm" id="picker-unit"></select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold mb-1">Phòng ban</label>
+                        <select class="form-select form-select-sm" id="picker-dept"></select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold mb-1">Tìm tên / mã NV</label>
+                        <input type="text" class="form-control form-control-sm" id="picker-search"
+                               autocomplete="off" placeholder="Gõ để lọc nhanh...">
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-1 border-top pt-2">
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" id="picker-select-all">
+                        <label class="form-check-label small fw-semibold" for="picker-select-all">
+                            Chọn tất cả đang hiển thị
+                        </label>
+                    </div>
+                    <div class="small text-muted"><span id="picker-count">0</span> người</div>
+                </div>
+                <div id="picker-list" style="max-height: 45vh; overflow-y: auto;"></div>
+            </div>
+            <div class="modal-footer">
+                <span class="me-auto small text-muted">Đã chọn: <strong id="picker-selected-count">0</strong></span>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" id="picker-add-btn">
+                    <i class="bi bi-plus-lg"></i> Thêm vào danh sách
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {# Khuôn dòng mới — JS clone khi bấm "Thêm dòng" #}
 <template id="row-template">
     <tr class="reg-row">
@@ -272,6 +342,7 @@
 
 {{ user_map|json_script:"user-map-data" }}
 {{ user_alias_map|json_script:"user-alias-map-data" }}
+{{ people_list|json_script:"people-list-data" }}
 
 <script>
 (function () {
@@ -510,6 +581,174 @@
         bootstrap.Modal.getOrCreateInstance(confirmModalEl).hide();
         // submit() native — bỏ qua listener 'submit' ở trên, gửi form thật.
         form.submit();
+    });
+
+    // ===== Popup "Chọn từ danh sách" (lọc Đơn vị/Phòng ban → tick nhiều người) =====
+    const peopleList = JSON.parse(document.getElementById('people-list-data').textContent || '[]');
+    const pickerModalEl = document.getElementById('pickerModal');
+    const unitSel = document.getElementById('picker-unit');
+    const deptSel = document.getElementById('picker-dept');
+    const pickerSearch = document.getElementById('picker-search');
+    const pickerListEl = document.getElementById('picker-list');
+    const pickerSelectAll = document.getElementById('picker-select-all');
+    const pickerCountEl = document.getElementById('picker-count');
+    const pickerSelCountEl = document.getElementById('picker-selected-count');
+    const pickerAddBtn = document.getElementById('picker-add-btn');
+    const openPickerBtn = document.getElementById('open-picker-btn');
+
+    const ALL = '__all__';
+    const NO_UNIT = '(Chưa có đơn vị)';
+    const NO_DEPT = '(Chưa có phòng ban)';
+    // Mã NV đã chọn trong phiên mở popup (giữ nguyên khi đổi bộ lọc).
+    let pickerSelected = new Set();
+
+    function populateUnits() {
+        const units = Array.from(new Set(peopleList.map(function (p) { return p.unit; }))).sort();
+        unitSel.innerHTML = '';
+        unitSel.appendChild(new Option('— Tất cả đơn vị —', ALL));
+        units.forEach(function (u) { unitSel.appendChild(new Option(u || NO_UNIT, u)); });
+    }
+    function populateDepts() {
+        const u = unitSel.value;
+        const pool = peopleList.filter(function (p) { return u === ALL || p.unit === u; });
+        const depts = Array.from(new Set(pool.map(function (p) { return p.department; }))).sort();
+        deptSel.innerHTML = '';
+        deptSel.appendChild(new Option('— Tất cả phòng ban —', ALL));
+        depts.forEach(function (d) { deptSel.appendChild(new Option(d || NO_DEPT, d)); });
+    }
+    function currentPool() {
+        const u = unitSel.value, d = deptSel.value;
+        const q = (pickerSearch.value || '').trim().toLowerCase();
+        return peopleList.filter(function (p) {
+            if (u !== ALL && p.unit !== u) return false;
+            if (d !== ALL && p.department !== d) return false;
+            if (q && (p.name + ' ' + p.code).toLowerCase().indexOf(q) === -1) return false;
+            return true;
+        });
+    }
+    function updateSelCount() { pickerSelCountEl.textContent = pickerSelected.size; }
+    function syncSelectAll() {
+        const cbs = pickerListEl.querySelectorAll('.picker-cb');
+        const arr = Array.prototype.slice.call(cbs);
+        const allChecked = arr.length > 0 && arr.every(function (cb) { return cb.checked; });
+        pickerSelectAll.checked = allChecked;
+        pickerSelectAll.indeterminate = !allChecked && arr.some(function (cb) { return cb.checked; });
+    }
+    function renderPickerList() {
+        const pool = currentPool();
+        pickerCountEl.textContent = pool.length;
+        pickerListEl.innerHTML = '';
+        if (!pool.length) {
+            pickerListEl.innerHTML =
+                '<div class="text-muted small text-center py-4">Không có người nào khớp bộ lọc.</div>';
+            syncSelectAll();
+            return;
+        }
+        const frag = document.createDocumentFragment();
+        pool.forEach(function (p) {
+            const id = 'pick-' + p.code;
+            const div = document.createElement('div');
+            div.className = 'form-check picker-row py-1 border-bottom';
+            const input = document.createElement('input');
+            input.className = 'form-check-input picker-cb';
+            input.type = 'checkbox';
+            input.id = id;
+            input.value = p.code;
+            input.checked = pickerSelected.has(p.code);
+            if (input.checked) div.classList.add('is-picked');
+            const label = document.createElement('label');
+            label.className = 'form-check-label small';
+            label.setAttribute('for', id);
+            const strong = document.createElement('strong');
+            strong.textContent = p.name || '(chưa có tên)';
+            label.appendChild(strong);
+            label.appendChild(document.createTextNode('  ·  ' + p.code));
+            const deptSpan = document.createElement('span');
+            deptSpan.className = 'text-muted';
+            deptSpan.textContent = '  ·  ' + (p.department || NO_DEPT);
+            label.appendChild(deptSpan);
+            div.appendChild(input);
+            div.appendChild(label);
+            frag.appendChild(div);
+        });
+        pickerListEl.appendChild(frag);
+        syncSelectAll();
+    }
+
+    function paintRow(cb) {
+        const row = cb.closest('.picker-row');
+        if (row) row.classList.toggle('is-picked', cb.checked);
+    }
+    pickerListEl.addEventListener('change', function (e) {
+        if (!e.target.classList.contains('picker-cb')) return;
+        if (e.target.checked) pickerSelected.add(e.target.value);
+        else pickerSelected.delete(e.target.value);
+        paintRow(e.target);
+        syncSelectAll();
+        updateSelCount();
+    });
+    pickerSelectAll.addEventListener('change', function () {
+        pickerListEl.querySelectorAll('.picker-cb').forEach(function (cb) {
+            cb.checked = pickerSelectAll.checked;
+            if (cb.checked) pickerSelected.add(cb.value);
+            else pickerSelected.delete(cb.value);
+            paintRow(cb);
+        });
+        updateSelCount();
+    });
+    unitSel.addEventListener('change', function () { populateDepts(); renderPickerList(); });
+    deptSel.addEventListener('change', renderPickerList);
+    pickerSearch.addEventListener('input', renderPickerList);
+
+    if (openPickerBtn) {
+        openPickerBtn.addEventListener('click', function () {
+            pickerSelected = new Set();
+            updateSelCount();
+            populateUnits();
+            populateDepts();
+            pickerSearch.value = '';
+            renderPickerList();
+            bootstrap.Modal.getOrCreateInstance(pickerModalEl).show();
+        });
+    }
+
+    // Tập mã NV chuẩn đã có trong bảng — tránh thêm trùng.
+    function existingCodes() {
+        const set = new Set();
+        tbody.querySelectorAll('.reg-row .row-emp-code').forEach(function (inp) {
+            const raw = (inp.value || '').trim();
+            if (!raw) return;
+            set.add(resolveCode(raw) || raw);
+        });
+        return set;
+    }
+
+    pickerAddBtn.addEventListener('click', function () {
+        const existing = existingCodes();
+        let added = 0, skipped = 0;
+        pickerSelected.forEach(function (code) {
+            if (existing.has(code)) { skipped++; return; }
+            // Ưu tiên điền vào dòng đang trống; hết dòng trống thì clone dòng mới.
+            const emptyInput = Array.prototype.slice
+                .call(tbody.querySelectorAll('.reg-row .row-emp-code'))
+                .find(function (inp) { return !(inp.value || '').trim(); });
+            let row;
+            if (emptyInput) {
+                row = emptyInput.closest('.reg-row');
+            } else {
+                tbody.appendChild(rowTemplate.content.cloneNode(true));
+                row = tbody.lastElementChild;
+            }
+            row.querySelector('.row-emp-code').value = code;
+            lookupRow(row);
+            existing.add(code);
+            added++;
+        });
+        bootstrap.Modal.getOrCreateInstance(pickerModalEl).hide();
+        if (skipped > 0) {
+            alert('Đã thêm ' + added + ' người. Bỏ qua ' + skipped +
+                  ' người đã có sẵn trong danh sách.');
+        }
     });
 })();
 </script>
