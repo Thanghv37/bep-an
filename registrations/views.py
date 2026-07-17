@@ -224,6 +224,12 @@ def registration_create(request):
             {
                 'code': p.employee_code,
                 'name': p.full_name or '',
+                # username = phần trước @ của email (vd thanghv37) — cùng thứ mà
+                # ô "Mã NV hoặc Username" của form chấp nhận.
+                'username': (
+                    p.email.split('@')[0].strip().lower()
+                    if p.email and '@' in p.email else ''
+                ),
                 'unit': (p.unit or '').strip(),
                 'department': (p.department or '').strip(),
             }

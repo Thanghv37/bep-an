@@ -48,6 +48,8 @@
         box-shadow: inset 3px 0 0 #10b981;
     }
     #picker-list .picker-row.is-picked .form-check-label strong { color: #047857; }
+    /* username (phần trước @ của email) — màu riêng để không lẫn với mã NV */
+    #picker-list .picker-username { color: #2563eb; font-weight: 600; }
 </style>
 
 <div class="dashboard-card">
@@ -263,7 +265,7 @@
                         <select class="form-select form-select-sm" id="picker-dept"></select>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label small fw-semibold mb-1">Tìm tên / mã NV</label>
+                        <label class="form-label small fw-semibold mb-1">Tìm tên / username / mã NV</label>
                         <input type="text" class="form-control form-control-sm" id="picker-search"
                                autocomplete="off" placeholder="Gõ để lọc nhanh...">
                     </div>
@@ -622,7 +624,8 @@
         return peopleList.filter(function (p) {
             if (u !== ALL && p.unit !== u) return false;
             if (d !== ALL && p.department !== d) return false;
-            if (q && (p.name + ' ' + p.code).toLowerCase().indexOf(q) === -1) return false;
+            if (q && (p.name + ' ' + (p.username || '') + ' ' + p.code)
+                    .toLowerCase().indexOf(q) === -1) return false;
             return true;
         });
     }
@@ -659,10 +662,18 @@
             const label = document.createElement('label');
             label.className = 'form-check-label small';
             label.setAttribute('for', id);
+            // Thứ tự hiển thị: tên · username · mã NV · phòng ban
             const strong = document.createElement('strong');
             strong.textContent = p.name || '(chưa có tên)';
             label.appendChild(strong);
+
+            const userSpan = document.createElement('span');
+            userSpan.className = 'picker-username';
+            userSpan.textContent = '  ·  ' + (p.username || '—');
+            label.appendChild(userSpan);
+
             label.appendChild(document.createTextNode('  ·  ' + p.code));
+
             const deptSpan = document.createElement('span');
             deptSpan.className = 'text-muted';
             deptSpan.textContent = '  ·  ' + (p.department || NO_DEPT);
