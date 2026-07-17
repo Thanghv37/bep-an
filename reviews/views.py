@@ -4,6 +4,8 @@ from datetime import date, timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count, Q
+
+from accounts.search_utils import username_expr
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
@@ -160,10 +162,15 @@ def review_dashboard(request):
     web_q = request.GET.get('web_q', '').strip()
     website_reviews_qs = stat_reviews.exclude(comment='').order_by('-updated_at')
     if web_q:
-        website_reviews_qs = website_reviews_qs.filter(
+        # Tìm được theo: nội dung góp ý + tên / username (trước @ email) / mã NV.
+        website_reviews_qs = website_reviews_qs.annotate(
+            _uname=username_expr('user__profile__email')
+        ).filter(
             Q(comment__icontains=web_q) |
             Q(user__username__icontains=web_q) |
-            Q(user__profile__full_name__icontains=web_q)
+            Q(user__profile__full_name__icontains=web_q) |
+            Q(user__profile__employee_code__icontains=web_q) |
+            Q(_uname__icontains=web_q)
         )
     website_page = Paginator(website_reviews_qs, 20).get_page(request.GET.get('web_page'))
 

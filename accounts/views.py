@@ -1,5 +1,7 @@
+import calendar
 import json
 import secrets
+from datetime import date
 
 import requests
 
@@ -40,6 +42,7 @@ from core.views import BIRTHDAY_AUDIO_KEY, get_birthday_audio_url
 from .forms import ImportUserForm, UserCreateForm, UserUpdateForm
 from .import_utils import import_users_from_excel
 from .models import OTPToken, UserProfile
+from .search_utils import username_expr
 
 # --- HELPER: GỬI OTP QUA NETCHAT ---
 def _send_otp_netchat(user_profile):
@@ -328,6 +331,115 @@ def reset_user_password(request, pk):
     return redirect('user_list')
 
 
+# --- Lịch đặt cơm theo tháng của 1 user (popup ở trang Quản lý người dùng) ---
+_VN_WEEKDAYS = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật']
+
+
+@login_required
+@user_passes_test(can_view_user_list)
+@require_GET
+def user_meal_history_api(request, pk):
+    """Trả JSON các ngày đã đặt cơm trong 1 tháng của user `pk`.
+
+    Query param `month` dạng YYYY-MM (mặc định tháng hiện tại).
+    """
+    from core.models import AttendanceLog
+    from registrations.models import MealRegistration
+
+    user = get_object_or_404(User.objects.select_related('profile'), pk=pk)
+    profile = user.profile
+    code = (profile.employee_code or '').strip()
+
+    # Xác định khoảng ngày của tháng.
+    month_raw = (request.GET.get('month') or '').strip()
+    try:
+        year, month = (int(x) for x in month_raw.split('-'))
+        first_day = date(year, month, 1)
+    except (ValueError, TypeError):
+        first_day = date.today().replace(day=1)
+    last_day = date(
+        first_day.year, first_day.month,
+        calendar.monthrange(first_day.year, first_day.month)[1],
+    )
+
+    base = {
+        'success': True,
+        'full_name': profile.full_name or user.username,
+        'employee_code': code,
+        'month': first_day.strftime('%Y-%m'),
+        'month_display': f'Tháng {first_day.month}/{first_day.year}',
+    }
+
+    # Nhân viên thuê ngoài không có mã NV -> không có dữ liệu đặt cơm.
+    if not code:
+        return JsonResponse({
+            **base,
+            'rows': [],
+            'summary': {'days': 0, 'total_quantity': 0, 'attended_days': 0},
+            'note': 'Tài khoản này không có mã nhân viên nên không có dữ liệu đặt cơm.',
+        })
+
+    from registrations.views import SUPPLEMENTARY_SOURCE
+
+    regs = MealRegistration.objects.filter(
+        employee_code=code, date__range=(first_day, last_day),
+    ).order_by('date', 'meal_name')
+
+    attended_dates = set(
+        AttendanceLog.objects.filter(
+            employee_code=code, scan_time__date__range=(first_day, last_day),
+        ).values_list('scan_time__date', flat=True)
+    )
+
+    rows = []
+    registered_dates = set()
+    for r in regs:
+        registered_dates.add(r.date)
+        rows.append({
+            'date': r.date.isoformat(),
+            'date_display': r.date.strftime('%d/%m/%Y'),
+            'weekday': _VN_WEEKDAYS[r.date.weekday()],
+            'meal': r.meal_name or '-',
+            'kitchen': r.kitchen_name or '-',
+            'quantity': r.quantity,
+            'status': r.status or '-',
+            'attended': r.date in attended_dates,
+            # 'supplementary' = đăng ký bổ sung tại quầy (quên đặt, lên xin ăn
+            # + nộp tiền); 'normal' = đặt trước qua Excel/nhập tay.
+            'kind': ('supplementary' if r.source == SUPPLEMENTARY_SOURCE else 'normal'),
+        })
+
+    # Ngày CÓ quét thẻ nhưng KHÔNG có đăng ký nào -> "Chưa đăng ký" (có lên ăn
+    # mà không đặt cơm). Không có trong MealRegistration nên phải thêm thủ công,
+    # nếu không lịch sẽ hiển thị nhầm thành "không đặt".
+    for d in sorted(attended_dates - registered_dates):
+        rows.append({
+            'date': d.isoformat(),
+            'date_display': d.strftime('%d/%m/%Y'),
+            'weekday': _VN_WEEKDAYS[d.weekday()],
+            'meal': '-',
+            'kitchen': '-',
+            'quantity': 0,
+            'status': 'Chưa đăng ký',
+            'attended': True,
+            'kind': 'not_registered',
+        })
+    rows.sort(key=lambda x: x['date'])
+
+    reg_rows = [r for r in rows if r['kind'] != 'not_registered']
+    return JsonResponse({
+        **base,
+        'rows': rows,
+        'summary': {
+            'days': len({r['date'] for r in reg_rows}),
+            'total_quantity': sum(r['quantity'] for r in reg_rows),
+            'attended_days': len({r['date'] for r in rows if r['attended']}),
+            'supplementary_days': len({r['date'] for r in rows if r['kind'] == 'supplementary'}),
+            'not_registered_days': len({r['date'] for r in rows if r['kind'] == 'not_registered'}),
+        },
+    })
+
+
 @login_required
 @user_passes_test(can_view_user_list)
 def user_list(request):
@@ -342,10 +454,14 @@ def user_list(request):
     )
 
     if keyword:
-        users = users.filter(
+        # Tìm được theo 3 cách: tên / username (phần trước @ email) / mã NV.
+        users = users.annotate(
+            _uname=username_expr('profile__email')
+        ).filter(
             Q(username__icontains=keyword) |
             Q(profile__employee_code__icontains=keyword) |
-            Q(profile__full_name__icontains=keyword)
+            Q(profile__full_name__icontains=keyword) |
+            Q(_uname__icontains=keyword)
         )
 
     if role_filter in ['admin', 'kitchen', 'diner']:

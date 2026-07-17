@@ -8,6 +8,7 @@ from django.shortcuts import render, redirect
 from django.db.models import Sum
 from accounts.models import UserProfile
 from accounts.permissions import can_manage_menu, is_admin
+from accounts.search_utils import employee_codes_matching_username
 from .forms import STATUS_FIXED
 from .import_utils import import_registrations_from_excel
 from .models import MealRegistration
@@ -61,9 +62,13 @@ def registration_list(request):
         total=Sum('quantity')
     )['total'] or 0
     if keyword:
+        # Tìm được theo 3 cách: tên / username (phần trước @ email) / mã NV.
+        # MealRegistration chỉ lưu employee_code nên tra ngược username -> mã NV.
+        codes_by_username = employee_codes_matching_username(keyword)
         registrations = registrations.filter(
             Q(employee_code__icontains=keyword) |
-            Q(full_name__icontains=keyword)
+            Q(full_name__icontains=keyword) |
+            Q(employee_code__in=codes_by_username)
         )
 
     if status_filter:
@@ -793,8 +798,15 @@ def registration_participation(request):
     if q_status:
         rows = [r for r in rows if r['status'] == q_status]
     if q_name:
+        # Tìm được theo 3 cách: tên / username (phần trước @ email) / mã NV.
         needle = q_name.lower()
-        rows = [r for r in rows if needle in r['display_name'].lower() or needle in r['employee_code'].lower()]
+        codes_by_username = set(employee_codes_matching_username(q_name))
+        rows = [
+            r for r in rows
+            if needle in r['display_name'].lower()
+            or needle in r['employee_code'].lower()
+            or r['employee_code'] in codes_by_username
+        ]
 
     total_users = len({r['employee_code'] for r in rows})
 

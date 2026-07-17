@@ -144,6 +144,12 @@
                     <tr class="user-action-row d-none" id="actions-{{ user.id }}">
                         <td colspan="10">
                             <div class="d-flex justify-content-end gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-success btn-meal-history"
+                                        data-user-id="{{ user.id }}"
+                                        data-user-name="{{ user.profile.full_name|default:user.username }}">
+                                    <i class="bi bi-calendar3"></i> Lịch đặt cơm
+                                </button>
+
                                 <a href="{% url 'user_update' user.id %}" class="btn btn-sm btn-outline-primary">
                                     Sửa
                                 </a>
@@ -182,9 +188,115 @@
     {% endif %}
 </div>
 
+{# Popup lịch đặt cơm theo tháng của 1 user #}
+<div class="modal fade" id="mealHistoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title mb-0">
+                        <i class="bi bi-calendar3 me-1"></i> Lịch đặt cơm
+                    </h5>
+                    <div class="small text-muted" id="mh-subtitle">—</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex align-items-end gap-2 flex-wrap mb-3">
+                    <div>
+                        <label class="form-label small fw-semibold mb-1">Chọn tháng</label>
+                        <input type="month" id="mh-month" class="form-control form-control-sm" style="width: 170px;">
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary" id="mh-prev">
+                        <i class="bi bi-chevron-left"></i> Tháng trước
+                    </button>
+                    <button type="button" class="btn btn-sm btn-primary" id="mh-next">
+                        Tháng sau <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+
+                <div class="row g-2 mb-3" id="mh-summary"></div>
+
+                <div id="mh-body">
+                    <div class="text-muted small text-center py-4">Đang tải...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
 .user-list-card {
     padding-top: 24px;
+}
+
+/* Popup lịch đặt cơm */
+.mh-stat {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 10px 14px;
+    background: #f8fafc;
+}
+.mh-stat .lbl { font-size: 12px; color: #64748b; font-weight: 600; }
+.mh-stat .val { font-size: 22px; font-weight: 800; color: #0f172a; line-height: 1.2; }
+
+/* Lưới lịch tháng */
+.mh-cal {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+}
+.mh-cal-head {
+    font-size: 12px;
+    font-weight: 800;
+    color: #64748b;
+    text-align: center;
+    padding: 4px 0;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+.mh-day {
+    min-height: 64px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 6px;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.mh-day.blank { border: none; background: transparent; min-height: 0; }
+.mh-day.weekend { background: #f8fafc; }
+.mh-day .dnum { font-size: 13px; font-weight: 800; color: #475569; line-height: 1; }
+/* Có đặt cơm — chưa điểm danh */
+.mh-day.reg { background: #eef2ff; border-color: #c7d2fe; }
+.mh-day.reg .dnum { color: #3730a3; }
+/* Có đặt cơm — đã điểm danh */
+.mh-day.reg.att { background: #ecfdf5; border-color: #a7f3d0; }
+.mh-day.reg.att .dnum { color: #065f46; }
+/* Đăng ký bổ sung (quên đặt, lên quầy xin ăn + nộp tiền) — ưu tiên hơn màu trên */
+.mh-day.supp, .mh-day.supp.att { background: #fff7ed; border-color: #fed7aa; }
+.mh-day.supp .dnum, .mh-day.supp.att .dnum { color: #9a3412; }
+/* Chưa đăng ký nhưng có quét thẻ (ăn mà không đặt) */
+.mh-day.noreg, .mh-day.noreg.att { background: #fef2f2; border-color: #fecaca; }
+.mh-day.noreg .dnum, .mh-day.noreg.att .dnum { color: #991b1b; }
+.mh-day.today { box-shadow: 0 0 0 2px #6366f1; }
+.mh-day .mh-meal { font-size: 10.5px; color: #475569; line-height: 1.25; }
+.mh-day .mh-qty {
+    font-size: 10.5px; font-weight: 800; color: #fff;
+    background: #6366f1; border-radius: 999px; padding: 1px 6px;
+    align-self: flex-start;
+}
+.mh-day.att .mh-qty { background: #10b981; }
+.mh-day.supp .mh-qty, .mh-day.supp.att .mh-qty { background: #f97316; }
+.mh-day.noreg .mh-qty, .mh-day.noreg.att .mh-qty { background: #ef4444; }
+.mh-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: #64748b; }
+.mh-legend .dot {
+    width: 12px; height: 12px; border-radius: 4px; display: inline-block;
+    margin-right: 5px; vertical-align: -1px; border: 1px solid #cbd5e1;
 }
 
 .action-btn-custom {
@@ -357,6 +469,199 @@ document.addEventListener('DOMContentLoaded', function () {
             this.classList.add('active');
             if (actionRow) actionRow.classList.remove('d-none');
         });
+    });
+
+    // ===== Popup "Lịch đặt cơm" theo tháng =====
+    const mhModalEl = document.getElementById('mealHistoryModal');
+    const mhMonth = document.getElementById('mh-month');
+    const mhBody = document.getElementById('mh-body');
+    const mhSummary = document.getElementById('mh-summary');
+    const mhSubtitle = document.getElementById('mh-subtitle');
+    let mhUserId = null;
+
+    function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+    function thisMonthStr() {
+        const d = new Date();
+        return d.getFullYear() + '-' + pad2(d.getMonth() + 1);
+    }
+    function shiftMonth(str, delta) {
+        const parts = str.split('-');
+        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1 + delta, 1);
+        return d.getFullYear() + '-' + pad2(d.getMonth() + 1);
+    }
+
+    function statCard(label, value, color) {
+        return '<div class="col-6 col-md-3"><div class="mh-stat">' +
+               '<div class="lbl">' + label + '</div>' +
+               '<div class="val" style="color:' + color + '">' + value + '</div>' +
+               '</div></div>';
+    }
+
+    // Dựng lưới lịch tháng: 7 cột T2..CN, tô màu ngày có đặt cơm.
+    function renderCalendar(data) {
+        const parts = data.month.split('-');
+        const y = parseInt(parts[0], 10), m = parseInt(parts[1], 10);
+        // getDay(): 0=CN -> đổi sang tuần bắt đầu Thứ 2 (0=T2 ... 6=CN)
+        const startIdx = (new Date(y, m - 1, 1).getDay() + 6) % 7;
+        const daysInMonth = new Date(y, m, 0).getDate();
+
+        // Gom nhiều đăng ký cùng ngày (nhiều bữa) về 1 ô.
+        // kind ưu tiên: chưa đăng ký > bổ sung > thường (cái nào "đáng chú ý" hơn thì thắng).
+        const KIND_RANK = { normal: 0, supplementary: 1, not_registered: 2 };
+        const byDay = {};
+        data.rows.forEach(function (r) {
+            const dnum = parseInt(r.date.split('-')[2], 10);
+            if (!byDay[dnum]) byDay[dnum] = { qty: 0, meals: [], attended: false, kind: 'normal' };
+            byDay[dnum].qty += r.quantity;
+            if (r.meal && r.meal !== '-' && byDay[dnum].meals.indexOf(r.meal) === -1) {
+                byDay[dnum].meals.push(r.meal);
+            }
+            if (r.attended) byDay[dnum].attended = true;
+            if (KIND_RANK[r.kind] > KIND_RANK[byDay[dnum].kind]) byDay[dnum].kind = r.kind;
+        });
+
+        const KIND_LABEL = {
+            normal: 'Đặt cơm',
+            supplementary: 'Đăng ký bổ sung',
+            not_registered: 'Chưa đăng ký (có quét thẻ)',
+        };
+
+        const today = new Date();
+        const isThisMonth = (today.getFullYear() === y && today.getMonth() + 1 === m);
+
+        const grid = document.createElement('div');
+        grid.className = 'mh-cal';
+
+        ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].forEach(function (t) {
+            const h = document.createElement('div');
+            h.className = 'mh-cal-head';
+            h.textContent = t;
+            grid.appendChild(h);
+        });
+
+        for (let i = 0; i < startIdx; i++) {
+            const blank = document.createElement('div');
+            blank.className = 'mh-day blank';
+            grid.appendChild(blank);
+        }
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const cell = document.createElement('div');
+            cell.className = 'mh-day';
+            const col = (startIdx + d - 1) % 7;
+            if (col >= 5) cell.classList.add('weekend');
+            if (isThisMonth && d === today.getDate()) cell.classList.add('today');
+
+            const info = byDay[d];
+            if (info) {
+                cell.classList.add('reg');
+                if (info.attended) cell.classList.add('att');
+                if (info.kind === 'supplementary') cell.classList.add('supp');
+                if (info.kind === 'not_registered') cell.classList.add('noreg');
+                cell.title = KIND_LABEL[info.kind] +
+                             (info.meals.length ? ' · ' + info.meals.join(', ') : '') +
+                             (info.qty ? ' · ' + info.qty + ' suất' : '') +
+                             ' · ' + (info.attended ? 'Đã điểm danh' : 'Chưa điểm danh');
+            }
+
+            const num = document.createElement('div');
+            num.className = 'dnum';
+            num.textContent = d;
+            cell.appendChild(num);
+
+            if (info) {
+                const desc = document.createElement('div');
+                desc.className = 'mh-meal';
+                if (info.kind === 'not_registered') desc.textContent = 'Chưa ĐK';
+                else if (info.kind === 'supplementary') desc.textContent = 'Bổ sung';
+                else desc.textContent = info.meals.join(', ');
+                if (desc.textContent) cell.appendChild(desc);
+
+                const qty = document.createElement('span');
+                qty.className = 'mh-qty';
+                qty.textContent = info.kind === 'not_registered'
+                    ? '✓ có ăn'
+                    : (info.attended ? '✓ ' : '') + info.qty + ' suất';
+                cell.appendChild(qty);
+            }
+            grid.appendChild(cell);
+        }
+
+        mhBody.innerHTML = '';
+        mhBody.appendChild(grid);
+
+        const legend = document.createElement('div');
+        legend.className = 'mh-legend mt-3';
+        legend.innerHTML =
+            '<span><span class="dot" style="background:#eef2ff;border-color:#c7d2fe"></span>Đặt cơm (chưa điểm danh)</span>' +
+            '<span><span class="dot" style="background:#ecfdf5;border-color:#a7f3d0"></span>Đã điểm danh</span>' +
+            '<span><span class="dot" style="background:#fff7ed;border-color:#fed7aa"></span>Đăng ký bổ sung</span>' +
+            '<span><span class="dot" style="background:#fef2f2;border-color:#fecaca"></span>Chưa đăng ký (có quét thẻ)</span>' +
+            '<span><span class="dot" style="background:#fff"></span>Không đặt</span>';
+        mhBody.appendChild(legend);
+
+        if (!data.rows.length) {
+            const empty = document.createElement('div');
+            empty.className = 'text-muted small text-center pt-3';
+            empty.textContent = 'Không có ngày đặt cơm nào trong ' + data.month_display.toLowerCase() + '.';
+            mhBody.appendChild(empty);
+        }
+    }
+
+    function loadMealHistory() {
+        if (!mhUserId) return;
+        mhBody.innerHTML = '<div class="text-muted small text-center py-4">Đang tải...</div>';
+        mhSummary.innerHTML = '';
+        fetch('/users/' + mhUserId + '/meal-history/?month=' + encodeURIComponent(mhMonth.value),
+              { headers: { 'Accept': 'application/json' } })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (!data || !data.success) {
+                    mhBody.innerHTML = '<div class="text-danger small text-center py-4">Không tải được dữ liệu.</div>';
+                    return;
+                }
+                mhSubtitle.textContent = data.full_name +
+                    (data.employee_code ? ' · Mã NV ' + data.employee_code : '') +
+                    ' · ' + data.month_display;
+
+                mhSummary.innerHTML =
+                    statCard('Số ngày đặt cơm', data.summary.days, '#2563eb') +
+                    statCard('Tổng suất', data.summary.total_quantity, '#7c3aed') +
+                    statCard('Ngày đã điểm danh', data.summary.attended_days, '#16a34a') +
+                    statCard('Bổ sung / Chưa ĐK',
+                             (data.summary.supplementary_days || 0) + ' / ' +
+                             (data.summary.not_registered_days || 0), '#ea580c');
+
+                if (data.note) {
+                    mhBody.innerHTML = '<div class="text-muted small text-center py-4">' + data.note + '</div>';
+                    return;
+                }
+                renderCalendar(data);
+            })
+            .catch(() => {
+                mhBody.innerHTML = '<div class="text-danger small text-center py-4">Lỗi kết nối.</div>';
+            });
+    }
+
+    document.querySelectorAll('.btn-meal-history').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            mhUserId = this.dataset.userId;
+            mhSubtitle.textContent = this.dataset.userName;
+            mhMonth.value = thisMonthStr();
+            bootstrap.Modal.getOrCreateInstance(mhModalEl).show();
+            loadMealHistory();
+        });
+    });
+
+    if (mhMonth) mhMonth.addEventListener('change', loadMealHistory);
+    document.getElementById('mh-prev').addEventListener('click', function () {
+        mhMonth.value = shiftMonth(mhMonth.value || thisMonthStr(), -1);
+        loadMealHistory();
+    });
+    document.getElementById('mh-next').addEventListener('click', function () {
+        mhMonth.value = shiftMonth(mhMonth.value || thisMonthStr(), 1);
+        loadMealHistory();
     });
 });
 </script>
