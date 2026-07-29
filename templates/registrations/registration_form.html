@@ -435,6 +435,19 @@
         tbody.lastElementChild.querySelector('.row-emp-code').focus();
     });
 
+    // Bấm vào ô số suất -> tự bôi đen sẵn để gõ đè số mới cho nhanh.
+    function isQtyInput(el) {
+        return el.classList &&
+            (el.classList.contains('row-qty') || el.classList.contains('guest-qty'));
+    }
+    document.addEventListener('focusin', function (e) {
+        if (isQtyInput(e.target)) e.target.select();
+    });
+    // Chặn mouseup đặt lại con trỏ (nếu không sẽ bỏ vùng bôi đen vừa select).
+    document.addEventListener('mouseup', function (e) {
+        if (isQtyInput(e.target)) e.preventDefault();
+    });
+
     // ===== Khách ngoài =====
     const guestTbody = document.getElementById('guest-rows');
     const guestWrap = document.getElementById('guest-table-wrap');
