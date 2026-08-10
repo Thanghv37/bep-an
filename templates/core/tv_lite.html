@@ -644,8 +644,11 @@ document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') window.location.href = "{% url 'dashboard' %}";
 });
 
-/* Reload mỗi 30 phút để xả bộ nhớ renderer Tizen (giãn ra để 1 lần mở khóa nhạc dùng được lâu) */
-setTimeout(function(){ window.location.reload(); }, 30 * 60 * 1000);
+/* Reload định kỳ để xả bộ nhớ renderer Tizen — reload = mất quyền phát nhạc
+   (trình duyệt TV khoá autoplay lại, phải bấm remote mở khoá), nên giãn ra
+   1 tiếng 30 phút để 1 lần mở khoá dùng được lâu.
+   ĐỪNG bỏ hẳn reload: đây là cách đáng tin nhất tránh "Render process has crashed". */
+setTimeout(function(){ window.location.reload(); }, 90 * 60 * 1000);
 </script>
 
 </body>
