@@ -170,6 +170,22 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'
 
 # =========================
+# THỜI HẠN PHIÊN ĐĂNG NHẬP
+# =========================
+# Giữ đăng nhập 30 ngày (mặc định Django là 14 ngày).
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 30
+
+# Gia hạn lại 30 ngày MỖI LẦN user vào web (mặc định False = đếm từ lúc đăng
+# nhập, dùng hàng ngày vẫn bị đá ra đúng ngày thứ 14). Bật True nên người dùng
+# thường xuyên gần như không phải đăng nhập lại; chỉ ai nghỉ hẳn 30 ngày mới hết.
+# Đánh đổi: mỗi request ghi lại 1 dòng bảng django_session — chấp nhận được ở
+# quy mô vài trăm người.
+SESSION_SAVE_EVERY_REQUEST = True
+
+# Tắt trình duyệt KHÔNG đăng xuất (để nhân viên không phải nhập OTP lại).
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+# =========================
 # LOGGING
 # =========================
 # Mặc định Django (DEBUG=False) chỉ gửi traceback 500 qua mail_admins —
