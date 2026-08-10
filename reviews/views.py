@@ -195,10 +195,13 @@ def review_dashboard(request):
         monthrange(selected_year, selected_month)[1]
     )
 
+    # Đếm riêng số lượt đánh giá và số lượt CÓ bình luận (comment khác rỗng).
+    # exclude khoảng trắng: comment chỉ toàn space không tính là bình luận.
     month_stats = MealReview.objects.filter(
         date__range=(month_start, month_end)
     ).values('date').annotate(
-        review_count=Count('id')
+        review_count=Count('id'),
+        comment_count=Count('id', filter=~Q(comment='') & Q(comment__regex=r'\S')),
     )
 
     month_stats_map = {
@@ -220,6 +223,7 @@ def review_dashboard(request):
             'is_selected': current_date == selected_date,
             'can_review': can_review_date(current_date),
             'review_count': item['review_count'] if item else 0,
+            'comment_count': item['comment_count'] if item else 0,
             'has_review': bool(item and item['review_count'] > 0),
         })
 

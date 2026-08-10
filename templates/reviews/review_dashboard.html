@@ -56,7 +56,12 @@
                 <div class="review-day-stars text-success fw-bold">
                     <i class="bi bi-check-circle-fill"></i> Đã đánh giá
                 </div>
-                <div class="review-day-count">{{ day.review_count }} lượt</div>
+                <div class="review-day-count">{{ day.review_count }} đánh giá</div>
+                {% if day.comment_count %}
+                    <div class="review-day-comment">
+                        <i class="bi bi-chat-left-text-fill"></i> {{ day.comment_count }} bình luận
+                    </div>
+                {% endif %}
             {% else %}
                 <div class="review-day-empty">Chưa có đánh giá</div>
             {% endif %}
@@ -652,6 +657,14 @@
 
 .review-day-count {
     font-size: 10px;
+}
+
+/* Số bình luận trong ngày — màu cam để tách khỏi số lượt đánh giá (xanh lá). */
+.review-day-comment {
+    font-size: 10px;
+    font-weight: 700;
+    color: #d97706;
+    margin-top: 1px;
 }
 
 .review-day-empty {
