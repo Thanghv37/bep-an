@@ -306,12 +306,26 @@
                     <div class="tab-pane fade p-4" id="pending-pane" role="tabpanel" tabindex="0">
                         <div class="alert alert-warning small py-2 mb-3">
                             Danh sách người <strong>đã đăng ký</strong> nhưng <strong>chưa được gửi tin</strong>
-                            (chưa có bản ghi nào trong log). Bấm "Gửi tin nhắn" lại để gửi cho nhóm này.
+                            (chưa có bản ghi nào trong log). Thường là người được thêm vào
+                            <em>sau</em> khi đã gửi đợt trước — tick chọn rồi bấm
+                            <strong>"Gửi cho người đã chọn"</strong> để gửi bù.
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center gap-2 mb-2 flex-wrap">
+                            <div class="small text-muted">
+                                Đã chọn: <span class="fw-bold text-dark" id="pending-selected-count">0</span> người
+                            </div>
+                            <button type="button" class="btn btn-warning btn-sm fw-bold" id="btn-send-pending" disabled>
+                                <i class="bi bi-send-fill"></i> Gửi cho người đã chọn
+                            </button>
                         </div>
                         <div class="table-responsive">
                             <table class="table table-hover align-middle">
                                 <thead class="table-light">
                                     <tr>
+                                        <th style="width: 42px;" class="text-center">
+                                            <input type="checkbox" class="form-check-input" id="pending-check-all"
+                                                   title="Chọn tất cả người gửi được">
+                                        </th>
                                         <th style="width: 120px;">Mã NV</th>
                                         <th>Họ tên</th>
                                     </tr>
@@ -696,6 +710,13 @@
         const logFailedCount = document.getElementById('log-failed-count');
         const logPendingCount = document.getElementById('log-pending-count');
 
+        // Tên người do dữ liệu nhập vào — chèn thẳng vào innerHTML nên phải escape.
+        function escapeHtml(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
         function fetchNotificationLogs() {
             const d = logDateInput.value;
             if (!d) return;
@@ -758,23 +779,37 @@
                             });
                         }
 
-                        // Render danh sách chưa gửi
+                        // Render danh sách chưa gửi (có ô tick để gửi bù)
                         const pendingTbody = document.getElementById('log-pending-tbody');
                         if (pendingTbody) {
                             pendingTbody.innerHTML = '';
                             const pending = data.pending || [];
                             if (pending.length === 0) {
-                                pendingTbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted py-3">Mọi người đã được gửi.</td></tr>';
+                                pendingTbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">Mọi người đã được gửi.</td></tr>';
                             } else {
                                 pending.forEach(p => {
+                                    const name = p.full_name
+                                        ? escapeHtml(p.full_name)
+                                        : '<span class="text-muted fst-italic">(chưa có tên)</span>';
+                                    // Không có tài khoản NetChat (khách ngoài EXT-...) thì không
+                                    // gửi được — khoá ô tick + ghi chú, tránh bấm gửi vô ích.
+                                    const cell = p.can_send
+                                        ? `<input type="checkbox" class="form-check-input pending-checkbox"
+                                                  value="${escapeHtml(p.employee_code)}">`
+                                        : `<i class="bi bi-slash-circle text-muted" title="Không có tài khoản NetChat"></i>`;
+                                    const note = p.can_send
+                                        ? ''
+                                        : ' <span class="badge bg-secondary-subtle text-secondary fw-normal">không có NetChat</span>';
                                     pendingTbody.innerHTML += `
                             <tr>
-                                <td class="fw-semibold text-secondary">${p.employee_code}</td>
-                                <td class="fw-bold">${p.full_name || '<span class="text-muted fst-italic">(chưa có tên)</span>'}</td>
+                                <td class="text-center">${cell}</td>
+                                <td class="fw-semibold text-secondary">${escapeHtml(p.employee_code)}</td>
+                                <td class="fw-bold">${name}${note}</td>
                             </tr>
                         `;
                                 });
                             }
+                            syncPendingSelection();
                         }
                     }
                 });
@@ -810,6 +845,7 @@
                     btnSend.classList.remove('opacity-50');
                     btnSend.innerHTML = originalBtnHtml;
                     updateCount();
+                    syncPendingSelection();   // mở lại nút gửi bù ở tab "Chưa gửi"
                     return;
                 }
                 remain -= 1;
@@ -818,15 +854,58 @@
             sendingTimer = setInterval(update, 1000);
         }
 
-        btnSend.addEventListener('click', function () {
-            // Nếu job đang chạy → bỏ qua (nút đã disabled, đây chỉ là double-guard).
-            if (btnSend.disabled || sendingTimer) return;
+        // ===== Tab "Chưa gửi": tick chọn rồi gửi bù =====
+        // Dùng chung API + cơ chế countdown với nút "Gửi tin nhắn" chính, nên
+        // job chạy nền cũng khoá luôn nút này (tránh chạy 2 job chồng nhau).
+        const btnSendPending = document.getElementById('btn-send-pending');
+        const pendingCheckAll = document.getElementById('pending-check-all');
+        const pendingSelectedCount = document.getElementById('pending-selected-count');
 
-            const selectedIds = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
-            if (selectedIds.length === 0) return;
+        function pendingChecked() {
+            return Array.from(document.querySelectorAll('.pending-checkbox:checked'));
+        }
 
-            if (!confirm(`Bạn sẽ gửi tin nhắn báo cơm cho ${selectedIds.length} người. Hệ thống sẽ gửi từ từ 15 người/phút trong nền. Tiếp tục?`)) return;
+        function syncPendingSelection() {
+            if (!btnSendPending) return;
+            const boxes = Array.from(document.querySelectorAll('.pending-checkbox'));
+            const picked = boxes.filter(cb => cb.checked);
+            if (pendingSelectedCount) pendingSelectedCount.textContent = picked.length;
+            // Đang có job gửi chạy nền thì khoá, không cho bắn thêm lệnh.
+            btnSendPending.disabled = picked.length === 0 || !!sendingTimer;
+            if (pendingCheckAll) {
+                pendingCheckAll.checked = boxes.length > 0 && picked.length === boxes.length;
+                pendingCheckAll.indeterminate = picked.length > 0 && picked.length < boxes.length;
+            }
+        }
 
+        if (pendingCheckAll) {
+            pendingCheckAll.addEventListener('change', function () {
+                document.querySelectorAll('.pending-checkbox')
+                    .forEach(cb => { cb.checked = pendingCheckAll.checked; });
+                syncPendingSelection();
+            });
+        }
+        // Delegation vì các dòng được render lại mỗi lần tải log.
+        const pendingTbodyEl = document.getElementById('log-pending-tbody');
+        if (pendingTbodyEl) {
+            pendingTbodyEl.addEventListener('change', function (e) {
+                if (e.target.classList.contains('pending-checkbox')) syncPendingSelection();
+            });
+        }
+
+        if (btnSendPending) {
+            btnSendPending.addEventListener('click', function () {
+                if (btnSendPending.disabled || sendingTimer) return;
+                const ids = pendingChecked().map(cb => cb.value);
+                if (ids.length === 0) return;
+                if (!confirm(`Gửi tin nhắn báo cơm cho ${ids.length} người chưa được gửi. `
+                    + `Hệ thống gửi 15 người/phút trong nền. Tiếp tục?`)) return;
+                sendNotifications(ids, btnSendPending);
+            });
+        }
+
+        // Gửi lệnh cho backend. triggerBtn = nút vừa bấm (để báo lỗi đúng chỗ).
+        function sendNotifications(selectedIds, triggerBtn) {
             const N = selectedIds.length;
             // Ước tính thời gian: mỗi batch 15 người mất ~75s (1.5s/tin * 15 + 60s sleep).
             // Người cuối không cần sleep sau đó. Cộng 15s buffer cho an toàn.
@@ -836,6 +915,14 @@
             btnSend.disabled = true;
             btnSend.classList.add('opacity-50');
             btnSend.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang đẩy lệnh...';
+            if (btnSendPending) btnSendPending.disabled = true;
+
+            function restoreButtons() {
+                btnSend.disabled = false;
+                btnSend.classList.remove('opacity-50');
+                btnSend.innerHTML = originalBtnHtml;
+                syncPendingSelection();
+            }
 
             fetch("{% url 'send_meal_notifications' %}", {
                 method: 'POST',
@@ -854,23 +941,31 @@
                         // Bỏ tick + bắt đầu countdown disable đến hết job.
                         if (checkAll) checkAll.checked = false;
                         rowCheckboxes.forEach(cb => cb.checked = false);
+                        if (pendingCheckAll) {
+                            pendingCheckAll.checked = false;
+                            pendingCheckAll.indeterminate = false;
+                        }
                         setTimeout(fetchNotificationLogs, 1000);
                         startSendingCountdown(estimatedSec, N);
                     } else {
-                        // Lỗi → mở lại nút.
-                        btnSend.disabled = false;
-                        btnSend.classList.remove('opacity-50');
-                        btnSend.innerHTML = originalBtnHtml;
+                        restoreButtons();
                         alert("Lỗi: " + data.message);
                     }
                 })
                 .catch(err => {
                     console.error(err);
-                    btnSend.disabled = false;
-                    btnSend.classList.remove('opacity-50');
-                    btnSend.innerHTML = originalBtnHtml;
+                    restoreButtons();
                     alert("Đã xảy ra lỗi kết nối.");
                 });
+        }
+
+        btnSend.addEventListener('click', function () {
+            // Nếu job đang chạy → bỏ qua (nút đã disabled, đây chỉ là double-guard).
+            if (btnSend.disabled || sendingTimer) return;
+            const selectedIds = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
+            if (selectedIds.length === 0) return;
+            if (!confirm(`Bạn sẽ gửi tin nhắn báo cơm cho ${selectedIds.length} người. Hệ thống sẽ gửi từ từ 15 người/phút trong nền. Tiếp tục?`)) return;
+            sendNotifications(selectedIds, btnSend);
         });
 
         // Restore countdown nếu vào trang lúc job vẫn đang chạy ngầm (state lưu ở SystemConfig).

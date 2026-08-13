@@ -1373,10 +1373,26 @@ def get_notification_logs_api(request):
         if code and code not in registered_names:
             registered_names[code] = r['full_name'] or ''
 
+    pending_codes = [c for c in registered_names if c not in latest_logs]
+
+    # Ai gửi được NetChat = có UserProfile kèm email (username lấy từ email).
+    # Khách ngoài (EXT-...) / người chưa có tài khoản thì không gửi được — đánh
+    # dấu để UI chặn tick, tránh bấm gửi rồi họ vẫn nằm nguyên ở tab "Chưa gửi"
+    # (backend bỏ qua nhóm này và KHÔNG ghi log, xem _send_notifications_bg).
+    sendable = set(
+        UserProfile.objects.filter(
+            employee_code__in=pending_codes
+        ).exclude(email='').exclude(email__isnull=True)
+        .values_list('employee_code', flat=True)
+    )
+
     pending_data = [
-        {'employee_code': code, 'full_name': name}
-        for code, name in registered_names.items()
-        if code not in latest_logs
+        {
+            'employee_code': code,
+            'full_name': registered_names[code],
+            'can_send': code in sendable,
+        }
+        for code in pending_codes
     ]
     pending_data.sort(key=lambda x: x['employee_code'])
     pending_count = len(pending_data)
