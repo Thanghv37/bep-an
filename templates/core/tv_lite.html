@@ -110,7 +110,8 @@ html, body {
 .prog .fill { height: 100%; width: 0; background: linear-gradient(90deg, #06b6d4, #10b981); }
 
 /* Panel 1: week */
-.week { flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; min-height: 0; }
+/* Số cột = số ngày bếp nấu (cấu hình trang Hồ sơ → Ngày làm việc). */
+.week { flex: 1; display: grid; grid-template-columns: repeat({{ work_day_count|default:5 }}, 1fr); gap: 10px; min-height: 0; }
 .day { border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px 10px; display: flex; flex-direction: column; overflow: hidden; }
 .panel.in .day { animation: cardUp .5s ease both; }
 .panel.in .day:nth-child(2) { animation-delay: .25s; } .panel.in .day:nth-child(3) { animation-delay: .5s; }
@@ -291,7 +292,7 @@ html, body {
         <div class="panel active in" data-p="0">
             <div class="ph">
                 <div class="ttl"><span class="ic">📅</span> Thực đơn trong tuần</div>
-                <div class="meta">Thứ 2 → Thứ 6 · HÔM NAY nổi bật</div>
+                <div class="meta">{{ work_day_range_label|default:"Thứ 2 → Thứ 6" }} · HÔM NAY nổi bật</div>
             </div>
             <div class="week">
                 {% for day in week_data %}

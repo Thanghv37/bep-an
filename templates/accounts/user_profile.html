@@ -473,6 +473,36 @@
     </form>
 </div>
 
+<!-- NGÀY LÀM VIỆC TRONG TUẦN (bếp có nấu ngày nào) -->
+<div class="profile-card mt-4 p-4">
+    <div class="d-flex align-items-center gap-2 mb-2">
+        <h5 class="fw-bold mb-0">📆 Ngày làm việc trong tuần</h5>
+    </div>
+    <div class="form-text mb-3" style="font-size: 13px;">
+        Tick những ngày bếp <strong>có nấu cơm</strong>. Mặc định T2–T6; tuần nào
+        đi làm bù Thứ 7 thì tick thêm T7, hệ thống sẽ hiển thị ngày đó ở
+        <strong>Dashboard</strong>, <strong>màn hình TV</strong> và
+        <strong>gợi ý thực đơn tuần sau</strong>. Bỏ tick hết = quay về mặc định T2–T6.
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_work_days">
+        <div class="d-flex flex-wrap gap-2">
+            {% for opt in work_day_options %}
+            <input type="checkbox" class="btn-check" name="work_days"
+                   id="workday-{{ opt.value }}" value="{{ opt.value }}"
+                   autocomplete="off" {% if opt.checked %}checked{% endif %}>
+            <label class="btn btn-outline-primary fw-bold" for="workday-{{ opt.value }}"
+                   title="{{ opt.label }}">{{ opt.short }}</label>
+            {% endfor %}
+        </div>
+        <div class="d-flex gap-2 mt-3 justify-content-end">
+            <button type="submit" class="btn btn-primary fw-bold">Lưu ngày làm việc</button>
+        </div>
+    </form>
+</div>
+
 <!-- CẤU HÌNH TOKEN HỆ THỐNG NHẬN DIỆN -->
 <div class="profile-card mt-4 p-4">
     <div class="d-flex align-items-center gap-2 mb-2">

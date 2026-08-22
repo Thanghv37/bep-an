@@ -228,7 +228,8 @@ html, body {
 .tv-week-grid {
     flex: 1;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    /* Số cột = số ngày bếp nấu (cấu hình trang Hồ sơ → Ngày làm việc). */
+    grid-template-columns: repeat({{ work_day_count|default:5 }}, 1fr);
     gap: 12px;
     min-height: 0;
 }
@@ -919,7 +920,7 @@ audio preload, overlay confetti.) ===
                     <span class="icon-wrap">📅</span>
                     Thực đơn trong tuần
                 </div>
-                <div class="tv-panel-meta">Thứ 2 → Thứ 6 · ngày HÔM NAY nổi bật</div>
+                <div class="tv-panel-meta">{{ work_day_range_label|default:"Thứ 2 → Thứ 6" }} · ngày HÔM NAY nổi bật</div>
             </div>
 
             <div class="tv-week-grid" id="tvWeekGrid">

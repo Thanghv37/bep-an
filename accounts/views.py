@@ -37,6 +37,9 @@ from core.message_templates import (
     render_template,
 )
 from core.models import SystemConfig
+from core.work_days import (
+    WEEKDAY_LABELS, WEEKDAY_SHORT, get_work_days, set_work_days,
+)
 from core.views import BIRTHDAY_AUDIO_KEY, get_birthday_audio_url
 
 from .forms import ImportUserForm, UserCreateForm, UserUpdateForm
@@ -706,6 +709,14 @@ def user_profile(request):
             messages.success(request, f'Đã lưu mẫu tin nhắn {label}.')
             return redirect('user_profile')
 
+        # XỬ LÝ LƯU NGÀY LÀM VIỆC TRONG TUẦN (bếp có nấu ngày nào)
+        if action == 'save_work_days' and is_admin:
+            raw = request.POST.getlist('work_days')
+            saved = set_work_days(raw)
+            labels = ', '.join(WEEKDAY_SHORT[i] for i in saved)
+            messages.success(request, f'Đã lưu ngày làm việc: {labels}.')
+            return redirect('user_profile')
+
         # XỬ LÝ LƯU TOKEN HỆ THỐNG NHẬN DIỆN
         if action == 'save_recognition_config' and is_admin:
             token = request.POST.get('recognition_token', '').strip()
@@ -790,6 +801,18 @@ def user_profile(request):
     config_recognition = SystemConfig.objects.filter(key='recognition_token').first()
     recognition_token = config_recognition.value if config_recognition else ''
 
+    # Ngày làm việc trong tuần — dựng sẵn list cho template render checkbox.
+    selected_work_days = get_work_days()
+    work_day_options = [
+        {
+            'value': i,
+            'short': WEEKDAY_SHORT[i],
+            'label': WEEKDAY_LABELS[i],
+            'checked': i in selected_work_days,
+        }
+        for i in range(7)
+    ]
+
     # Danh sách yêu cầu chuyển suất ăn của user (10 gần nhất, cả 3 trạng thái).
     from registrations.models import MealTransfer
     from datetime import date as _date
@@ -810,6 +833,7 @@ def user_profile(request):
         'msg_templates': msg_templates,
         'ai_config': ai_config,
         'recognition_token': recognition_token,
+        'work_day_options': work_day_options,
         'birthday_audio_url': get_birthday_audio_url(),
         'my_transfers': my_transfers,
         'received_transfers': received_transfers,

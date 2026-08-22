@@ -25,6 +25,9 @@ from .models import (
     MenuPrepOrderItem,
 )
 from core.services.menu_ai import MenuAIService
+from core.work_days import (
+    WEEKDAY_LABELS, get_work_days, work_days_next_week,
+)
 from .forms import DishForm, DailyMenuForm
 from finance.models import DailyPurchase, PurchaseRejectLog, ExtraPurchaseRequest
 from accounts.permissions import (
@@ -323,9 +326,9 @@ def dish_delete(request, pk):
     return redirect('dish_list')
 
 def get_next_week_days():
-    today = timezone.localdate()
-    next_monday = today + timedelta(days=(7 - today.weekday()))
-    return [next_monday + timedelta(days=i) for i in range(5)]
+    """Các ngày bếp nấu của TUẦN SAU — theo cấu hình Ngày làm việc
+    (trang Hồ sơ). Mặc định T2-T6, tuần làm bù thì có thêm T7/CN."""
+    return work_days_next_week(timezone.localdate())
 
 
 def pick_dish(queryset, used_ids, keywords=None):
@@ -377,27 +380,30 @@ def suggest_next_week_menu(request):
         for d in available_dishes_qs
     ]
 
-    # 3. Gọi AI service
+    # 3. Gọi AI service — chỉ xin gợi ý cho đúng những ngày bếp có nấu
+    week_days = get_next_week_days()
+    day_names = [WEEKDAY_LABELS[d.weekday()] for d in week_days]
+
     ai_service = MenuAIService()
-    ai_suggestion = ai_service.suggest_next_week_menu(available_dishes, last_week_text)
-    
+    ai_suggestion = ai_service.suggest_next_week_menu(
+        available_dishes, last_week_text, day_names=day_names)
+
     if not ai_suggestion:
         return JsonResponse({'error': 'AI không thể đưa ra gợi ý lúc này. Vui lòng thử lại.'}, status=500)
 
-    # 4. Map kết quả AI về ngày tháng tuần tới và lưu Draft
-    week_days = get_next_week_days()
-    day_map = {"Thứ 2": 0, "Thứ 3": 1, "Thứ 4": 2, "Thứ 5": 3, "Thứ 6": 4}
-    
+    # 4. Map kết quả AI về ngày tháng tuần tới và lưu Draft.
+    # AI trả tên thứ ("Thứ 2"...), tra ngược ra ngày thật trong tuần sau.
+    date_by_day_name = {WEEKDAY_LABELS[d.weekday()]: d for d in week_days}
+
     response_data = []
-    
+
     # Xóa draft cũ của tuần tới nếu có
     WeeklyMenuDraft.objects.filter(date__in=week_days).delete()
 
     for item in ai_suggestion:
-        offset = day_map.get(item['day'], None)
-        if offset is None: continue
-        
-        target_date = week_days[offset]
+        target_date = date_by_day_name.get(item.get('day'))
+        if target_date is None:
+            continue
         
         # Lưu draft
         WeeklyMenuDraft.objects.create(
@@ -504,7 +510,6 @@ def menu_list(request):
         dish_map_existing = {
             d.id: d for d in Dish.objects.filter(id__in=all_dish_ids)
         }
-        day_names = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6']
         for draft in next_week_drafts:
             dishes_info = []
             for did in draft.dish_ids:
@@ -514,14 +519,16 @@ def menu_list(request):
                         'name': dish.name,
                         'type_display': dish.get_dish_type_display(),
                     })
-            wd = draft.date.weekday()
-            if 0 <= wd <= 4:
-                existing_suggestions.append({
-                    'date': draft.date.strftime('%Y-%m-%d'),
-                    'date_display': draft.date.strftime('%d/%m'),
-                    'day_name': day_names[wd],
-                    'dishes': dishes_info,
-                })
+            existing_suggestions.append({
+                'date': draft.date.strftime('%Y-%m-%d'),
+                'date_display': draft.date.strftime('%d/%m'),
+                'day_name': WEEKDAY_LABELS[draft.date.weekday()],
+                'dishes': dishes_info,
+            })
+    # Lịch tháng hiển thị đủ 7 cột T2..CN; ngày không nằm trong cấu hình
+    # "Ngày làm việc" chỉ bị làm nhạt, vẫn bấm tạo thực đơn được.
+    configured_work_days = get_work_days()
+
     calendar_weeks = []
     for week in month_days:
         week_data = []
@@ -532,6 +539,7 @@ def menu_list(request):
                 'date': day,
                 'date_str': day.strftime('%Y-%m-%d'),
                 'is_current_month': day.month == month,
+                'is_work_day': day.weekday() in configured_work_days,
                 'has_menu': menu is not None,
                 'is_today': day == today,
                 'menu_id': menu.id if menu else None,
@@ -635,6 +643,9 @@ def menu_list(request):
         'month_choices': range(1, 13),
         'year_choices': range(today.year - 2, today.year + 3),
         'existing_suggestions': existing_suggestions,
+        # Chuỗi "Thứ 2, Thứ 3, ..., Thứ 6" để hiển thị AI đang gợi ý ngày nào.
+        'work_days_label': ', '.join(
+            WEEKDAY_LABELS[i] for i in configured_work_days),
     }
     return render(request, 'meals/menu_list.html', context)
 

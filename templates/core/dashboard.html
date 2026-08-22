@@ -720,9 +720,10 @@
     </div>
 </div>
 <style>
+    /* Số cột = số ngày bếp nấu (cấu hình ở trang Hồ sơ → Ngày làm việc). */
     #weekly-menu-section .week-menu-grid {
         display: grid !important;
-        grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+        grid-template-columns: repeat({{ work_day_count|default:5 }}, minmax(0, 1fr)) !important;
         gap: 10px !important;
         width: 100% !important;
     }

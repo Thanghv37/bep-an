@@ -30,6 +30,9 @@ from .models import (
     AttendanceLog, RecognitionHeartbeat, CameraStatusLog, SystemConfig,
     AttendanceCapture, BirthdayGreetingLog,
 )
+from .work_days import (
+    WEEKDAY_LABELS, get_work_days, work_days_of_week,
+)
 from accounts.models import UserProfile
 from django.utils.dateparse import parse_datetime
 from django.core.files.storage import default_storage
@@ -199,11 +202,10 @@ def _render_dashboard(request, template_name):
     balance_food_data = []
     balance_spice_data = []
 
-    # Xác định thứ 2 của tuần chứa selected_date
-    start_of_week = selected_date - timedelta(days=selected_date.weekday())
-
-    # Chỉ hiển thị 5 ngày làm việc: thứ 2 -> thứ 6
-    week_days = [start_of_week + timedelta(days=i) for i in range(5)]
+    # Ngày làm việc trong tuần lấy từ cấu hình (trang Hồ sơ → Ngày làm việc).
+    # Mặc định T2-T6; tuần nào đi làm bù T7 thì admin tick thêm, ở đây tự có.
+    configured_work_days = get_work_days()
+    week_days = work_days_of_week(selected_date, configured_work_days)
 
     # Chi phí cả tuần, tách theo phân loại để vẽ chart
     purchase_food_map = {}
@@ -223,13 +225,7 @@ def _render_dashboard(request, template_name):
         date__range=(week_days[0], week_days[-1]),status=DailyMenu.STATUS_APPROVED
     ).annotate(item_count=Count('items')).prefetch_related('items__dish')
     week_menu_map = {m.date: m for m in week_menus_queryset}
-    weekday_labels = {
-        0: 'Thứ 2',
-        1: 'Thứ 3',
-        2: 'Thứ 4',
-        3: 'Thứ 5',
-        4: 'Thứ 6',
-    }
+    weekday_labels = WEEKDAY_LABELS
     profile = getattr(request.user, 'profile', None)
 
     if profile and profile.employee_code:
@@ -374,6 +370,14 @@ def _render_dashboard(request, template_name):
         'week_menu_cards': week_menu_cards,
         'purchase_list': purchases_today,
         'week_data': week_data,
+        # Số cột lưới "Thực đơn trong tuần" — co giãn theo số ngày bếp nấu.
+        'work_day_count': len(week_days),
+        # Nhãn kiểu "Thứ 2 → Thứ 7" cho phần meta của trang TV.
+        'work_day_range_label': (
+            f'{WEEKDAY_LABELS[week_days[0].weekday()]} → '
+            f'{WEEKDAY_LABELS[week_days[-1].weekday()]}'
+            if week_days else ''
+        ),
         'birthday_audio_url': get_birthday_audio_url(),
     }
     return render(request, template_name, context)

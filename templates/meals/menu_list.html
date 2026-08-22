@@ -10,7 +10,13 @@
         <div>
             <div class="section-title mb-1">🤖 Gợi ý thực đơn tuần sau</div>
             <div class="section-subtitle">
-                Hệ thống đề xuất thực đơn từ Thứ 2 đến Thứ 6 dựa trên món có sẵn.
+                Hệ thống đề xuất thực đơn cho các ngày làm việc
+                ({{ work_days_label|default:"Thứ 2, Thứ 3, Thứ 4, Thứ 5, Thứ 6" }})
+                dựa trên món có sẵn.
+                <br>
+                <span class="text-muted" style="font-size: 12px;">
+                    Đổi ngày làm việc trong tuần ở trang <strong>Hồ sơ → 📆 Ngày làm việc trong tuần</strong>.
+                </span>
             </div>
         </div>
 
@@ -66,7 +72,7 @@
     </div>
 
     <div class="table-responsive">
-        <table class="table align-middle text-center mb-0 menu-calendar" style="table-layout: fixed; min-width: 640px;">
+        <table class="table align-middle text-center mb-0 menu-calendar" style="table-layout: fixed; min-width: 900px;">
             <thead>
                 <tr>
                     <th>Thứ 2</th>
@@ -74,13 +80,15 @@
                     <th>Thứ 4</th>
                     <th>Thứ 5</th>
                     <th>Thứ 6</th>
+                    <th class="menu-cal-th-off">Thứ 7</th>
+                    <th class="menu-cal-th-off">Chủ nhật</th>
                 </tr>
             </thead>
             <tbody>
                 {% for week in calendar_weeks %}
                 <tr>
-                    {% for day in week|slice:":5" %}
-                    <td style="padding: 10px;">
+                    {% for day in week %}
+                    <td style="padding: 10px;" {% if not day.is_work_day %}class="menu-cal-td-off"{% endif %}>
                         {% if day.is_current_month %}
                             {% if day.has_menu %}
                                 <a href="{% url 'menu_list' %}?focus_date={{ day.date_str }}#menu-detail-section" style="text-decoration: none; color: inherit;">
@@ -635,6 +643,18 @@
         font-size: 10px;
         line-height: 1.25;
     }
+}
+
+/* Ngày KHÔNG nằm trong "Ngày làm việc" (cấu hình ở trang Hồ sơ) — vẫn bấm tạo
+   thực đơn được, chỉ làm nhạt để phân biệt với ngày bếp nấu thường xuyên. */
+.menu-cal-th-off {
+    color: #94a3b8;
+}
+.menu-cal-td-off .menu-cal-day {
+    opacity: 0.62;
+}
+.menu-cal-td-off .menu-cal-day:hover {
+    opacity: 1;
 }
 </style>
 
